@@ -707,7 +707,53 @@ async fn execute_http_request<T: crate::sink::StreamTokenLike>(
                     }
                 }
             }
-            HttpFormat::Raw => eprintln!("[HttpSource] Raw decoder not implemented yet"),
+            HttpFormat::Raw => {
+                // Raw: read the entire response body and emit it as a single
+                // (non-streaming) message. Mirrors the NDJSON emit path:
+                // optional json_tap extraction, optional transform, then publish.
+                match response.bytes().await {
+                    Ok(body) => {
+                        let final_data = if let Some(ref tap) = json_tap {
+                            apply_json_tap(body, tap)
+                        } else {
+                            body
+                        };
+
+                        if !final_data.is_empty() {
+                            // Apply transform to response data (enrich, filter, classify)
+                            let emit_data = if let Some(ref tf) = transform_fn {
+                                tf(&final_data).map(bytes::Bytes::from)
+                            } else {
+                                Some(final_data)
+                            };
+
+                            if let Some(data) = emit_data {
+                                let msg = T::from_ndjson_line_shm(data, session_id, &world);
+                                let _ = world.publish_value(
+                                    runtime_process.id(),
+                                    out_port,
+                                    msg,
+                                );
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "[HttpSource] Raw body error for session {}: {:?}",
+                            session_id, err
+                        );
+                        // CORE PRIMITIVE: emit Error signal immediately on body error
+                        if let Some(ctrl_port) = ctrl_out_port {
+                            let _ = world.publish_value(
+                                runtime_process.id(),
+                                ctrl_port,
+                                ControlSignal::error(session_id, 502, "Body Read Failed"),
+                            );
+                        }
+                        return; // early return
+                    }
+                }
+            }
         },
         Err(err) => {
             eprintln!(
