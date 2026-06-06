@@ -30,13 +30,13 @@ These issues are designed to help new contributors get familiar with the VIL cod
 
 ### 4. Create a "Hello Pipeline" minimal example
 **Labels**: `good first issue`, `example`
-**File**: `examples/002-hello-pipeline/`
+**File**: `examples/003-basic-hello-server/`
 **Task**: Create the simplest possible VIL pipeline — just two nodes exchanging a message. Use Layer 1 API (`vil_sdk::http_gateway()`).
-**Acceptance**: `cargo run --example hello-pipeline` produces output.
+**Acceptance**: `cargo run --example 003-basic-hello-server` produces output.
 
 ### 5. Create a fan-out example
 **Labels**: `good first issue`, `example`
-**File**: `examples/003-fanout-demo/`
+**File**: `examples/046-basic-mesh-scatter-gather/`
 **Task**: Demonstrate one-to-many message broadcasting using VIL's Tri-Lane protocol.
 **Acceptance**: Shows messages being sent to multiple consumers.
 
@@ -64,7 +64,7 @@ These issues are designed to help new contributors get familiar with the VIL cod
 
 ### 9. Add connection timeout to `HttpSourceBuilder`
 **Labels**: `good first issue`, `enhancement`
-**File**: `crates/vil_http/src/source.rs`
+**File**: `crates/vil_new_http/src/source.rs`
 **Task**: Add a configurable connection timeout (default 30s) to `HttpSourceBuilder` so the source doesn't hang indefinitely when the upstream is down.
 **Acceptance**: Builder has `.timeout(Duration)` method; connection fails fast when upstream is unreachable.
 
@@ -78,10 +78,10 @@ These issues are designed to help new contributors get familiar with the VIL cod
 
 ## Testing
 
-### 11. Add integration test for `vil new` templates
+### 11. Add integration test for `vil init` templates
 **Labels**: `good first issue`, `test`
 **File**: `crates/vil_cli/tests/`
-**Task**: Write a test that runs `vil new` for each template and verifies the generated project compiles with `cargo check`.
+**Task**: Write a test that runs `vil init` for each template and verifies the generated project compiles with `cargo check`.
 **Acceptance**: `cargo test -p vil_cli` passes with template generation tests.
 
 ### 12. Add benchmark for SHM allocator
@@ -106,11 +106,9 @@ These issues are designed to help new contributors get familiar with the VIL cod
 **Task**: Create a Tower Layer that rejects requests with body larger than configurable limit. Return 413 Payload Too Large.
 **Acceptance**: Requests exceeding limit are rejected with proper error response.
 
-### 15. Implement `vil_db_mongodb` plugin
+### 15. Implement `vil_db_mongodb` plugin ✅ DONE
 **Labels**: `good first issue`, `vil-server`, `database`
-**File**: New crate `crates/vil_db_mongodb/`
-**Task**: Implement `DbPool` trait from `vil_server_db` using the `mongodb` crate. Include connection pooling and health check.
-**Acceptance**: MongoDB plugin connects, queries, and reports health via `/admin/plugins`.
+**Status**: Already implemented as `vil_db_mongo` (Phase 1). No action needed — kept for historical reference.
 
 ### 16. Write benchmark: vil-server vs Actix-web
 **Labels**: `good first issue`, `vil-server`, `performance`

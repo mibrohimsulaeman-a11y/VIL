@@ -1,6 +1,6 @@
 # VIL Documentation
 
-**Version:** 5.1.0
+**Version:** v0.4.0
 **License:** Apache-2.0
 **GitHub:** https://github.com/OceanOS-id/VIL
 
@@ -30,24 +30,16 @@ VIL Source Code
 ### Just Getting Started?
 1. **[Quick Start](./QUICK_START.md)** — Build your first pipeline (10 min)
 2. **[Installation](./INSTALLATION.md)** — Setup for Linux, macOS, Docker
-3. **[Examples](./EXAMPLES.md)** — 18 runnable examples
+3. **[Examples](./EXAMPLES.md)** — 119 runnable examples
 
 ### VIL (Language)
 - **[VIL Concept](./vil/VIL_CONCEPT.md)** — 10 immutable design principles
-- **[Developer Guide](./vil/VIL-Developer-Guide.md)** — complete language reference
+- **[Developer Guide (11 parts)](./vil/001-VIL-Developer_Guide-Overview.md)** — complete language reference
 - **[Architecture Overview](./ARCHITECTURE_OVERVIEW.md)** — layered system design
 
 ### vil-server (Standalone)
-- **[Getting Started](./tutorials/tutorial-getting-started-server.md)** — from zero to running
 - **[Developer Guide](./vil-server/vil-server-guide.md)** — full feature reference
-- **[Production Guide](./tutorials/tutorial-production-server.md)** — Docker, Kubernetes
 - **[API Reference](./vil-server/API-REFERENCE-SERVER.md)** — per-module docs
-
-### Tutorials
-1. [Hello Pipeline](./tutorials/tutorial-01-hello-pipeline.md)
-2. [Custom Nodes](./tutorials/tutorial-02-custom-nodes.md)
-3. [Tri-Lane Deep Dive](./tutorials/tutorial-03-trilane.md)
-4. [Production Deployment](./tutorials/tutorial-04-production.md)
 
 ### Observability
 - **[Observer Dashboard](./vil/010-VIL-Developer_Guide-Observer-Dashboard.md)** — embedded dashboard, SLO budget, alerting, Prometheus export
@@ -64,21 +56,19 @@ VIL Source Code
 ### Developer (Write Services)
 | Start Here | Then | Deep Dive |
 |-----------|------|-----------|
-| [Quick Start](./QUICK_START.md) | [Examples](./EXAMPLES.md) | [Developer Guide](./vil/VIL-Developer-Guide.md) |
+| [Quick Start](./QUICK_START.md) | [Examples](./EXAMPLES.md) | [Developer Guide (11 parts)](./vil/001-VIL-Developer_Guide-Overview.md) |
 
 ### Ops (Deploy Services)
 | vil-server |
 |-------------|
 | `cargo build` → run binary |
-| [Production Guide](./tutorials/tutorial-production-server.md) |
 
 ### Architect (Design Systems)
 | Document | Focus |
 |----------|-------|
 | [VIL Concept](./vil/VIL_CONCEPT.md) | Design principles |
 | [Architecture](./ARCHITECTURE_OVERVIEW.md) | System layers |
-| [Design Doc](../docs-deliverables/DESIGN-VX-process-oriented-server.md) | Architecture decisions |
 
 ---
 
-**Version:** 5.1.0 | **License:** Apache-2.0 | **Tests:** 166 | **Crates:** 22+
+**Version:** v0.4.0 | **License:** Apache-2.0 | **Tests:** 1612 | **Crates:** 172

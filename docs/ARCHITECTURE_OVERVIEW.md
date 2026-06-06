@@ -1,6 +1,6 @@
 # VIL Architecture Overview
 
-**142 crates** | **112 examples** | **1,425+ tests** | **12 protocols** | **3 execution modes**
+**172 crates** | **119 examples** | **1,612+ tests** | **12 protocols** | **3 execution modes**
 **License:** MIT OR Apache-2.0 | **Repository:** [github.com/OceanOS-id/VIL](https://github.com/OceanOS-id/VIL)
 
 ---
@@ -44,7 +44,7 @@ Each layer builds on the one below without modifying its contracts.
 
 ---
 
-## 2. Crate Taxonomy (11 Layers, 142 Crates)
+## 2. Crate Taxonomy (11 Layers, 172 Crates)
 
 ### Layer A: Runtime Substrate
 
@@ -221,7 +221,7 @@ Full benchmark: [examples/BENCHMARK_REPORT.md](../examples/BENCHMARK_REPORT.md)
 | [vil-server Guide](./vil-server/vil-server-guide.md) | Server framework reference |
 | [API Reference](./vil-server/API-REFERENCE-SERVER.md) | Per-module API documentation |
 | [Quick Start](./QUICK_START.md) | Getting started |
-| [Examples](./EXAMPLES.md) | 93 runnable examples |
+| [Examples](./EXAMPLES.md) | 119 runnable examples |
 | [Changelog](./CHANGELOG.md) | Release history |
 
 ---

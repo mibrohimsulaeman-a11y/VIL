@@ -2,9 +2,9 @@
 
 > Last updated: 2026-04-03
 
-## Current State (v0.1.0)
+## Current State (v0.4.0)
 
-VIL ships with **102 crates** and **63 examples** covering:
+VIL ships with **172 crates** and **119 examples** covering:
 
 ### Core Runtime & Compiler
 vil_types, vil_shm, vil_queue, vil_registry, vil_rt, vil_obs, vil_net, vil_engine, vil_tensor_shm, vil_consensus, vil_operator, vil_ir, vil_diag, vil_validate, vil_macros, vil_codegen_rust, vil_codegen_c, vil_ai_compiler

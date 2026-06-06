@@ -10,7 +10,7 @@ Pick the file matching the user's question. Each file is self-contained.
 ### Quickstart
 | File | Description | Keywords |
 |------|-------------|----------|
-| [quickstart/what-is-vil.md](quickstart/what-is-vil.md) | What VIL is, 130+ crates, 83 examples, 9 SDK languages, patterns, key types | overview, introduction, architecture, crates |
+| [quickstart/what-is-vil.md](quickstart/what-is-vil.md) | What VIL is, 172 crates, 119 examples, 9 SDK languages, patterns, key types | overview, introduction, architecture, crates |
 | [quickstart/hello-server.md](quickstart/hello-server.md) | Minimal VilApp hello server | getting started, first server, hello world |
 | [quickstart/hello-pipeline.md](quickstart/hello-pipeline.md) | Minimal vil_workflow! pipeline | getting started, first pipeline, workflow |
 

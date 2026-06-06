@@ -15,8 +15,8 @@
 <p align="center">
   <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/libraries-Apache--2.0%20%2F%20MIT-blue" alt="Libraries License"></a>
   <a href="LICENSE-VSAL"><img src="https://img.shields.io/badge/runtime-VSAL-orange" alt="Runtime License"></a>
-  <img src="https://img.shields.io/badge/crates-171-green" alt="Crates">
-  <img src="https://img.shields.io/badge/examples-234-orange" alt="Examples">
+  <img src="https://img.shields.io/badge/crates-172-green" alt="Crates">
+  <img src="https://img.shields.io/badge/examples-119-orange" alt="Examples">
   <img src="https://img.shields.io/badge/built--in_FaaS-20-cyan" alt="FaaS">
   <img src="https://img.shields.io/badge/v0.4.0-latest-brightgreen" alt="Version">
 </p>
@@ -139,7 +139,7 @@ At c=200 concurrency, WASM **exceeds** NativeCode (25K vs 24.6K) due to dedicate
 | **AI Plugins** | 51 crates | LLM, RAG, Agent, embeddings, vector DB |
 | **Observability** | vil_log, vil_observer, vil_otel | Semantic log, dashboard, Prometheus, OpenTelemetry |
 
-**171 crates** | **234 examples** | **20 built-in FaaS** | **13 triggers** | **30 connectors**
+**172 crates** | **119 examples** | **20 built-in FaaS** | **13 triggers** | **30 connectors**
 
 ## Examples (9 Tiers)
 
