@@ -19,7 +19,7 @@
 
 ## Phase 2 — Commit Everything Locally
 
-**VIL repo** (`/home/abraham/Prdmid/vil-project/vil`):
+**VIL repo**:
 
 Already stacked (no action):
 - [ ] `dd0e32c release: v0.4.0 — licensing restructure + bench infra + vastar sweep`
@@ -40,7 +40,7 @@ git add Dockerfile Dockerfile.slim docker-compose.yml docker/ scripts/docker-pub
 git commit -m "release(0.4.0): Docker image + sample bundles + CHANGELOG + release checklist"
 ```
 
-**Website repo** (`/home/abraham/Vastar-Publication/website-vastar-id`):
+**Website repo**:
 
 Uncommitted changes:
 - [ ] Locale stripping (ar/ja/tr removed)
@@ -60,13 +60,13 @@ git commit -m "release(0.4.0): website overhaul — VSAL prominence, Docker Quic
 
 ```bash
 # VIL repo
-cd ~/Prdmid/vil-project/vil
+cd <vil-repo>
 git tag -a v0.4.0 -m "VIL v0.4.0 — licensing restructure + Docker + provisionable"
 git push origin main
 git push origin v0.4.0          # triggers .github/workflows/release-samples.yml
 
 # Website repo
-cd ~/Vastar-Publication/website-vastar-id
+cd <website-repo>
 git push origin main
 ```
 
@@ -87,7 +87,7 @@ Manually create the release or update the auto-created one:
 ## Phase 5 — Docker Hub Push
 
 ```bash
-cd ~/Prdmid/vil-project/vil
+cd <vil-repo>
 
 # One-time setup (skip if already done)
 docker run --privileged --rm tonistiigi/binfmt --install all
@@ -125,7 +125,7 @@ docker buildx build \
 ## Phase 7 — Publish Apache/MIT Crates to crates.io
 
 ```bash
-cd ~/Prdmid/vil-project/vil
+cd <vil-repo>
 cargo login                        # one-time
 ./scripts/publish-all.sh --dry-run # ALL 165 Apache/MIT crates dry-run
 ./scripts/publish-all.sh           # live publish

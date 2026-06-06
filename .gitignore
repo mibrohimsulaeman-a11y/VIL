@@ -38,6 +38,7 @@ tarpaulin-report.html
 docs-internal/
 docs-marketing/
 docs-dev/
+docs-dev-jangan-ditrack/
 # scripts/ is ignored by default for local dev scripts, but release-relevant
 # scripts are explicitly allowlisted below
 scripts/*

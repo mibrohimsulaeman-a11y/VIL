@@ -6,7 +6,7 @@ This guide covers installation and setup of VIL for different platforms and use 
 
 ### System Requirements
 - **OS**: Linux (primary), macOS, Windows (experimental)
-- **Rust**: 1.70 or later (MSRV)
+- **Rust**: 1.93.1 or later (MSRV)
 - **RAM**: 4GB minimum (8GB+ recommended for large pipelines)
 - **CPU**: Multi-core processor recommended
 
@@ -313,7 +313,7 @@ cargo test --workspace --release
 
 ### Build Docker Image
 ```dockerfile
-FROM rust:1.70-bookworm
+FROM rust:1.93.1-bookworm
 
 RUN apt-get update && apt-get install -y \
     build-essential \
