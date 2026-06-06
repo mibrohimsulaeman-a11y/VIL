@@ -1,8 +1,10 @@
 # cargo-deny configuration
 # https://embarkstudios.github.io/cargo-deny/
 #
-# Remaining advisories are all transitive deps locked by upstream.
-# Tracked in docs-dev/dependency-audit-2026-03-29.md
+# Remaining advisories are all transitive deps locked by upstream and cannot be
+# bumped until upstream ships fixes; each entry below is annotated inline with the
+# affected crate + reason. This [advisories].ignore list is the single source of
+# truth -- keep .github/workflows/ci.yml (cargo audit --ignore ...) in sync.
 
 [advisories]
 ignore = [

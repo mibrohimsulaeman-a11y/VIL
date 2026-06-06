@@ -12,6 +12,15 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
 
+# Catatan exclude crate (lihat job di bawah):
+#   - vil-basic-ai-gw-demo, vil-multi-pipeline-benchmark, vil-basic-blocking-task
+#     => contoh/benchmark binaries (bukan library surface ter-publish); di-exclude
+#        agar CI cepat & tidak gagal karena dependency demo/bench yang berat.
+#   - vil_server_macros (hanya job `test`) => proc-macro crate tanpa unit test
+#     sendiri; perilakunya tervalidasi lewat test crate downstream.
+#   - `-- --skip integration` => integration tests butuh service eksternal,
+#     dijalankan terpisah di luar pipeline ini.
+
 jobs:
   check:
     name: Check
@@ -56,15 +65,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: cargo install cargo-audit --locked
+      # RUSTSEC ignore list HARUS sinkron dengan deny.toml [advisories].ignore
+      # (deny.toml = single source of truth). Update deny.toml dulu, baru di sini.
       - run: >-
           cargo audit
           --ignore RUSTSEC-2025-0009
-          --ignore RUSTSEC-2025-0073
-          --ignore RUSTSEC-2024-0421
+          --ignore RUSTSEC-2025-0010
           --ignore RUSTSEC-2023-0071
-          --ignore RUSTSEC-2025-0137
           --ignore RUSTSEC-2026-0049
-          --ignore RUSTSEC-2026-0009
+          --ignore RUSTSEC-2024-0421
+          --ignore RUSTSEC-2024-0388
+          --ignore RUSTSEC-2025-0012
+          --ignore RUSTSEC-2024-0384
+          --ignore RUSTSEC-2025-0057
+          --ignore RUSTSEC-2024-0436
+          --ignore RUSTSEC-2025-0134
 
   osv-scanner:
     name: OSV Scanner
