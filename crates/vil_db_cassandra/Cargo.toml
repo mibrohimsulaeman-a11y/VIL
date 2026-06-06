@@ -17,3 +17,7 @@ vil_connector_macros = { workspace = true }
 tokio   = { workspace = true }
 serde   = { workspace = true }
 scylla  = "0.14"
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

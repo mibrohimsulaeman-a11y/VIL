@@ -17,3 +17,6 @@ vil_connector_macros = { workspace = true }
 clickhouse = { version = "0.12", features = ["inserter"] }
 tokio = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -18,3 +18,7 @@ tokio            = { workspace = true }
 serde            = { workspace = true }
 aws-sdk-dynamodb = "1.55"
 aws-config       = { version = "1.5", features = ["behavior-version-latest"] }
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

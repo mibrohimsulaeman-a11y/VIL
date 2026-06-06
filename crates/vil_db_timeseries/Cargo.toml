@@ -22,3 +22,6 @@ tokio      = { workspace = true }
 serde      = { workspace = true }
 influxdb2  = { version = "0.5", optional = true }
 futures    = { version = "0.3", optional = true }
+
+[dev-dependencies]
+serde_json = "1"
