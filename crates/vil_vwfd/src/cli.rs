@@ -22,11 +22,9 @@ pub struct CompileResult {
 /// Compile single VWFD file. Validates, compiles vil_query, produces VILW.
 pub fn compile_vwfd(path: &str) -> Result<CompileResult, String> {
     let start = std::time::Instant::now();
-    let yaml = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {}", path, e))?;
+    let yaml = std::fs::read_to_string(path).map_err(|e| format!("read {}: {}", path, e))?;
 
-    let graph = compiler::compile(&yaml)
-        .map_err(|e| e.to_string())?;
+    let graph = compiler::compile(&yaml).map_err(|e| e.to_string())?;
 
     let bytes = graph.to_bytes();
     let dur = start.elapsed().as_millis() as u64;
@@ -51,8 +49,12 @@ pub fn compile_all(dir: &str) -> Vec<Result<CompileResult, String>> {
 
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
-            let ext = entry.path().extension()
-                .and_then(|e| e.to_str()).unwrap_or("").to_string();
+            let ext = entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_string();
             if ext == "yaml" || ext == "yml" || ext == "vwfd" {
                 let file = entry.path().display().to_string();
                 results.push(compile_vwfd(&file));
@@ -136,7 +138,10 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
 
     // Collect all node IDs
     let node_ids: Vec<&str> = activities.iter().map(|a| a.id.as_str()).collect();
-    let control_ids: Vec<&str> = doc.spec.controls.as_ref()
+    let control_ids: Vec<&str> = doc
+        .spec
+        .controls
+        .as_ref()
         .map(|c| c.iter().map(|ctrl| ctrl.id.as_str()).collect())
         .unwrap_or_default();
 
@@ -146,7 +151,9 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
         // VIL-L001: External connector should have retry_policy
         if act.activity_type == "Connector" {
             if let Some(ref cc) = act.connector_config {
-                let is_external = cc.connector_ref.as_deref()
+                let is_external = cc
+                    .connector_ref
+                    .as_deref()
                     .map(|r| r.contains("http") || r.contains("mq") || r.contains("storage"))
                     .unwrap_or(false);
                 if is_external && cc.retry_policy.is_none() {
@@ -179,7 +186,10 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
                     if !cref.starts_with("vastar.") {
                         result.errors.push(LintIssue {
                             code: "VIL-L003".into(),
-                            message: format!("unknown connector_ref: '{}' (should start with 'vastar.')", cref),
+                            message: format!(
+                                "unknown connector_ref: '{}' (should start with 'vastar.')",
+                                cref
+                            ),
                             location: Some(loc.clone()),
                         });
                     }
@@ -190,19 +200,26 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
         // VIL-L005: output_variable defined but not used in any downstream mapping
         if let Some(ref out_var) = act.output_variable {
             let used = activities.iter().any(|a| {
-                a.input_mappings.as_ref().map(|maps| {
-                    maps.iter().any(|m| {
-                        m.source.as_ref().and_then(|s| s.source.as_ref())
-                            .and_then(|v| v.as_str())
-                            .map(|src| src.contains(out_var))
-                            .unwrap_or(false)
+                a.input_mappings
+                    .as_ref()
+                    .map(|maps| {
+                        maps.iter().any(|m| {
+                            m.source
+                                .as_ref()
+                                .and_then(|s| s.source.as_ref())
+                                .and_then(|v| v.as_str())
+                                .map(|src| src.contains(out_var))
+                                .unwrap_or(false)
+                        })
                     })
-                }).unwrap_or(false)
-                || a.end_trigger_config.as_ref().and_then(|etc| etc.final_response.as_ref())
-                    .and_then(|fr| fr.source.as_ref())
-                    .and_then(|v| v.as_str())
-                    .map(|src| src.contains(out_var))
                     .unwrap_or(false)
+                    || a.end_trigger_config
+                        .as_ref()
+                        .and_then(|etc| etc.final_response.as_ref())
+                        .and_then(|fr| fr.source.as_ref())
+                        .and_then(|v| v.as_str())
+                        .map(|src| src.contains(out_var))
+                        .unwrap_or(false)
             });
             if !used && out_var != "trigger_payload" {
                 result.infos.push(LintIssue {
@@ -217,13 +234,16 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
         if act.activity_type == "EndTrigger" {
             let trigger = activities.iter().find(|a| a.activity_type == "Trigger");
             if let Some(t) = trigger {
-                let has_end_activity = t.trigger_config.as_ref()
+                let has_end_activity = t
+                    .trigger_config
+                    .as_ref()
                     .and_then(|tc| tc.end_activity.as_ref())
                     .is_some();
                 if !has_end_activity {
                     result.warnings.push(LintIssue {
                         code: "VIL-L007".into(),
-                        message: "EndTrigger exists but trigger has no end_activity reference".into(),
+                        message: "EndTrigger exists but trigger has no end_activity reference"
+                            .into(),
                         location: Some(loc.clone()),
                     });
                 }
@@ -233,13 +253,17 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
         // VIL-L009: Side-effect connector without compensation
         if act.activity_type == "Connector" && act.compensation.is_none() {
             if let Some(ref cc) = act.connector_config {
-                let is_mutating = cc.operation.as_deref()
+                let is_mutating = cc
+                    .operation
+                    .as_deref()
                     .map(|op| matches!(op, "post" | "put" | "delete" | "insert" | "update"))
                     .unwrap_or(false);
                 if is_mutating {
                     result.infos.push(LintIssue {
                         code: "VIL-L009".into(),
-                        message: "mutating connector without compensation (saga rollback not possible)".into(),
+                        message:
+                            "mutating connector without compensation (saga rollback not possible)"
+                                .into(),
                         location: Some(loc.clone()),
                     });
                 }
@@ -253,14 +277,20 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
         if !all_ids.contains(&flow.from.node.as_str()) && flow.from.node != "end" {
             result.errors.push(LintIssue {
                 code: "VIL-L006".into(),
-                message: format!("flow '{}' references unknown from node '{}'", flow.id, flow.from.node),
+                message: format!(
+                    "flow '{}' references unknown from node '{}'",
+                    flow.id, flow.from.node
+                ),
                 location: Some(format!("flow.{}", flow.id)),
             });
         }
         if !all_ids.contains(&flow.to.node.as_str()) && flow.to.node != "end" {
             result.errors.push(LintIssue {
                 code: "VIL-L006".into(),
-                message: format!("flow '{}' references unknown to node '{}'", flow.id, flow.to.node),
+                message: format!(
+                    "flow '{}' references unknown to node '{}'",
+                    flow.id, flow.to.node
+                ),
                 location: Some(format!("flow.{}", flow.id)),
             });
         }
@@ -280,12 +310,18 @@ pub fn lint_yaml(yaml: &str, result: &mut LintResult) {
 pub fn lint_dir(dir: &str) -> Vec<LintResult> {
     let mut results = Vec::new();
     let path = Path::new(dir);
-    if !path.is_dir() { return results; }
+    if !path.is_dir() {
+        return results;
+    }
 
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
-            let ext = entry.path().extension()
-                .and_then(|e| e.to_str()).unwrap_or("").to_string();
+            let ext = entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_string();
             if ext == "yaml" || ext == "yml" || ext == "vwfd" {
                 results.push(lint_vwfd(&entry.path().display().to_string()));
             }
@@ -325,7 +361,8 @@ pub fn export_vwfd_from_source(src_dir: &str, output_dir: &str) -> Result<Vec<St
                                     if let Some(end) = content[yaml_start..].find("\"#;") {
                                         let yaml = &content[yaml_start..yaml_start + end];
                                         // Try to get workflow id from YAML
-                                        let id = yaml.lines()
+                                        let id = yaml
+                                            .lines()
                                             .find(|l| l.trim().starts_with("id:"))
                                             .and_then(|l| l.split(':').nth(1))
                                             .map(|s| s.trim().to_string())
@@ -394,14 +431,24 @@ spec:
 
     #[test]
     fn test_lint_valid() {
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(VALID_WF, &mut result);
         assert!(result.errors.is_empty(), "errors: {:?}", result.errors);
     }
 
     #[test]
     fn test_lint_missing_retry() {
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(VALID_WF, &mut result);
         // vastar.http without retry_policy → warning VIL-L001
         assert!(result.warnings.iter().any(|w| w.code == "VIL-L001"));
@@ -409,14 +456,24 @@ spec:
 
     #[test]
     fn test_lint_missing_timeout() {
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(VALID_WF, &mut result);
         assert!(result.warnings.iter().any(|w| w.code == "VIL-L004"));
     }
 
     #[test]
     fn test_lint_no_durability() {
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(VALID_WF, &mut result);
         assert!(result.infos.iter().any(|i| i.code == "VIL-L008"));
     }
@@ -442,7 +499,12 @@ spec:
     - { id: f1, from: { node: trigger }, to: { node: bad } }
     - { id: f2, from: { node: bad }, to: { node: end } }
 "#;
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(yaml, &mut result);
         assert!(result.errors.iter().any(|e| e.code == "VIL-L003"));
     }
@@ -462,16 +524,32 @@ spec:
   flows:
     - { id: f1, from: { node: trigger }, to: { node: nonexistent } }
 "#;
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(yaml, &mut result);
         // Compiler catches dangling edge as compile error (VIL-L000) before lint rules run
-        assert!(!result.errors.is_empty(), "should have errors for dangling edge");
-        assert!(result.errors.iter().any(|e| e.message.contains("nonexistent")));
+        assert!(
+            !result.errors.is_empty(),
+            "should have errors for dangling edge"
+        );
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.message.contains("nonexistent")));
     }
 
     #[test]
     fn test_lint_mutating_no_compensation() {
-        let mut result = LintResult { file: "test".into(), errors: vec![], warnings: vec![], infos: vec![] };
+        let mut result = LintResult {
+            file: "test".into(),
+            errors: vec![],
+            warnings: vec![],
+            infos: vec![],
+        };
         lint_yaml(VALID_WF, &mut result);
         // post without compensation → info VIL-L009
         assert!(result.infos.iter().any(|i| i.code == "VIL-L009"));

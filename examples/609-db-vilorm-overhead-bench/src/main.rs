@@ -26,7 +26,10 @@ struct AppState {
 
 // ── RAW sqlx handlers (baseline) ──
 
-async fn raw_find_by_id(ctx: ServiceCtx, Path(id): Path<String>) -> HandlerResult<VilResponse<Item>> {
+async fn raw_find_by_id(
+    ctx: ServiceCtx,
+    Path(id): Path<String>,
+) -> HandlerResult<VilResponse<Item>> {
     let state = ctx.state::<AppState>().expect("state");
     let item = sqlx::query_as::<_, Item>("SELECT * FROM items WHERE id = $1")
         .bind(&id)
@@ -57,16 +60,21 @@ async fn raw_count(ctx: ServiceCtx) -> HandlerResult<VilResponse<serde_json::Val
 
 async fn raw_select_cols(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<(String, i64)>>> {
     let state = ctx.state::<AppState>().expect("state");
-    let rows = sqlx::query_as::<_, (String, i64)>("SELECT name, value FROM items ORDER BY value DESC LIMIT 20")
-        .fetch_all(state.pool.inner())
-        .await
-        .map_err(|e| VilError::internal(format!("{e}")))?;
+    let rows = sqlx::query_as::<_, (String, i64)>(
+        "SELECT name, value FROM items ORDER BY value DESC LIMIT 20",
+    )
+    .fetch_all(state.pool.inner())
+    .await
+    .map_err(|e| VilError::internal(format!("{e}")))?;
     Ok(VilResponse::ok(rows))
 }
 
 // ── VilORM handlers (same queries via VilEntity + VilQuery) ──
 
-async fn orm_find_by_id(ctx: ServiceCtx, Path(id): Path<String>) -> HandlerResult<VilResponse<Item>> {
+async fn orm_find_by_id(
+    ctx: ServiceCtx,
+    Path(id): Path<String>,
+) -> HandlerResult<VilResponse<Item>> {
     let state = ctx.state::<AppState>().expect("state");
     let item = Item::find_by_id(state.pool.inner(), &id)
         .await
@@ -105,8 +113,12 @@ async fn orm_select_cols(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<(Stri
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlxPool::connect("bench", vil_db_sqlx::SqlxConfig::sqlite("sqlite:bench.db?mode=rwc"))
-        .await.expect("SQLite connect failed");
+    let pool = SqlxPool::connect(
+        "bench",
+        vil_db_sqlx::SqlxConfig::sqlite("sqlite:bench.db?mode=rwc"),
+    )
+    .await
+    .expect("SQLite connect failed");
 
     pool.execute_raw(
         "CREATE TABLE IF NOT EXISTS items (
@@ -114,19 +126,26 @@ async fn main() {
             name TEXT NOT NULL,
             value INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-        )"
-    ).await.expect("Migration failed");
+        )",
+    )
+    .await
+    .expect("Migration failed");
 
     // Seed 100 rows for benchmark
     for i in 0..100 {
         let id = format!("item-{:04}", i);
         let name = format!("Item {}", i);
         let _ = sqlx::query("INSERT OR IGNORE INTO items (id, name, value) VALUES ($1, $2, $3)")
-            .bind(&id).bind(&name).bind(i as i64)
-            .execute(pool.inner()).await;
+            .bind(&id)
+            .bind(&name)
+            .bind(i as i64)
+            .execute(pool.inner())
+            .await;
     }
 
-    let state = AppState { pool: Arc::new(pool) };
+    let state = AppState {
+        pool: Arc::new(pool),
+    };
 
     let bench_svc = ServiceProcess::new("bench")
         // Raw sqlx
@@ -144,5 +163,6 @@ async fn main() {
     VilApp::new("overhead-bench")
         .port(8099)
         .service(bench_svc)
-        .run().await;
+        .run()
+        .await;
 }

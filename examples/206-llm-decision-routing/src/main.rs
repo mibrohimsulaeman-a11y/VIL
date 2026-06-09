@@ -51,18 +51,19 @@ struct UnderwriteState {
 }
 
 /// POST /assess — Underwriting risk assessment with LLM.
-async fn assess(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<UnderwriteResponse>> {
-    let req: UnderwriteRequest = body.json()
+async fn assess(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<UnderwriteResponse>> {
+    let req: UnderwriteRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     // ── Rule-based pre-screen (native, instant) ──
     if req.applicant_age < 18 {
         return Ok(VilResponse::ok(UnderwriteResponse {
             applicant_age: req.applicant_age,
-            pre_screen: PreScreen { passed: false, reason: "under 18".into() },
+            pre_screen: PreScreen {
+                passed: false,
+                reason: "under 18".into(),
+            },
             ai_assessment: "N/A — pre-screen rejected".into(),
             recommended_tier: "DECLINE".into(),
             premium_estimate_cents: 0,
@@ -71,7 +72,10 @@ async fn assess(
     if req.coverage_cents > 500_000_000 {
         return Ok(VilResponse::ok(UnderwriteResponse {
             applicant_age: req.applicant_age,
-            pre_screen: PreScreen { passed: false, reason: "coverage > $5M requires manual review".into() },
+            pre_screen: PreScreen {
+                passed: false,
+                reason: "coverage > $5M requires manual review".into(),
+            },
             ai_assessment: "N/A — pre-screen: manual review required".into(),
             recommended_tier: "MANUAL_REVIEW".into(),
             premium_estimate_cents: 0,
@@ -79,7 +83,8 @@ async fn assess(
     }
 
     // ── LLM risk assessment (actual AI call) ──
-    let state = ctx.state::<Arc<UnderwriteState>>()
+    let state = ctx
+        .state::<Arc<UnderwriteState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let messages = vec![
@@ -97,7 +102,10 @@ async fn assess(
         )),
     ];
 
-    let response = state.llm.chat(&messages).await
+    let response = state
+        .llm
+        .chat(&messages)
+        .await
         .map_err(|e| VilError::internal(format!("LLM failed: {}", e)))?;
 
     // Parse tier from LLM response
@@ -114,16 +122,19 @@ async fn assess(
 
     // Premium estimate based on tier + coverage
     let rate_bps = match tier {
-        "Preferred" => 50,      // 0.5%
-        "Standard" => 100,      // 1.0%
-        "Substandard" => 200,   // 2.0%
+        "Preferred" => 50,    // 0.5%
+        "Standard" => 100,    // 1.0%
+        "Substandard" => 200, // 2.0%
         _ => 0,
     };
     let premium = req.coverage_cents * rate_bps / 10000;
 
     Ok(VilResponse::ok(UnderwriteResponse {
         applicant_age: req.applicant_age,
-        pre_screen: PreScreen { passed: true, reason: "passed".into() },
+        pre_screen: PreScreen {
+            passed: true,
+            reason: "passed".into(),
+        },
         ai_assessment: response.content,
         recommended_tier: tier.into(),
         premium_estimate_cents: premium,
@@ -132,8 +143,7 @@ async fn assess(
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     let provider = Arc::new(OpenAiProvider::new(

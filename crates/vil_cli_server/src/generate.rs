@@ -16,10 +16,7 @@ pub fn run_generate(kind: &str, name: &str, fields: &[String]) -> Result<(), Str
             generate_migration(name, fields)?;
             generate_service(name)?;
             println!();
-            println!(
-                "  {} Register in main.rs:",
-                "Tip:".yellow().bold()
-            );
+            println!("  {} Register in main.rs:", "Tip:".yellow().bold());
             println!(
                 "    .service({}::crud_service(pool.clone()))",
                 to_pascal(name)
@@ -47,7 +44,10 @@ fn generate_model(name: &str, fields: &[String]) -> Result<(), String> {
     for f in fields {
         let parts: Vec<&str> = f.split(':').collect();
         if parts.len() != 2 {
-            return Err(format!("Invalid field '{}'. Use name:type (e.g. username:string)", f));
+            return Err(format!(
+                "Invalid field '{}'. Use name:type (e.g. username:string)",
+                f
+            ));
         }
         let fname = parts[0];
         let ftype = map_type(parts[1]);

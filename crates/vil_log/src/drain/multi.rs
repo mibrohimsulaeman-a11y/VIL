@@ -22,6 +22,11 @@ impl MultiDrain {
     }
 
     /// Add a drain to the fan-out set.
+    ///
+    /// This builder method predates H6 clippy hardening and is part of the
+    /// documented `MultiDrain::new().add(...)` API. It is not arithmetic and
+    /// intentionally does not implement `std::ops::Add`.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, drain: impl LogDrain + 'static) -> Self {
         self.drains.push(Box::new(drain));
         self

@@ -19,5 +19,6 @@ fn villog_multi_drain(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/503-villog-multi-drain/vwfd/workflows", 3234)
         .native("villog_multi_drain", villog_multi_drain)
-        .run().await;
+        .run()
+        .await;
 }

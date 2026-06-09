@@ -17,8 +17,8 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(3080);
 
-    let workflows_dir = std::env::var("WORKFLOWS_DIR")
-        .unwrap_or_else(|_| "/tmp/vil-workflows".into());
+    let workflows_dir =
+        std::env::var("WORKFLOWS_DIR").unwrap_or_else(|_| "/tmp/vil-workflows".into());
 
     let _ = std::fs::create_dir_all(&workflows_dir);
 

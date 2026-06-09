@@ -49,7 +49,9 @@ async fn test_e2e_echo() {
     assert_eq!(graph.id, "echo-test");
     assert_eq!(graph.webhook_route, Some("/echo".into()));
 
-    let result = execute(&graph, json!({"message": "hello"}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"message": "hello"}), &ExecConfig::default())
+        .await
+        .unwrap();
     assert_eq!(result.output["echo"], "hello");
     assert_eq!(result.output["status"], "ok");
 }
@@ -129,11 +131,17 @@ async fn test_e2e_connector_mappings() {
         ..Default::default()
     };
 
-    let result = execute(&graph, json!({
-        "name": "Alice",
-        "age": 30,
-        "token": "secret_123"
-    }), &config).await.unwrap();
+    let result = execute(
+        &graph,
+        json!({
+            "name": "Alice",
+            "age": 30,
+            "token": "secret_123"
+        }),
+        &config,
+    )
+    .await
+    .unwrap();
 
     // Verify EndTrigger response
     assert_eq!(result.output["input_name"], "Alice");
@@ -148,7 +156,11 @@ async fn test_e2e_connector_mappings() {
     assert_eq!(api["received_body"]["age"], 30);
     // SPv1 template: "Bearer $.trigger_payload.token" → "Bearer secret_123"
     let auth = api["received_auth"].as_str().unwrap();
-    assert!(auth.contains("secret_123"), "auth should contain token: {}", auth);
+    assert!(
+        auth.contains("secret_123"),
+        "auth should contain token: {}",
+        auth
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -201,21 +213,27 @@ spec:
 #[tokio::test]
 async fn test_e2e_guard_a() {
     let graph = compile(GUARD_WORKFLOW).unwrap();
-    let result = execute(&graph, json!({"score": 95}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"score": 95}), &ExecConfig::default())
+        .await
+        .unwrap();
     assert_eq!(result.output["grade"], "A");
 }
 
 #[tokio::test]
 async fn test_e2e_guard_b() {
     let graph = compile(GUARD_WORKFLOW).unwrap();
-    let result = execute(&graph, json!({"score": 75}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"score": 75}), &ExecConfig::default())
+        .await
+        .unwrap();
     assert_eq!(result.output["grade"], "B");
 }
 
 #[tokio::test]
 async fn test_e2e_guard_c() {
     let graph = compile(GUARD_WORKFLOW).unwrap();
-    let result = execute(&graph, json!({"score": 50}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"score": 50}), &ExecConfig::default())
+        .await
+        .unwrap();
     assert_eq!(result.output["grade"], "C");
 }
 
@@ -291,7 +309,9 @@ async fn test_e2e_pipeline_data_flow() {
         ..Default::default()
     };
 
-    let result = execute(&graph, json!({"endpoint": "users", "user": "Bob"}), &config).await.unwrap();
+    let result = execute(&graph, json!({"endpoint": "users", "user": "Bob"}), &config)
+        .await
+        .unwrap();
 
     assert_eq!(result.output["user"], "Bob");
     // step_1_result and step_2_result should be mock responses
@@ -315,7 +335,13 @@ async fn test_roundtrip_serialize() {
     assert_eq!(restored.nodes.len(), graph.nodes.len());
     assert_eq!(restored.edges.len(), graph.edges.len());
 
-    let result = execute(&restored, json!({"message": "roundtrip"}), &ExecConfig::default()).await.unwrap();
+    let result = execute(
+        &restored,
+        json!({"message": "roundtrip"}),
+        &ExecConfig::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(result.output["echo"], "roundtrip");
 }
 
@@ -326,7 +352,10 @@ async fn test_roundtrip_serialize() {
 #[test]
 fn test_lint_clean_workflow() {
     let mut result = vil_vwfd::cli::LintResult {
-        file: "test".into(), errors: vec![], warnings: vec![], infos: vec![],
+        file: "test".into(),
+        errors: vec![],
+        warnings: vec![],
+        infos: vec![],
     };
     vil_vwfd::cli::lint_yaml(ECHO_WORKFLOW, &mut result);
     assert!(result.errors.is_empty(), "errors: {:?}", result.errors);
@@ -335,14 +364,29 @@ fn test_lint_clean_workflow() {
 #[test]
 fn test_lint_catches_issues() {
     let mut result = vil_vwfd::cli::LintResult {
-        file: "test".into(), errors: vec![], warnings: vec![], infos: vec![],
+        file: "test".into(),
+        errors: vec![],
+        warnings: vec![],
+        infos: vec![],
     };
     vil_vwfd::cli::lint_yaml(CONNECTOR_WORKFLOW, &mut result);
     // Should have: VIL-L001 (no retry), VIL-L004 (no timeout), VIL-L008 (no durability), VIL-L009 (post no compensation)
-    assert!(result.warnings.iter().any(|w| w.code == "VIL-L001"), "missing VIL-L001");
-    assert!(result.warnings.iter().any(|w| w.code == "VIL-L004"), "missing VIL-L004");
-    assert!(result.infos.iter().any(|i| i.code == "VIL-L008"), "missing VIL-L008");
-    assert!(result.infos.iter().any(|i| i.code == "VIL-L009"), "missing VIL-L009");
+    assert!(
+        result.warnings.iter().any(|w| w.code == "VIL-L001"),
+        "missing VIL-L001"
+    );
+    assert!(
+        result.warnings.iter().any(|w| w.code == "VIL-L004"),
+        "missing VIL-L004"
+    );
+    assert!(
+        result.infos.iter().any(|i| i.code == "VIL-L008"),
+        "missing VIL-L008"
+    );
+    assert!(
+        result.infos.iter().any(|i| i.code == "VIL-L009"),
+        "missing VIL-L009"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -363,10 +407,20 @@ async fn test_handler_registry_e2e() {
     assert_eq!(router.count(), 2);
 
     let config = ExecConfig::default();
-    let result = handler::handle_request(&router, "POST", "/echo", json!({"message": "via registry"}), &config).await.unwrap();
+    let result = handler::handle_request(
+        &router,
+        "POST",
+        "/echo",
+        json!({"message": "via registry"}),
+        &config,
+    )
+    .await
+    .unwrap();
     assert_eq!(result["echo"], "via registry");
 
-    let result = handler::handle_request(&router, "POST", "/grade", json!({"score": 92}), &config).await.unwrap();
+    let result = handler::handle_request(&router, "POST", "/grade", json!({"score": 92}), &config)
+        .await
+        .unwrap();
     assert_eq!(result["grade"], "A");
 }
 
@@ -440,14 +494,20 @@ spec:
 #[tokio::test]
 async fn test_e2e_vcel_compatible_expressions() {
     let graph = compile(EXPR_WORKFLOW).unwrap();
-    let result = execute(&graph, json!({
-        "name": "Alice",
-        "age": 25,
-        "score": 85,
-        "items": [1, 2, 3],
-        "email": "alice@example.com",
-        "role": "admin"
-    }), &ExecConfig::default()).await.unwrap();
+    let result = execute(
+        &graph,
+        json!({
+            "name": "Alice",
+            "age": 25,
+            "score": 85,
+            "items": [1, 2, 3],
+            "email": "alice@example.com",
+            "role": "admin"
+        }),
+        &ExecConfig::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(result.output["greeting"], "Hello Alice");
     assert_eq!(result.output["is_adult"], true);
@@ -458,11 +518,11 @@ async fn test_e2e_vcel_compatible_expressions() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 10. Reject unsupported VIL Expression features gracefully
+// 10. VIL Expression higher-order features compile through vil_expr
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_reject_map_filter() {
+fn test_accept_map_filter_via_vil_expr() {
     let yaml = r#"
 version: "3.0"
 metadata: { id: reject-test }
@@ -483,10 +543,9 @@ spec:
     - { id: f1, from: { node: trigger }, to: { node: transform } }
     - { id: f2, from: { node: transform }, to: { node: end } }
 "#;
-    let result = compile(yaml);
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("VFlow") || err.contains("map"), "error should mention VFlow: {}", err);
+    let graph = compile(yaml).unwrap();
+    assert_eq!(graph.nodes[1].mappings[0].language, "vil-expr");
+    assert_eq!(graph.nodes[1].mappings[0].source, "items.map(x, x * 2)");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -565,14 +624,14 @@ async fn test_e2e_vilquery_compile_time() {
     let config = ExecConfig {
         connector_fn: Some(Arc::new(|_cref, _op, input| {
             let input = input.clone();
-            Box::pin(async move {
-                Ok(json!({"received": input}))
-            })
+            Box::pin(async move { Ok(json!({"received": input})) })
         })),
         ..Default::default()
     };
 
-    let result = execute(&graph, json!({"min_score": 80}), &config).await.unwrap();
+    let result = execute(&graph, json!({"min_score": 80}), &config)
+        .await
+        .unwrap();
     let received = &result.output["received"];
     assert_eq!(received["sql"], sql.as_str());
     assert_eq!(received["params"][0], 80); // resolved from trigger_payload.min_score
@@ -644,7 +703,9 @@ spec:
     assert_eq!(graph.durability_default, "eventual");
     assert_eq!(graph.webhook_route, Some("/macro".into()));
 
-    let result = execute(&graph, json!({"data": "test"}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"data": "test"}), &ExecConfig::default())
+        .await
+        .unwrap();
     assert!(result.output["result"].is_object());
 }
 
@@ -676,17 +737,28 @@ async fn test_e2e_router_with_connector_fn() {
     router.register("POST".into(), path2, Arc::new(g2));
 
     // Execute echo — no connector, should work
-    let result = handler::handle_request(&router, "POST", "/echo", json!({"message": "wired"}), &config).await.unwrap();
+    let result = handler::handle_request(
+        &router,
+        "POST",
+        "/echo",
+        json!({"message": "wired"}),
+        &config,
+    )
+    .await
+    .unwrap();
     assert_eq!(result["echo"], "wired");
     assert_eq!(result["status"], "ok");
 
     // Execute connector workflow — connector_fn dispatches to registry
     // HTTP connector without url → should error (url required)
     let result = handler::handle_request(
-        &router, "POST", "/api",
+        &router,
+        "POST",
+        "/api",
         json!({"name": "Alice", "age": 30, "token": "abc"}),
         &config,
-    ).await;
+    )
+    .await;
     // vastar.http dispatch will fail because no real HTTP server — but it should
     // reach the connector dispatch (not return _stub)
     // With empty pools, HTTP dispatch uses vil_new_http global client → connection refused
@@ -694,8 +766,10 @@ async fn test_e2e_router_with_connector_fn() {
     assert!(result.is_ok() || result.is_err());
     // If it errors, it should be a connection error, not "_stub"
     if let Ok(ref output) = result {
-        assert!(!output.get("result").and_then(|r| r.get("_stub")).is_some(),
-            "should not be stub — connector_fn should be wired");
+        assert!(
+            !output.get("result").and_then(|r| r.get("_stub")).is_some(),
+            "should not be stub — connector_fn should be wired"
+        );
     }
 }
 
@@ -799,7 +873,9 @@ async fn test_benchmark_latency() {
     let config = ExecConfig::default();
     let start = std::time::Instant::now();
     for _ in 0..iterations {
-        let _ = execute(&graph, json!({"message": "bench"}), &config).await.unwrap();
+        let _ = execute(&graph, json!({"message": "bench"}), &config)
+            .await
+            .unwrap();
     }
     let echo_ns = start.elapsed().as_nanos() / iterations;
 
@@ -807,7 +883,9 @@ async fn test_benchmark_latency() {
     let guard_graph = compile(GUARD_WORKFLOW).unwrap();
     let start = std::time::Instant::now();
     for _ in 0..iterations {
-        let _ = execute(&guard_graph, json!({"score": 90}), &config).await.unwrap();
+        let _ = execute(&guard_graph, json!({"score": 90}), &config)
+            .await
+            .unwrap();
     }
     let guard_ns = start.elapsed().as_nanos() / iterations;
 
@@ -821,7 +899,13 @@ async fn test_benchmark_latency() {
     };
     let start = std::time::Instant::now();
     for _ in 0..iterations {
-        let _ = execute(&connector_graph, json!({"name": "A", "age": 1, "token": "t"}), &config_with_fn).await.unwrap();
+        let _ = execute(
+            &connector_graph,
+            json!({"name": "A", "age": 1, "token": "t"}),
+            &config_with_fn,
+        )
+        .await
+        .unwrap();
     }
     let connector_ns = start.elapsed().as_nanos() / iterations;
 
@@ -829,13 +913,18 @@ async fn test_benchmark_latency() {
     let loop_graph = compile(LOOP_MULTI_BODY_WF).unwrap();
     let start = std::time::Instant::now();
     for _ in 0..iterations {
-        let _ = execute(&loop_graph, json!({}), &config_with_fn).await.unwrap();
+        let _ = execute(&loop_graph, json!({}), &config_with_fn)
+            .await
+            .unwrap();
     }
     let loop_ns = start.elapsed().as_nanos() / iterations;
 
     // Print results
     eprintln!("\n╔══════════════════════════════════════════════╗");
-    eprintln!("║  vil_vwfd Benchmark ({} iterations)         ║", iterations);
+    eprintln!(
+        "║  vil_vwfd Benchmark ({} iterations)         ║",
+        iterations
+    );
     eprintln!("╠══════════════════════════════════════════════╣");
     eprintln!("║  Compile YAML → VilwGraph:  {:>8} ns/op  ║", compile_ns);
     eprintln!("║  Execute echo (2 nodes):    {:>8} ns/op  ║", echo_ns);
@@ -921,7 +1010,9 @@ async fn test_new_activity_types() {
     assert!(graph.nodes.iter().any(|n| n.kind == NodeKind::HumanTask));
 
     // Execute with default config (stub responses)
-    let result = execute(&graph, json!({"data": "test"}), &ExecConfig::default()).await.unwrap();
+    let result = execute(&graph, json!({"data": "test"}), &ExecConfig::default())
+        .await
+        .unwrap();
 
     // wasm_result should be stub
     assert!(result.output["wasm"]["_stub"].as_bool().unwrap_or(false));
@@ -961,7 +1052,11 @@ spec:
 "#;
     let graph = compile(yaml).unwrap();
     assert!(graph.nodes.iter().any(|n| n.kind == NodeKind::SubWorkflow));
-    let sub_node = graph.nodes.iter().find(|n| n.kind == NodeKind::SubWorkflow).unwrap();
+    let sub_node = graph
+        .nodes
+        .iter()
+        .find(|n| n.kind == NodeKind::SubWorkflow)
+        .unwrap();
     assert_eq!(sub_node.config["workflow_ref"], "payment-flow");
     assert_eq!(sub_node.config["timeout_ms"], 60000);
 }

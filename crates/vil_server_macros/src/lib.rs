@@ -75,7 +75,10 @@ impl Parse for VilHandlerAttr {
         let mut state_type = None;
 
         if input.is_empty() {
-            return Ok(VilHandlerAttr { shm_mode, state_type });
+            return Ok(VilHandlerAttr {
+                shm_mode,
+                state_type,
+            });
         }
 
         // Parse comma-separated attributes: state = Type, shm
@@ -100,7 +103,10 @@ impl Parse for VilHandlerAttr {
             }
         }
 
-        Ok(VilHandlerAttr { shm_mode, state_type })
+        Ok(VilHandlerAttr {
+            shm_mode,
+            state_type,
+        })
     }
 }
 
@@ -311,7 +317,9 @@ pub fn vil_handler(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     // Generate state extraction preamble if state = T is specified.
-    let (state_ctx_param, state_extract, state_forward) = if let Some(ref stype) = handler_attr.state_type {
+    let (state_ctx_param, state_extract, state_forward) = if let Some(ref stype) =
+        handler_attr.state_type
+    {
         (
             quote! { __vil_ctx: ::vil_server::__private::ServiceCtx, },
             quote! {
@@ -1554,7 +1562,9 @@ impl Parse for VilWasmAttr {
         let mut timeout_ms = None;
 
         loop {
-            if input.is_empty() { break; }
+            if input.is_empty() {
+                break;
+            }
             let ident: Ident = input.parse()?;
             input.parse::<Token![=]>()?;
             if ident == "module" {
@@ -1567,14 +1577,23 @@ impl Parse for VilWasmAttr {
                 let lit: LitInt = input.parse()?;
                 timeout_ms = Some(lit.base10_parse()?);
             } else {
-                return Err(syn::Error::new_spanned(ident, "expected `module`, `pool_size`, or `timeout_ms`"));
+                return Err(syn::Error::new_spanned(
+                    ident,
+                    "expected `module`, `pool_size`, or `timeout_ms`",
+                ));
             }
-            if input.peek(Token![,]) { input.parse::<Token![,]>()?; }
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
         }
         if module.is_empty() {
             return Err(input.error("vil_wasm requires `module = \"name\"`"));
         }
-        Ok(VilWasmAttr { module, pool_size, timeout_ms })
+        Ok(VilWasmAttr {
+            module,
+            pool_size,
+            timeout_ms,
+        })
     }
 }
 
@@ -1605,20 +1624,27 @@ pub fn vil_wasm(attr: TokenStream, item: TokenStream) -> TokenStream {
     let vis = &input_fn.vis;
     let ret_ty = &input_fn.sig.output;
 
-    let params: Vec<_> = input_fn.sig.inputs.iter().filter_map(|arg| {
-        if let FnArg::Typed(pt) = arg {
-            if let Pat::Ident(pi) = &*pt.pat {
-                return Some((pi.ident.clone(), &*pt.ty));
+    let params: Vec<_> = input_fn
+        .sig
+        .inputs
+        .iter()
+        .filter_map(|arg| {
+            if let FnArg::Typed(pt) = arg {
+                if let Pat::Ident(pi) = &*pt.pat {
+                    return Some((pi.ident.clone(), &*pt.ty));
+                }
             }
-        }
-        None
-    }).collect();
+            None
+        })
+        .collect();
 
     let param_names: Vec<_> = params.iter().map(|(n, _)| n).collect();
     let param_types: Vec<_> = params.iter().map(|(_, t)| *t).collect();
 
     // i32 function detection
-    let is_i32 = params.iter().all(|(_, ty)| quote!(#ty).to_string().trim() == "i32");
+    let is_i32 = params
+        .iter()
+        .all(|(_, ty)| quote!(#ty).to_string().trim() == "i32");
 
     let wasm_body_fn_ident = format_ident!("__vil_wasm_body_{}", fn_name);
 
@@ -1720,7 +1746,9 @@ impl Parse for VilSidecarAttr {
         let mut timeout_ms = None;
 
         loop {
-            if input.is_empty() { break; }
+            if input.is_empty() {
+                break;
+            }
             let ident: Ident = input.parse()?;
             input.parse::<Token![=]>()?;
             if ident == "target" {
@@ -1736,14 +1764,24 @@ impl Parse for VilSidecarAttr {
                 let lit: LitInt = input.parse()?;
                 timeout_ms = Some(lit.base10_parse()?);
             } else {
-                return Err(syn::Error::new_spanned(ident, "expected `target`, `method`, `source`, or `timeout_ms`"));
+                return Err(syn::Error::new_spanned(
+                    ident,
+                    "expected `target`, `method`, `source`, or `timeout_ms`",
+                ));
             }
-            if input.peek(Token![,]) { input.parse::<Token![,]>()?; }
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
         }
         if target.is_empty() {
             return Err(input.error("vil_sidecar requires `target = \"name\"`"));
         }
-        Ok(VilSidecarAttr { target, method, source, timeout_ms })
+        Ok(VilSidecarAttr {
+            target,
+            method,
+            source,
+            timeout_ms,
+        })
     }
 }
 
@@ -1772,14 +1810,19 @@ pub fn vil_sidecar(attr: TokenStream, item: TokenStream) -> TokenStream {
     let vis = &input_fn.vis;
     let ret_ty = &input_fn.sig.output;
 
-    let params: Vec<_> = input_fn.sig.inputs.iter().filter_map(|arg| {
-        if let FnArg::Typed(pt) = arg {
-            if let Pat::Ident(pi) = &*pt.pat {
-                return Some((pi.ident.clone(), &*pt.ty));
+    let params: Vec<_> = input_fn
+        .sig
+        .inputs
+        .iter()
+        .filter_map(|arg| {
+            if let FnArg::Typed(pt) = arg {
+                if let Pat::Ident(pi) = &*pt.pat {
+                    return Some((pi.ident.clone(), &*pt.ty));
+                }
             }
-        }
-        None
-    }).collect();
+            None
+        })
+        .collect();
 
     let param_names: Vec<_> = params.iter().map(|(n, _)| n).collect();
     let param_types: Vec<_> = params.iter().map(|(_, t)| *t).collect();

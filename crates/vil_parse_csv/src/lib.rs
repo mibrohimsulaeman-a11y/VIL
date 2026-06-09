@@ -30,10 +30,7 @@ pub fn parse_csv(args: &[Value]) -> Result<Value, String> {
         if has_header && !headers.is_empty() {
             let mut obj = serde_json::Map::new();
             for (i, field) in record.iter().enumerate() {
-                let key = headers
-                    .get(i)
-                    .map(|h| h.as_str())
-                    .unwrap_or("unknown");
+                let key = headers.get(i).map(|h| h.as_str()).unwrap_or("unknown");
                 obj.insert(key.to_string(), Value::String(field.to_string()));
             }
             rows.push(Value::Object(obj));

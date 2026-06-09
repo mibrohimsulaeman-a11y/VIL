@@ -37,7 +37,10 @@ pub fn run_deploy(
         "status" => deploy_status(host, user, path, service),
         "rollback" => deploy_rollback(host, user, path, service),
         "run" | "" => deploy_run(host, user, path, service),
-        _ => Err(format!("Unknown deploy action '{}'. Use: init, status, rollback", action)),
+        _ => Err(format!(
+            "Unknown deploy action '{}'. Use: init, status, rollback",
+            action
+        )),
     }
 }
 
@@ -93,7 +96,15 @@ fn deploy_run(
 
     println!();
     println!("  {}", "╔══════════════════════════════════════╗".cyan());
-    println!("  {}  {} to {}@{}:{}  {}", "║".cyan(), "vil deploy".green().bold(), config.user, config.host, config.path, "║".cyan());
+    println!(
+        "  {}  {} to {}@{}:{}  {}",
+        "║".cyan(),
+        "vil deploy".green().bold(),
+        config.user,
+        config.host,
+        config.path,
+        "║".cyan()
+    );
     println!("  {}", "╚══════════════════════════════════════╝".cyan());
     println!();
 
@@ -110,10 +121,13 @@ fn deploy_run(
 
     // Step 2: Backup old binary on remote
     println!("  {} Backing up on remote...", "2/4".yellow().bold());
-    let _ = ssh(&config, &format!(
-        "cp {}/{} {}/{}.bak 2>/dev/null || true",
-        config.path, config.binary, config.path, config.binary
-    ));
+    let _ = ssh(
+        &config,
+        &format!(
+            "cp {}/{} {}/{}.bak 2>/dev/null || true",
+            config.path, config.binary, config.path, config.binary
+        ),
+    );
     println!("  {} Backup done", "✅".green());
 
     // Step 3: Copy binary
@@ -145,13 +159,22 @@ fn deploy_run(
                 println!("  {} Healthy!", "✅".green());
             }
             _ => {
-                println!("  {} Health check failed — consider rollback", "⚠️".yellow());
+                println!(
+                    "  {} Health check failed — consider rollback",
+                    "⚠️".yellow()
+                );
             }
         }
     }
 
     println!();
-    println!("  {} Deployed to {}@{}:{}", "🚀".green(), config.user, config.host, config.path);
+    println!(
+        "  {} Deployed to {}@{}:{}",
+        "🚀".green(),
+        config.user,
+        config.host,
+        config.path
+    );
     Ok(())
 }
 
@@ -163,7 +186,12 @@ fn deploy_status(
 ) -> Result<(), String> {
     let config = load_config(host, user, path, service)?;
 
-    println!("  {} Checking {}@{}...", "→".dimmed(), config.user, config.host);
+    println!(
+        "  {} Checking {}@{}...",
+        "→".dimmed(),
+        config.user,
+        config.host
+    );
 
     // Service status
     let status = ssh(&config, &format!("systemctl is-active {}", config.service))?;
@@ -183,7 +211,10 @@ fn deploy_status(
     }
 
     // Binary info
-    let ls = ssh(&config, &format!("ls -lh {}/{}", config.path, config.binary));
+    let ls = ssh(
+        &config,
+        &format!("ls -lh {}/{}", config.path, config.binary),
+    );
     if let Ok(info) = ls {
         println!("  {} Binary: {}", "ℹ️ ".dimmed(), info.trim());
     }
@@ -202,10 +233,13 @@ fn deploy_rollback(
     println!("  {} Rolling back {}...", "↩️".yellow(), config.service);
 
     // Restore backup
-    ssh(&config, &format!(
-        "cp {}/{}.bak {}/{}",
-        config.path, config.binary, config.path, config.binary
-    ))?;
+    ssh(
+        &config,
+        &format!(
+            "cp {}/{}.bak {}/{}",
+            config.path, config.binary, config.path, config.binary
+        ),
+    )?;
 
     // Restart
     ssh(&config, &format!("systemctl restart {}", config.service))?;
@@ -245,7 +279,14 @@ fn load_config(
         let binary = extract_toml(&content, "binary").unwrap_or_else(|| package.clone());
         let health_url = extract_toml(&content, "url");
 
-        return Ok(DeployConfig { host, user, path, service, binary, health_url });
+        return Ok(DeployConfig {
+            host,
+            user,
+            path,
+            service,
+            binary,
+            health_url,
+        });
     }
 
     // CLI args only
@@ -263,8 +304,10 @@ fn load_config(
 fn ssh(config: &DeployConfig, cmd: &str) -> Result<String, String> {
     let output = Command::new("ssh")
         .args([
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "ConnectTimeout=10",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "ConnectTimeout=10",
             &format!("{}@{}", config.user, config.host),
             cmd,
         ])
@@ -280,7 +323,10 @@ fn ssh(config: &DeployConfig, cmd: &str) -> Result<String, String> {
 }
 
 fn scp(local_path: &str, config: &DeployConfig) -> Result<(), String> {
-    let remote = format!("{}@{}:{}/{}", config.user, config.host, config.path, config.binary);
+    let remote = format!(
+        "{}@{}:{}/{}",
+        config.user, config.host, config.path, config.binary
+    );
     let status = Command::new("scp")
         .args(["-o", "StrictHostKeyChecking=no", local_path, &remote])
         .status()
@@ -288,7 +334,10 @@ fn scp(local_path: &str, config: &DeployConfig) -> Result<(), String> {
 
     if status.success() {
         // Make executable
-        ssh(config, &format!("chmod +x {}/{}", config.path, config.binary))?;
+        ssh(
+            config,
+            &format!("chmod +x {}/{}", config.path, config.binary),
+        )?;
         Ok(())
     } else {
         Err("scp failed".into())

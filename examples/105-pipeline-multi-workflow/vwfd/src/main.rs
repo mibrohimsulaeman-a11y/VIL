@@ -8,5 +8,6 @@
 #[tokio::main]
 async fn main() {
     vil_vwfd::app("examples/105-pipeline-multi-workflow/vwfd/workflows", 3207)
-        .run().await;
+        .run()
+        .await;
 }

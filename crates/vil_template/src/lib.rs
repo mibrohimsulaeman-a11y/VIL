@@ -1,5 +1,5 @@
-use serde_json::Value;
 use handlebars::Handlebars;
+use serde_json::Value;
 
 pub fn render_template(args: &[Value]) -> Result<Value, String> {
     let template = args

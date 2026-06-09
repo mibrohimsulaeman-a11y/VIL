@@ -127,7 +127,9 @@ struct AppState {
 /// POST /products -- create product with optional description
 async fn create_product(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Product>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreateProduct = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreateProduct = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
     let stock = req.stock.unwrap_or(0);
 
@@ -158,7 +160,15 @@ async fn list_products(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<Product
 
     // Pattern: select().where_raw("1=1").order_by_desc().limit()
     let products = Product::q()
-        .select(&["id", "name", "description", "price", "stock", "category", "created_at"])
+        .select(&[
+            "id",
+            "name",
+            "description",
+            "price",
+            "stock",
+            "category",
+            "created_at",
+        ])
         .where_raw("1=1")
         .order_by_desc("created_at")
         .limit(50)
@@ -170,7 +180,10 @@ async fn list_products(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<Product
 }
 
 /// GET /products/:id
-async fn get_product(ctx: ServiceCtx, Path(id): Path<String>) -> HandlerResult<VilResponse<Product>> {
+async fn get_product(
+    ctx: ServiceCtx,
+    Path(id): Path<String>,
+) -> HandlerResult<VilResponse<Product>> {
     let state = ctx.state::<AppState>().expect("state");
 
     // Pattern: T::find_by_id()
@@ -185,7 +198,9 @@ async fn get_product(ctx: ServiceCtx, Path(id): Path<String>) -> HandlerResult<V
 /// POST /orders -- create order with items, atomically decrement stock
 async fn create_order(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Order>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreateOrder = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreateOrder = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let pool = state.pool.inner();
 
     if req.items.is_empty() {
@@ -210,7 +225,9 @@ async fn create_order(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilRespo
         let product = Product::find_by_id(pool, &item.product_id)
             .await
             .map_err(|e| VilError::internal(format!("{e}")))?
-            .ok_or_else(|| VilError::bad_request(format!("product {} not found", item.product_id)))?;
+            .ok_or_else(|| {
+                VilError::bad_request(format!("product {} not found", item.product_id))
+            })?;
 
         let item_id = uuid::Uuid::new_v4().to_string();
 
@@ -315,7 +332,9 @@ async fn cancel_order(
         .map_err(|e| VilError::internal(format!("{e}")))?;
 
     if deleted {
-        Ok(VilResponse::ok(serde_json::json!({"deleted": true, "id": id})))
+        Ok(VilResponse::ok(
+            serde_json::json!({"deleted": true, "id": id}),
+        ))
     } else {
         Err(VilError::not_found("Order not found"))
     }
@@ -325,9 +344,12 @@ async fn cancel_order(
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlxPool::connect("ecommerce", vil_db_sqlx::SqlxConfig::sqlite("sqlite:ecommerce.db?mode=rwc"))
-        .await
-        .expect("SQLite connect failed");
+    let pool = SqlxPool::connect(
+        "ecommerce",
+        vil_db_sqlx::SqlxConfig::sqlite("sqlite:ecommerce.db?mode=rwc"),
+    )
+    .await
+    .expect("SQLite connect failed");
 
     pool.execute_raw(
         "CREATE TABLE IF NOT EXISTS products (
@@ -351,12 +373,14 @@ async fn main() {
             product_id TEXT NOT NULL REFERENCES products(id),
             quantity INTEGER NOT NULL,
             unit_price REAL NOT NULL
-        );"
+        );",
     )
     .await
     .expect("Migration failed");
 
-    let state = AppState { pool: Arc::new(pool) };
+    let state = AppState {
+        pool: Arc::new(pool),
+    };
 
     let shop_svc = ServiceProcess::new("shop")
         .endpoint(Method::POST, "/products", post(create_product))

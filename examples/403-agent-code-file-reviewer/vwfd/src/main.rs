@@ -11,16 +11,31 @@ fn code_file_tools(input: &Value) -> Result<Value, String> {
         ("src/lib.rs", "pub mod handler;\n\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n    fn test_add() { assert_eq!(add(2, 3), 5); }\n}"),
     ];
 
-    let patterns = input["patterns"].as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>())
-        .unwrap_or_else(|| vec!["unwrap".into(), "unsafe".into(), "clone".into(), "TODO".into()]);
+    let patterns = input["patterns"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                "unwrap".into(),
+                "unsafe".into(),
+                "clone".into(),
+                "TODO".into(),
+            ]
+        });
 
     let mut results: Vec<Value> = Vec::new();
 
     for (path, content) in &mock_files {
         let lines = content.lines().count();
         let blank = content.lines().filter(|l| l.trim().is_empty()).count();
-        let comments = content.lines().filter(|l| l.trim().starts_with("//")).count();
+        let comments = content
+            .lines()
+            .filter(|l| l.trim().starts_with("//"))
+            .count();
 
         results.push(json!({
             "tool": "read_file",
@@ -36,7 +51,9 @@ fn code_file_tools(input: &Value) -> Result<Value, String> {
         }));
 
         for pattern in &patterns {
-            let matches: Vec<usize> = content.lines().enumerate()
+            let matches: Vec<usize> = content
+                .lines()
+                .enumerate()
                 .filter(|(_, l)| l.contains(pattern.as_str()))
                 .map(|(i, _)| i + 1)
                 .collect();
@@ -61,5 +78,6 @@ fn code_file_tools(input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/403-agent-code-file-reviewer/vwfd/workflows", 3122)
         .native("code_file_tools", code_file_tools)
-        .run().await;
+        .run()
+        .await;
 }

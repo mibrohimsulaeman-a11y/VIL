@@ -155,6 +155,11 @@ impl Registry {
     // --- Sample operations ---
 
     /// Register a new sample with owner and origin port.
+    ///
+    /// This low-level registry API mirrors the shared-memory sample metadata
+    /// layout field-for-field so callers do not allocate an intermediate record
+    /// on the sample publication hot path.
+    #[allow(clippy::too_many_arguments)]
     pub fn register_sample(
         &self,
         sample_id: SampleId,

@@ -115,7 +115,10 @@ impl LogRing {
 
     /// Try to push a `LogSlot`. Returns `Err(slot)` if the ring is full (never blocks).
     ///
-    /// **MUST only be called from the single producer thread.**
+    /// **MUST only be called from the single producer thread.** Returning the
+    /// fixed 256-byte slot by value preserves the zero-allocation hot path and
+    /// lets the caller retry/drop without heap boxing.
+    #[allow(clippy::result_large_err)]
     #[inline]
     pub fn try_push(&self, slot: LogSlot) -> Result<(), LogSlot> {
         let tail = self.tail.v.load(Ordering::Relaxed);
@@ -301,6 +304,10 @@ impl StripedRing {
     }
 
     /// Push to the stripe for the current thread. Never blocks.
+    ///
+    /// Returning the slot by value avoids allocation and keeps rejection
+    /// semantics identical to the underlying SPSC ring.
+    #[allow(clippy::result_large_err)]
     #[inline]
     pub fn try_push(&self, slot: LogSlot) -> Result<(), LogSlot> {
         let idx = self.stripe_index();

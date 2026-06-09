@@ -51,10 +51,17 @@ fn process_refund(input: &Value) -> Result<Value, String> {
 #[tokio::main]
 async fn main() {
     vil_vwfd::app("examples/705-protocol-grpc-gateway/vwfd/workflows", 3705)
-        .wasm("payment_validate_card", "examples/705-protocol-grpc-gateway/vwfd/wasm/java/PaymentProcessor.class")
-        .wasm("payment_process_charge", "examples/705-protocol-grpc-gateway/vwfd/wasm/java/PaymentProcessor.class")
+        .wasm(
+            "payment_validate_card",
+            "examples/705-protocol-grpc-gateway/vwfd/wasm/java/PaymentProcessor.class",
+        )
+        .wasm(
+            "payment_process_charge",
+            "examples/705-protocol-grpc-gateway/vwfd/wasm/java/PaymentProcessor.class",
+        )
         .native("store_charge", store_charge)
         .native("get_payment", get_payment)
         .native("process_refund", process_refund)
-        .run().await;
+        .run()
+        .await;
 }

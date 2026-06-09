@@ -21,9 +21,10 @@ const MENU: &[(&str, u64, &str)] = &[
 ];
 
 fn menu_handler(_input: &Value) -> Result<Value, String> {
-    let items: Vec<Value> = MENU.iter().map(|(name, price, cat)| {
-        json!({"name": name, "price_cents": price, "category": cat})
-    }).collect();
+    let items: Vec<Value> = MENU
+        .iter()
+        .map(|(name, price, cat)| json!({"name": name, "price_cents": price, "category": cat}))
+        .collect();
     Ok(json!({
         "restaurant": "Trattoria VIL — Italian Kitchen",
         "items": items
@@ -86,5 +87,6 @@ async fn main() {
         .native("order_create", order_handler)
         .native("order_status", order_status)
         .native("kitchen_status", kitchen_status)
-        .run().await;
+        .run()
+        .await;
 }

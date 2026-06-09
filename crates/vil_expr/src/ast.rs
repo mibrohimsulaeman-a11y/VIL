@@ -14,42 +14,52 @@ pub enum Expr {
     Map(Vec<(Expr, Expr)>),
 
     // ── Access ──
-    Ident(String),                              // single identifier
-    Field(Box<Expr>, String),                   // expr.field
-    Index(Box<Expr>, Box<Expr>),                // expr[index]
+    Ident(String),               // single identifier
+    Field(Box<Expr>, String),    // expr.field
+    Index(Box<Expr>, Box<Expr>), // expr[index]
 
     // ── Operators (vil-expr §3.2.1) ──
     Unary(UnaryOp, Box<Expr>),
     Binary(BinaryOp, Box<Expr>, Box<Expr>),
 
     // ── Ternary (vil-expr §3.2.1 prec 9) ──
-    Ternary(Box<Expr>, Box<Expr>, Box<Expr>),   // cond ? then : else
+    Ternary(Box<Expr>, Box<Expr>, Box<Expr>), // cond ? then : else
 
     // ── Membership (vil-expr §3.2.3) ──
-    In(Box<Expr>, Box<Expr>),                   // x in [1,2,3] or x IN {'a','b'}
-    NotIn(Box<Expr>, Box<Expr>),                // x NOT IN {'a','b'}
+    In(Box<Expr>, Box<Expr>),    // x in [1,2,3] or x IN {'a','b'}
+    NotIn(Box<Expr>, Box<Expr>), // x NOT IN {'a','b'}
 
     // ── Null checks (vdicl) ──
-    IsNull(Box<Expr>),                          // x IS NULL
-    IsNotNull(Box<Expr>),                       // x IS NOT NULL
+    IsNull(Box<Expr>),    // x IS NULL
+    IsNotNull(Box<Expr>), // x IS NOT NULL
 
     // ── Calls ──
-    FnCall(String, Vec<Expr>),                  // size(x), has(x), ISBLANK(x), LENGTH(x)
-    MethodCall(Box<Expr>, String, Vec<Expr>),    // "abc".contains("b")
+    FnCall(String, Vec<Expr>), // size(x), has(x), ISBLANK(x), LENGTH(x)
+    MethodCall(Box<Expr>, String, Vec<Expr>), // "abc".contains("b")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnaryOp {
-    Not,    // !
-    Neg,    // - (unary minus)
+    Not, // !
+    Neg, // - (unary minus)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinaryOp {
     // Arithmetic
-    Add, Sub, Mul, Div, Mod,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
     // Comparison
-    Eq, Neq, Lt, Lte, Gt, Gte,
+    Eq,
+    Neq,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
     // Logical
-    And, Or,
+    And,
+    Or,
 }

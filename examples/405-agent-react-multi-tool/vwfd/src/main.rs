@@ -9,7 +9,11 @@ fn react_tool_dispatcher(input: &Value) -> Result<Value, String> {
     let llm_output = input["llm_output"].as_str().unwrap_or("");
 
     if llm_output.contains("FINAL_ANSWER:") {
-        let answer = llm_output.split("FINAL_ANSWER:").nth(1).unwrap_or("").trim();
+        let answer = llm_output
+            .split("FINAL_ANSWER:")
+            .nth(1)
+            .unwrap_or("")
+            .trim();
         let thought = extract_field(llm_output, "Thought:");
         return Ok(json!({
             "done": true,
@@ -45,9 +49,17 @@ fn react_tool_dispatcher(input: &Value) -> Result<Value, String> {
                 let a = parts[0].replace(',', "").parse::<f64>().unwrap_or(0.0);
                 let b = parts[2].replace(',', "").parse::<f64>().unwrap_or(0.0);
                 let r = match parts[1] {
-                    "+" => a + b, "-" => a - b, "*" => a * b,
-                    "/" => if b != 0.0 { a / b } else { 0.0 },
-                    _ => 0.0
+                    "+" => a + b,
+                    "-" => a - b,
+                    "*" => a * b,
+                    "/" => {
+                        if b != 0.0 {
+                            a / b
+                        } else {
+                            0.0
+                        }
+                    }
+                    _ => 0.0,
                 };
                 format!("{}", r)
             } else {
@@ -70,7 +82,13 @@ fn react_tool_dispatcher(input: &Value) -> Result<Value, String> {
 fn extract_field(text: &str, prefix: &str) -> String {
     text.lines()
         .find(|l| l.trim().starts_with(prefix))
-        .map(|l| l.trim().strip_prefix(prefix).unwrap_or("").trim().to_string())
+        .map(|l| {
+            l.trim()
+                .strip_prefix(prefix)
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        })
         .unwrap_or_default()
 }
 
@@ -78,5 +96,6 @@ fn extract_field(text: &str, prefix: &str) -> String {
 async fn main() {
     vil_vwfd::app("examples/405-agent-react-multi-tool/vwfd/workflows", 3124)
         .native("react_tool_dispatcher", react_tool_dispatcher)
-        .run().await;
+        .run()
+        .await;
 }

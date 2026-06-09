@@ -81,7 +81,9 @@ const FAQ_ENTRIES: &[(&str, &str)] = &[
 
 #[async_trait]
 impl Tool for FaqLookupTool {
-    fn name(&self) -> &str { "faq_lookup" }
+    fn name(&self) -> &str {
+        "faq_lookup"
+    }
     fn description(&self) -> &str {
         "Search the FAQ knowledge base for common customer questions. Input: {\"query\": \"password reset\"}"
     }
@@ -109,7 +111,10 @@ impl Tool for FaqLookupTool {
             Some((_, topic, answer)) => format!("FAQ Match [{}]: {}", topic, answer),
             None => "No FAQ match found. Consider ESCALATE to Tier 2.".into(),
         };
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
@@ -119,7 +124,9 @@ struct DiagnosticTool;
 
 #[async_trait]
 impl Tool for DiagnosticTool {
-    fn name(&self) -> &str { "run_diagnostic" }
+    fn name(&self) -> &str {
+        "run_diagnostic"
+    }
     fn description(&self) -> &str {
         "Run a technical diagnostic on a system component. Input: {\"component\": \"auth-service\"}"
     }
@@ -141,7 +148,10 @@ impl Tool for DiagnosticTool {
             "cdn" => "cdn: healthy, cache hit ratio 94.2%, origin pull latency 230ms",
             _ => "component not found in monitoring registry — ESCALATE to Tier 3 specialist",
         };
-        Ok(ToolResult { output: output.into(), metadata: None })
+        Ok(ToolResult {
+            output: output.into(),
+            metadata: None,
+        })
     }
 }
 
@@ -149,7 +159,9 @@ struct LogSearchTool;
 
 #[async_trait]
 impl Tool for LogSearchTool {
-    fn name(&self) -> &str { "search_logs" }
+    fn name(&self) -> &str {
+        "search_logs"
+    }
     fn description(&self) -> &str {
         "Search application logs for errors and patterns. Input: {\"pattern\": \"OOM\", \"timerange\": \"1h\"}"
     }
@@ -174,7 +186,10 @@ impl Tool for LogSearchTool {
              Found 3 matching entries.",
             pattern, timerange
         );
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
@@ -184,7 +199,9 @@ struct IncidentCreateTool;
 
 #[async_trait]
 impl Tool for IncidentCreateTool {
-    fn name(&self) -> &str { "create_incident" }
+    fn name(&self) -> &str {
+        "create_incident"
+    }
     fn description(&self) -> &str {
         "Create a high-priority incident ticket with on-call assignment. Input: {\"title\": \"...\", \"severity\": \"P1\"}"
     }
@@ -207,7 +224,10 @@ impl Tool for IncidentCreateTool {
             severity,
             match severity { "P1" => "15 min", "P2" => "30 min", _ => "2 hour" }
         );
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
@@ -215,7 +235,9 @@ struct RunbookTool;
 
 #[async_trait]
 impl Tool for RunbookTool {
-    fn name(&self) -> &str { "execute_runbook" }
+    fn name(&self) -> &str {
+        "execute_runbook"
+    }
     fn description(&self) -> &str {
         "Execute a predefined remediation runbook. Input: {\"runbook\": \"scale-pod\", \"params\": {\"pod\": \"coredns\"}}"
     }
@@ -237,7 +259,10 @@ impl Tool for RunbookTool {
             "failover-db" => "Runbook executed: database failover to replica-02 initiated. Connection strings updated.",
             _ => "Runbook not found. Manual intervention required.",
         };
-        Ok(ToolResult { output: output.into(), metadata: None })
+        Ok(ToolResult {
+            output: output.into(),
+            metadata: None,
+        })
     }
 }
 
@@ -280,10 +305,12 @@ async fn support_ask(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<SupportResponse>> {
-    let req: SupportRequest = body.json()
-        .map_err(|_| VilError::bad_request("invalid JSON — expected {\"question\": \"...\"}") )?;
+    let req: SupportRequest = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON — expected {\"question\": \"...\"}"))?;
 
-    let state = ctx.state::<Arc<EscalationState>>()
+    let state = ctx
+        .state::<Arc<EscalationState>>()
         .map_err(|_| VilError::internal("escalation state not found"))?;
 
     let start = std::time::Instant::now();
@@ -328,7 +355,10 @@ async fn support_ask(
         "Customer question: {}\nTier 1 notes: {}",
         req.question, tier1_result.answer
     );
-    let tier2_result = state.tier2_agent.run(&tier2_input).await
+    let tier2_result = state
+        .tier2_agent
+        .run(&tier2_input)
+        .await
         .map_err(|e| VilError::internal(format!("tier2 failed: {}", e)))?;
 
     tiers_involved.push(TierResult {
@@ -352,7 +382,10 @@ async fn support_ask(
         "Customer question: {}\nTier 1 notes: {}\nTier 2 diagnostics: {}",
         req.question, tier1_result.answer, tier2_result.answer
     );
-    let tier3_result = state.tier3_agent.run(&tier3_input).await
+    let tier3_result = state
+        .tier3_agent
+        .run(&tier3_input)
+        .await
         .map_err(|e| VilError::internal(format!("tier3 failed: {}", e)))?;
 
     tiers_involved.push(TierResult {
@@ -402,8 +435,7 @@ async fn support_tiers() -> VilResponse<serde_json::Value> {
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     let make_llm = || -> Arc<dyn vil_llm::LlmProvider> {
@@ -421,7 +453,7 @@ async fn main() {
             "You are a Tier 1 FAQ support agent. Use the faq_lookup tool to find answers \
              to common customer questions about passwords, billing, subscriptions, etc. \
              If the FAQ does not have a relevant answer, respond with ESCALATE and a brief \
-             summary of the issue so Tier 2 can investigate."
+             summary of the issue so Tier 2 can investigate.",
         )
         .build();
 
@@ -436,7 +468,7 @@ async fn main() {
              Tier 1 that could not be resolved with FAQ articles. Use run_diagnostic and \
              search_logs tools to investigate the root cause. Provide a clear technical \
              explanation and resolution steps. If the issue requires infrastructure changes, \
-             incident creation, or runbook execution, respond with ESCALATE and your findings."
+             incident creation, or runbook execution, respond with ESCALATE and your findings.",
         )
         .build();
 
@@ -451,7 +483,7 @@ async fn main() {
              You have access to incident creation and runbook execution tools. \
              Create incidents for tracking, execute appropriate runbooks for remediation, \
              and provide a comprehensive resolution plan. Always create an incident ticket \
-             for audit trail. Never respond with ESCALATE — you are the final tier."
+             for audit trail. Never respond with ESCALATE — you are the final tier.",
         )
         .build();
 

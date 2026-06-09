@@ -417,8 +417,7 @@ async fn kv_demo(ctx: ServiceCtx) -> VilResponse<KvDemoResponse> {
 #[tokio::main]
 async fn main() {
     // Configure NATS connection (testsuite: port 19222, default: 4222)
-    let nats_url = std::env::var("NATS_URL")
-        .unwrap_or_else(|_| "nats://localhost:4222".into());
+    let nats_url = std::env::var("NATS_URL").unwrap_or_else(|_| "nats://localhost:4222".into());
     let nats_cfg = NatsConfig::new(&nats_url).name("vil-nats-worker");
 
     // Connect to NATS server. Graceful degradation if unreachable.

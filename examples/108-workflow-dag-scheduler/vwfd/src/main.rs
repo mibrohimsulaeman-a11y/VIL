@@ -43,5 +43,6 @@ async fn main() {
     vil_vwfd::app("examples/108-workflow-dag-scheduler/vwfd/workflows", 8080)
         .native("run_workflow", run_workflow)
         .native("workflow_status", workflow_status)
-        .run().await;
+        .run()
+        .await;
 }

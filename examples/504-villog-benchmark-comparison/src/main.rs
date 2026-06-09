@@ -12,10 +12,10 @@ use vil_log::drain::NullDrain;
 use vil_log::emit::ring::{drop_count, set_global_level};
 use vil_log::runtime::init_logging;
 use vil_log::types::*;
-use vil_log::{LogConfig, LogLevel};
 use vil_log::{
     _emit_typed_log, access_log, ai_log, app_log, db_log, mq_log, security_log, system_log,
 };
+use vil_log::{LogConfig, LogLevel};
 
 const EVENTS: u32 = 1_000_000;
 

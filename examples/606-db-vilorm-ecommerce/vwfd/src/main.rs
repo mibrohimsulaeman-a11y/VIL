@@ -11,7 +11,8 @@ async fn main() {
     }
     let url = std::env::var("VIL_DATABASE_URL").unwrap();
     let db = vil_db_sqlx::SqlxPool::connect("shop", vil_db_sqlx::SqlxConfig::sqlite(&url))
-        .await.expect("db connect");
+        .await
+        .expect("db connect");
 
     db.execute_raw("CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, price REAL NOT NULL, stock INTEGER DEFAULT 0, category TEXT DEFAULT '', created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')))").await.ok();
     db.execute_raw("CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, customer_name TEXT NOT NULL, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')))").await.ok();

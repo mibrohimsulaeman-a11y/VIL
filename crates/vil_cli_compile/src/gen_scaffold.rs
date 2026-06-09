@@ -3,9 +3,9 @@
 //! `vil generate handler <name> --from <yaml>` → typed Rust handler
 //! `vil generate script <name> --runtime lua --from <yaml>` → script template
 
-use vil_cli_core::manifest::WorkflowManifest;
 use colored::*;
 use std::path::Path;
+use vil_cli_core::manifest::WorkflowManifest;
 
 /// Generate a Rust handler scaffold from a YAML manifest.
 pub fn generate_handler(name: &str, from: &str, output_dir: &str) -> Result<(), String> {

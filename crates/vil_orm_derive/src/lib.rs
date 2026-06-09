@@ -65,12 +65,24 @@ pub fn derive_vil_entity(input: TokenStream) -> TokenStream {
         for attr in &field.attrs {
             if attr.path().is_ident("vil_entity") {
                 let _ = attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("pk") { pk_field = Some(fname.clone()); }
-                    if meta.path.is_ident("auto_uuid") { has_auto_uuid = true; }
-                    if meta.path.is_ident("auto_now_add") { auto_now_add_fields.push(fname.clone()); }
-                    if meta.path.is_ident("auto_now") { auto_now_fields.push(fname.clone()); }
-                    if meta.path.is_ident("unique") { unique_fields.push(fname.clone()); }
-                    if meta.path.is_ident("write_only") { write_only_fields.push(fname.clone()); }
+                    if meta.path.is_ident("pk") {
+                        pk_field = Some(fname.clone());
+                    }
+                    if meta.path.is_ident("auto_uuid") {
+                        has_auto_uuid = true;
+                    }
+                    if meta.path.is_ident("auto_now_add") {
+                        auto_now_add_fields.push(fname.clone());
+                    }
+                    if meta.path.is_ident("auto_now") {
+                        auto_now_fields.push(fname.clone());
+                    }
+                    if meta.path.is_ident("unique") {
+                        unique_fields.push(fname.clone());
+                    }
+                    if meta.path.is_ident("write_only") {
+                        write_only_fields.push(fname.clone());
+                    }
                     Ok(())
                 });
             }
@@ -81,21 +93,26 @@ pub fn derive_vil_entity(input: TokenStream) -> TokenStream {
     let table = &table_name;
 
     // Generate field names for SELECT (exclude write_only)
-    let select_fields: Vec<_> = all_fields.iter()
+    let select_fields: Vec<_> = all_fields
+        .iter()
         .filter(|(f, _)| !write_only_fields.iter().any(|w| w == f))
         .map(|(f, _)| f.to_string())
         .collect();
     let _select_cols = select_fields.join(", ");
 
     // Generate field names for INSERT
-    let insert_fields: Vec<_> = all_fields.iter()
+    let insert_fields: Vec<_> = all_fields
+        .iter()
         .filter(|(f, _)| {
-            !auto_now_add_fields.iter().any(|a| a == f) &&
-            !auto_now_fields.iter().any(|a| a == f)
+            !auto_now_add_fields.iter().any(|a| a == f) && !auto_now_fields.iter().any(|a| a == f)
         })
         .map(|(f, _)| f.to_string())
         .collect();
-    let insert_placeholders: Vec<String> = insert_fields.iter().enumerate().map(|(i, _)| format!("${}", i + 1)).collect();
+    let insert_placeholders: Vec<String> = insert_fields
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect();
     let _insert_cols = insert_fields.join(", ");
     let _insert_vals = insert_placeholders.join(", ");
 
@@ -428,9 +445,7 @@ pub fn derive_vil_entity(input: TokenStream) -> TokenStream {
 }
 
 fn err(name: &syn::Ident, msg: &str) -> TokenStream {
-    TokenStream::from(
-        syn::Error::new_spanned(name, msg).to_compile_error(),
-    )
+    TokenStream::from(syn::Error::new_spanned(name, msg).to_compile_error())
 }
 
 // =============================================================================
@@ -517,9 +532,15 @@ pub fn derive_vil_crud(input: TokenStream) -> TokenStream {
         for attr in &field.attrs {
             if attr.path().is_ident("vil_entity") {
                 let _ = attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("pk") { pk_field = fname.clone(); }
-                    if meta.path.is_ident("auto_uuid") { auto_uuid = true; }
-                    if meta.path.is_ident("write_only") { write_only.push(fname.to_string()); }
+                    if meta.path.is_ident("pk") {
+                        pk_field = fname.clone();
+                    }
+                    if meta.path.is_ident("auto_uuid") {
+                        auto_uuid = true;
+                    }
+                    if meta.path.is_ident("write_only") {
+                        write_only.push(fname.to_string());
+                    }
                     Ok(())
                 });
             }
@@ -533,19 +554,22 @@ pub fn derive_vil_crud(input: TokenStream) -> TokenStream {
         let fname = field.ident.as_ref().unwrap().to_string();
         all_field_names.push(fname.clone());
 
-        let is_pk = fname == pk_field.to_string();
+        let is_pk = pk_field == fname;
         let mut is_auto = false;
         for attr in &field.attrs {
             if attr.path().is_ident("vil_entity") {
                 let _ = attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("auto_now_add") || meta.path.is_ident("auto_now") || meta.path.is_ident("auto_uuid") {
+                    if meta.path.is_ident("auto_now_add")
+                        || meta.path.is_ident("auto_now")
+                        || meta.path.is_ident("auto_uuid")
+                    {
                         is_auto = true;
                     }
                     Ok(())
                 });
             }
         }
-        if !is_auto && !(is_pk && auto_uuid) {
+        if !(is_auto || is_pk && auto_uuid) {
             insertable_fields.push(fname);
         }
     }
@@ -562,7 +586,11 @@ pub fn derive_vil_crud(input: TokenStream) -> TokenStream {
     } else {
         insertable_fields.clone()
     };
-    let insert_placeholders: Vec<String> = insert_cols.iter().enumerate().map(|(i, _)| format!("${}", i + 1)).collect();
+    let insert_placeholders: Vec<String> = insert_cols
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect();
     let insert_sql = format!(
         "INSERT INTO {} ({}) VALUES ({})",
         table,
@@ -570,7 +598,10 @@ pub fn derive_vil_crud(input: TokenStream) -> TokenStream {
         insert_placeholders.join(", ")
     );
 
-    let list_sql = format!("SELECT * FROM {} ORDER BY {} DESC LIMIT ? OFFSET ?", table, pk_str);
+    let list_sql = format!(
+        "SELECT * FROM {} ORDER BY {} DESC LIMIT ? OFFSET ?",
+        table, pk_str
+    );
     let get_sql = format!("SELECT * FROM {} WHERE {} = $1", table, pk_str);
     let delete_sql = format!("DELETE FROM {} WHERE {} = $1", table, pk_str);
     let count_sql = format!("SELECT CAST(COUNT(*) AS INTEGER) FROM {}", table);

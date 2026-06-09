@@ -21,7 +21,8 @@ fn nats_config(_input: &Value) -> Result<Value, String> {
 }
 
 fn nats_publish(input: &Value) -> Result<Value, String> {
-    let subject = input.get("body")
+    let subject = input
+        .get("body")
         .and_then(|b| b["subject"].as_str())
         .unwrap_or("events.default");
     Ok(json!({

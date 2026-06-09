@@ -24,7 +24,10 @@ impl TableMeta {
 
     /// First PK column name (for backward compat with single-PK code).
     pub fn first_pk(&self) -> &str {
-        self.primary_keys.first().map(|s| s.as_str()).unwrap_or("id")
+        self.primary_keys
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("id")
     }
 }
 
@@ -53,16 +56,18 @@ pub struct ForeignKeyMeta {
 impl TableMeta {
     /// Get columns excluding auto-generated ones (for INSERT).
     pub fn insertable_columns(&self) -> Vec<&ColumnMeta> {
-        self.columns.iter().filter(|c| {
-            !c.is_auto_timestamp() && !c.is_primary_key
-        }).collect()
+        self.columns
+            .iter()
+            .filter(|c| !c.is_auto_timestamp() && !c.is_primary_key)
+            .collect()
     }
 
     /// Get columns suitable for list view (exclude large TEXT that might be content/body).
     pub fn list_columns(&self) -> Vec<&ColumnMeta> {
-        self.columns.iter().filter(|c| {
-            !c.is_large_text_hint()
-        }).collect()
+        self.columns
+            .iter()
+            .filter(|c| !c.is_large_text_hint())
+            .collect()
     }
 }
 
@@ -78,28 +83,46 @@ impl ColumnMeta {
 
     /// Detect if this is a created_at auto-timestamp.
     pub fn is_created_at(&self) -> bool {
-        self.name == "created_at" && self.default_value.as_ref().map(|d| d.contains("strftime")).unwrap_or(false)
+        self.name == "created_at"
+            && self
+                .default_value
+                .as_ref()
+                .map(|d| d.contains("strftime"))
+                .unwrap_or(false)
     }
 
     /// Detect if this is an updated_at auto-timestamp.
     pub fn is_updated_at(&self) -> bool {
-        self.name == "updated_at" && self.default_value.as_ref().map(|d| d.contains("strftime")).unwrap_or(false)
+        self.name == "updated_at"
+            && self
+                .default_value
+                .as_ref()
+                .map(|d| d.contains("strftime"))
+                .unwrap_or(false)
     }
 
     /// Detect if column name suggests sensitive data (password, hash, secret, token).
     pub fn is_sensitive(&self) -> bool {
         let lower = self.name.to_lowercase();
-        lower.contains("password") || lower.contains("hash") || lower.contains("secret")
+        lower.contains("password")
+            || lower.contains("hash")
+            || lower.contains("secret")
             || (lower.contains("token") && lower != "fcm_token")
     }
 
     /// Detect if this is likely a large text field (content, body, essay, passage).
     pub fn is_large_text_hint(&self) -> bool {
-        if self.sql_type.to_uppercase() != "TEXT" { return false; }
+        if self.sql_type.to_uppercase() != "TEXT" {
+            return false;
+        }
         let lower = self.name.to_lowercase();
-        lower.contains("content") || lower.contains("body") || lower.contains("essay")
-            || lower.contains("passage") || lower.contains("stack_trace")
-            || lower.contains("annotations") || lower.contains("highlights")
+        lower.contains("content")
+            || lower.contains("body")
+            || lower.contains("essay")
+            || lower.contains("passage")
+            || lower.contains("stack_trace")
+            || lower.contains("annotations")
+            || lower.contains("highlights")
     }
 
     /// Map SQL type to Rust type.
@@ -217,7 +240,9 @@ fn parse_table_body(table_name: &str, body: &str) -> TableMeta {
 
     for part in &parts {
         let trimmed = part.trim();
-        if trimmed.is_empty() { continue; }
+        if trimmed.is_empty() {
+            continue;
+        }
 
         let upper = trimmed.to_uppercase();
 
@@ -232,7 +257,8 @@ fn parse_table_body(table_name: &str, body: &str) -> TableMeta {
 
         if upper.starts_with("UNIQUE") {
             if let Some(cols) = extract_parens_content(trimmed) {
-                let unique_cols: Vec<String> = cols.split(',').map(|s| s.trim().to_string()).collect();
+                let unique_cols: Vec<String> =
+                    cols.split(',').map(|s| s.trim().to_string()).collect();
                 unique_constraints.push(unique_cols);
             }
             continue;
@@ -289,7 +315,9 @@ fn parse_table_body(table_name: &str, body: &str) -> TableMeta {
 /// Parse a single column definition line.
 fn parse_column_def(line: &str) -> Option<ColumnMeta> {
     let tokens = tokenize_column(line);
-    if tokens.is_empty() { return None; }
+    if tokens.is_empty() {
+        return None;
+    }
 
     let name = tokens[0].clone();
     // Skip if it looks like a constraint keyword
@@ -444,9 +472,15 @@ fn extract_default_value(line: &str) -> Option<String> {
         Some(trimmed[..end + 2].to_string())
     } else {
         // Number or keyword — take until space, comma, or CHECK
-        let end = trimmed.find(|c: char| c == ' ' || c == ',' || c == ')').unwrap_or(trimmed.len());
+        let end = trimmed
+            .find(|c: char| c == ' ' || c == ',' || c == ')')
+            .unwrap_or(trimmed.len());
         let val = trimmed[..end].trim().to_string();
-        if val.is_empty() { None } else { Some(val) }
+        if val.is_empty() {
+            None
+        } else {
+            Some(val)
+        }
     }
 }
 
@@ -472,13 +506,19 @@ fn extract_inline_reference(line: &str) -> Option<ForeignKeyMeta> {
 
     let on_delete = if let Some(od_pos) = upper[pos..].find("ON DELETE") {
         let after_od = line[pos + od_pos + 9..].trim();
-        let end = after_od.find(|c: char| c == ',' || c == ')' || c == '\n').unwrap_or(after_od.len());
+        let end = after_od
+            .find(|c: char| c == ',' || c == ')' || c == '\n')
+            .unwrap_or(after_od.len());
         Some(after_od[..end].trim().to_string())
     } else {
         None
     };
 
-    Some(ForeignKeyMeta { table, column, on_delete })
+    Some(ForeignKeyMeta {
+        table,
+        column,
+        on_delete,
+    })
 }
 
 /// Parse a table-level FOREIGN KEY constraint.
@@ -493,24 +533,49 @@ fn parse_foreign_key_constraint(line: &str) -> Option<ForeignKeyMeta> {
 
 impl std::fmt::Display for TableMeta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "TABLE {} (pk={}, {} cols, {} unique, {} fk)",
-            self.name, self.primary_keys.join(","), self.columns.len(),
-            self.unique_constraints.len(), self.foreign_keys.len())?;
+        writeln!(
+            f,
+            "TABLE {} (pk={}, {} cols, {} unique, {} fk)",
+            self.name,
+            self.primary_keys.join(","),
+            self.columns.len(),
+            self.unique_constraints.len(),
+            self.foreign_keys.len()
+        )?;
         for col in &self.columns {
             let mut flags: Vec<String> = Vec::new();
-            if col.is_primary_key { flags.push("PK".into()); }
-            if col.is_unique { flags.push("UNIQUE".into()); }
-            if col.is_not_null { flags.push("NOT NULL".into()); }
-            if col.nullable { flags.push("NULL".into()); }
-            if col.is_sensitive() { flags.push("SENSITIVE".into()); }
-            if col.is_auto_timestamp() { flags.push("AUTO_TS".into()); }
-            if let Some(ref def) = col.default_value { flags.push(format!("DEFAULT={}", def)); }
+            if col.is_primary_key {
+                flags.push("PK".into());
+            }
+            if col.is_unique {
+                flags.push("UNIQUE".into());
+            }
+            if col.is_not_null {
+                flags.push("NOT NULL".into());
+            }
+            if col.nullable {
+                flags.push("NULL".into());
+            }
+            if col.is_sensitive() {
+                flags.push("SENSITIVE".into());
+            }
+            if col.is_auto_timestamp() {
+                flags.push("AUTO_TS".into());
+            }
+            if let Some(ref def) = col.default_value {
+                flags.push(format!("DEFAULT={}", def));
+            }
             if let Some(ref fk) = col.references {
                 flags.push(format!("FK→{}.{}", fk.table, fk.column));
             }
-            writeln!(f, "  {} {} → {} [{}]",
-                col.name, col.sql_type, col.rust_type_full(),
-                flags.join(", "))?;
+            writeln!(
+                f,
+                "  {} {} → {} [{}]",
+                col.name,
+                col.sql_type,
+                col.rust_type_full(),
+                flags.join(", ")
+            )?;
         }
         Ok(())
     }
@@ -585,27 +650,43 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_profiles_table() {
         let tables = parse_schema(SAMPLE_SQL);
         let profiles = tables.iter().find(|t| t.name == "profiles").unwrap();
-        
+
         assert_eq!(profiles.primary_keys[0], "id");
         assert_eq!(profiles.columns.len(), 14);
-        
-        let username = profiles.columns.iter().find(|c| c.name == "username").unwrap();
+
+        let username = profiles
+            .columns
+            .iter()
+            .find(|c| c.name == "username")
+            .unwrap();
         assert!(username.is_unique);
         assert!(username.nullable); // TEXT without NOT NULL
         assert_eq!(username.rust_type_full(), "Option<String>");
-        
-        let pw = profiles.columns.iter().find(|c| c.name == "password_hash").unwrap();
+
+        let pw = profiles
+            .columns
+            .iter()
+            .find(|c| c.name == "password_hash")
+            .unwrap();
         assert!(pw.is_sensitive());
         assert!(pw.is_not_null);
         assert_eq!(pw.rust_type_full(), "String");
-        
-        let created = profiles.columns.iter().find(|c| c.name == "created_at").unwrap();
+
+        let created = profiles
+            .columns
+            .iter()
+            .find(|c| c.name == "created_at")
+            .unwrap();
         assert!(created.is_created_at());
         assert!(created.is_auto_timestamp());
-        
-        let updated = profiles.columns.iter().find(|c| c.name == "updated_at").unwrap();
+
+        let updated = profiles
+            .columns
+            .iter()
+            .find(|c| c.name == "updated_at")
+            .unwrap();
         assert!(updated.is_updated_at());
-        
+
         let xp = profiles.columns.iter().find(|c| c.name == "xp").unwrap();
         assert_eq!(xp.sql_type, "INTEGER");
         assert_eq!(xp.rust_type(), "i64");
@@ -616,7 +697,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_foreign_keys() {
         let tables = parse_schema(SAMPLE_SQL);
         let quiz = tables.iter().find(|t| t.name == "quiz_results").unwrap();
-        
+
         let user_id = quiz.columns.iter().find(|c| c.name == "user_id").unwrap();
         assert!(user_id.references.is_some());
         let fk = user_id.references.as_ref().unwrap();
@@ -629,7 +710,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_composite_unique() {
         let tables = parse_schema(SAMPLE_SQL);
         let usage = tables.iter().find(|t| t.name == "ai_token_usage").unwrap();
-        
+
         assert_eq!(usage.unique_constraints.len(), 1);
         assert_eq!(usage.unique_constraints[0], vec!["user_id", "date"]);
     }
@@ -638,7 +719,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_check_constraints() {
         let tables = parse_schema(SAMPLE_SQL);
         let qb = tables.iter().find(|t| t.name == "question_bank").unwrap();
-        
+
         let section = qb.columns.iter().find(|c| c.name == "section").unwrap();
         assert!(section.check_expr.is_some());
         assert!(section.check_expr.as_ref().unwrap().contains("structure"));
@@ -648,14 +729,18 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_rust_type_mapping() {
         let tables = parse_schema(SAMPLE_SQL);
         let qb = tables.iter().find(|t| t.name == "question_bank").unwrap();
-        
+
         let skill_id = qb.columns.iter().find(|c| c.name == "skill_id").unwrap();
         assert_eq!(skill_id.rust_type(), "i64");
         assert_eq!(skill_id.rust_type_full(), "i64"); // NOT NULL
-        
-        let difficulty = qb.columns.iter().find(|c| c.name == "difficulty_score").unwrap();
+
+        let difficulty = qb
+            .columns
+            .iter()
+            .find(|c| c.name == "difficulty_score")
+            .unwrap();
         assert_eq!(difficulty.rust_type_full(), "Option<i64>"); // nullable
-        
+
         let passage_id = qb.columns.iter().find(|c| c.name == "passage_id").unwrap();
         assert_eq!(passage_id.rust_type_full(), "Option<String>"); // FK, nullable
         assert!(passage_id.references.is_some());
@@ -665,7 +750,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_insertable_columns() {
         let tables = parse_schema(SAMPLE_SQL);
         let profiles = tables.iter().find(|t| t.name == "profiles").unwrap();
-        
+
         let insertable = profiles.insertable_columns();
         // Should exclude: id (PK), created_at (auto), updated_at (auto)
         assert!(!insertable.iter().any(|c| c.name == "id"));
@@ -679,7 +764,7 @@ CREATE TABLE IF NOT EXISTS question_bank (
     fn test_list_columns() {
         let tables = parse_schema(SAMPLE_SQL);
         let profiles = tables.iter().find(|t| t.name == "profiles").unwrap();
-        
+
         let list_cols = profiles.list_columns();
         // bio could be large but "bio" doesn't match content/body/essay pattern
         // All profiles columns should be in list for this table
@@ -691,45 +776,79 @@ CREATE TABLE IF NOT EXISTS question_bank (
         let sql = std::fs::read_to_string(
             "/home/abraham/Aplikasi-Ibrohim/new-toefl-quiz/src/db/migrations/001_initial_schema.sql"
         ).expect("read TOEFL schema");
-        
+
         let tables = parse_schema(&sql);
-        
+
         // TOEFL has ~35 tables (some may be 42 with comments, let's check)
-        assert!(tables.len() >= 30, "Expected 30+ tables, got {}", tables.len());
-        
+        assert!(
+            tables.len() >= 30,
+            "Expected 30+ tables, got {}",
+            tables.len()
+        );
+
         // Verify key tables exist
         let table_names: Vec<&str> = tables.iter().map(|t| t.name.as_str()).collect();
         assert!(table_names.contains(&"profiles"), "missing profiles");
-        assert!(table_names.contains(&"question_bank"), "missing question_bank");
-        assert!(table_names.contains(&"quiz_results"), "missing quiz_results");
-        assert!(table_names.contains(&"ai_token_usage"), "missing ai_token_usage");
+        assert!(
+            table_names.contains(&"question_bank"),
+            "missing question_bank"
+        );
+        assert!(
+            table_names.contains(&"quiz_results"),
+            "missing quiz_results"
+        );
+        assert!(
+            table_names.contains(&"ai_token_usage"),
+            "missing ai_token_usage"
+        );
         assert!(table_names.contains(&"circles"), "missing circles");
         assert!(table_names.contains(&"creators"), "missing creators");
         assert!(table_names.contains(&"blog_posts"), "missing blog_posts");
-        assert!(table_names.contains(&"peer_review_submissions"), "missing peer_review_submissions");
+        assert!(
+            table_names.contains(&"peer_review_submissions"),
+            "missing peer_review_submissions"
+        );
         assert!(table_names.contains(&"app_logs"), "missing app_logs");
-        assert!(table_names.contains(&"feature_flags"), "missing feature_flags");
-        
+        assert!(
+            table_names.contains(&"feature_flags"),
+            "missing feature_flags"
+        );
+
         // Verify profiles has correct structure
         let profiles = tables.iter().find(|t| t.name == "profiles").unwrap();
         assert_eq!(profiles.primary_keys[0], "id");
         assert!(profiles.columns.len() >= 14);
-        
+
         // Print summary
         println!("\n=== TOEFL Schema: {} tables ===", tables.len());
         for t in &tables {
             let pk = &t.primary_keys.join(",");
-            let fks: Vec<String> = t.columns.iter()
+            let fks: Vec<String> = t
+                .columns
+                .iter()
                 .filter(|c| c.references.is_some())
                 .map(|c| format!("{}→{}", c.name, c.references.as_ref().unwrap().table))
                 .collect();
-            let uniques = t.unique_constraints.iter()
+            let uniques = t
+                .unique_constraints
+                .iter()
                 .map(|u| format!("UNIQUE({})", u.join(",")))
                 .collect::<Vec<_>>();
-            println!("  {} ({} cols, pk={}{}{}) ",
-                t.name, t.columns.len(), pk,
-                if fks.is_empty() { String::new() } else { format!(", fk=[{}]", fks.join(",")) },
-                if uniques.is_empty() { String::new() } else { format!(", {}", uniques.join(",")) },
+            println!(
+                "  {} ({} cols, pk={}{}{}) ",
+                t.name,
+                t.columns.len(),
+                pk,
+                if fks.is_empty() {
+                    String::new()
+                } else {
+                    format!(", fk=[{}]", fks.join(","))
+                },
+                if uniques.is_empty() {
+                    String::new()
+                } else {
+                    format!(", {}", uniques.join(","))
+                },
             );
         }
     }

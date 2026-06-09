@@ -18,8 +18,8 @@ pub fn is_anomaly(args: &[Value]) -> Result<Value, String> {
     }
 
     let mean: f64 = vals.iter().sum::<f64>() / vals.len() as f64;
-    let std: f64 = (vals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / vals.len() as f64)
-        .sqrt();
+    let std: f64 =
+        (vals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / vals.len() as f64).sqrt();
 
     match method {
         "zscore" => {

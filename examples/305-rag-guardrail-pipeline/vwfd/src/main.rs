@@ -11,7 +11,8 @@ fn rag_context_retrieval(input: &Value) -> Result<Value, String> {
         json!({"chunk_id": "HC-002", "text": "Diabetes monitoring: HbA1c target <7% for most adults. Blood glucose self-monitoring recommended 4-6 times daily for insulin-dependent patients. Annual eye and foot exams required.", "score": 0.76}),
         json!({"chunk_id": "HC-003", "text": "Medication interactions: Metformin contraindicated with eGFR <30. NSAIDs may reduce efficacy of antihypertensives. Always check renal function before prescribing.", "score": 0.71}),
     ];
-    let context_text = results.iter()
+    let context_text = results
+        .iter()
         .map(|r| r["text"].as_str().unwrap_or("").to_string())
         .collect::<Vec<_>>()
         .join("\n\n");
@@ -25,10 +26,22 @@ fn rag_context_retrieval(input: &Value) -> Result<Value, String> {
 fn guardrail_hallucination_detector(input: &Value) -> Result<Value, String> {
     let text = input["answer_text"].as_str().unwrap_or("");
     let markers_defs = [
-        ("unsupported_claim", &["studies show", "research proves", "it is known that"][..]),
-        ("fabricated_reference", &["according to Dr.", "as published in", "per the 2023 study"]),
-        ("confidence_without_evidence", &["I am certain", "definitely", "without a doubt"]),
-        ("contradiction", &["however this contradicts", "on the other hand"]),
+        (
+            "unsupported_claim",
+            &["studies show", "research proves", "it is known that"][..],
+        ),
+        (
+            "fabricated_reference",
+            &["according to Dr.", "as published in", "per the 2023 study"],
+        ),
+        (
+            "confidence_without_evidence",
+            &["I am certain", "definitely", "without a doubt"],
+        ),
+        (
+            "contradiction",
+            &["however this contradicts", "on the other hand"],
+        ),
         ("out_of_scope", &["in my opinion", "I believe", "I think"]),
     ];
     let mut found: Vec<String> = Vec::new();

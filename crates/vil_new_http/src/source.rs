@@ -11,6 +11,8 @@
 use futures_util::StreamExt;
 use reqwest::Client;
 use std::sync::Arc;
+
+type TransformFn = Arc<dyn Fn(&[u8]) -> Option<Vec<u8>> + Send + Sync>;
 use tokio::runtime::Runtime;
 
 use vil_ir::builder::WorkflowBuilder;
@@ -68,7 +70,7 @@ pub struct HttpSourceBuilder {
     pub headers: Vec<(String, String)>,
     /// User-defined transform function applied to each NDJSON line / SSE event.
     /// Return Some(bytes) to forward, None to filter out.
-    pub transform_fn: Option<Arc<dyn Fn(&[u8]) -> Option<Vec<u8>> + Send + Sync>>,
+    pub transform_fn: Option<TransformFn>,
 }
 
 impl HttpSourceBuilder {
@@ -457,7 +459,15 @@ impl HttpSource {
                                 let permit = semaphore.clone().acquire_owned().await.unwrap();
                                 tokio::spawn(async move {
                                     let _permit = permit;
-                                    execute_http_request::<T>(&b, w, &h, c, session_id, trigger_payload).await;
+                                    execute_http_request::<T>(
+                                        &b,
+                                        w,
+                                        &h,
+                                        c,
+                                        session_id,
+                                        trigger_payload,
+                                    )
+                                    .await;
                                 });
                             }
                             Err(vil_rt::RtError::QueueEmpty(_)) => {
@@ -478,8 +488,15 @@ impl HttpSource {
                         }
                     }
                 } else {
-                    execute_http_request::<T>(&builder, world_clone, &handle_clone, client, 0, None)
-                        .await;
+                    execute_http_request::<T>(
+                        &builder,
+                        world_clone,
+                        &handle_clone,
+                        client,
+                        0,
+                        None,
+                    )
+                    .await;
                 }
             });
         })
@@ -825,7 +842,7 @@ impl FromStreamData for vil_types::ShmToken {
             if let Some(region) = world.data_region_id() {
                 // Use bump allocator (lock-free) instead of paged allocator (mutex)
                 if let Some((offset, len)) = heap.bump_alloc_and_write(region, &data) {
-                    return Self::data(session_id, offset.as_u64(), len as u32);
+                    return Self::data(session_id, offset.as_u64(), len);
                 }
             }
         }

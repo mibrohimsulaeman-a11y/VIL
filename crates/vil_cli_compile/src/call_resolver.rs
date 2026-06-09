@@ -6,9 +6,9 @@
 //! 3. Extracts the workflow's contract (input/output/error)
 //! 4. Validates compatibility with the caller's context
 
-use vil_cli_core::manifest::{WorkflowDagManifest, WorkflowManifest};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use vil_cli_core::manifest::{WorkflowDagManifest, WorkflowManifest};
 
 /// Resolved call target — a parsed workflow with its file path.
 #[allow(dead_code)]

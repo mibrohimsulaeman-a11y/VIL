@@ -23,14 +23,18 @@ pub fn read_resource(uri: &str) -> Value {
 
 fn read_workflows() -> Value {
     let result = crate::loader::load_dir("workflows");
-    let list: Vec<Value> = result.graphs.iter().map(|g| {
-        serde_json::json!({
-            "id": g.id,
-            "route": g.webhook_route,
-            "trigger": g.trigger_type,
-            "nodes": g.node_count(),
+    let list: Vec<Value> = result
+        .graphs
+        .iter()
+        .map(|g| {
+            serde_json::json!({
+                "id": g.id,
+                "route": g.webhook_route,
+                "trigger": g.trigger_type,
+                "nodes": g.node_count(),
+            })
         })
-    }).collect();
+        .collect();
 
     serde_json::json!({
         "contents": [{

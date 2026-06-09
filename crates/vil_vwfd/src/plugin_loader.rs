@@ -45,17 +45,24 @@ impl PluginHandle {
                 .map_err(|_| "plugin name: invalid UTF-8".to_string())?
                 .to_string();
 
-            let execute_fn: libloading::Symbol<unsafe extern "C" fn(*const u8, usize, *mut *mut u8, *mut usize) -> i32> =
-                lib.get(b"vflow_plugin_execute")
-                    .map_err(|e| format!("symbol vflow_plugin_execute: {}", e))?;
+            let execute_fn: libloading::Symbol<
+                unsafe extern "C" fn(*const u8, usize, *mut *mut u8, *mut usize) -> i32,
+            > = lib
+                .get(b"vflow_plugin_execute")
+                .map_err(|e| format!("symbol vflow_plugin_execute: {}", e))?;
             let execute_fn = *execute_fn;
 
-            let free_fn: libloading::Symbol<unsafe extern "C" fn(*mut u8, usize)> =
-                lib.get(b"vflow_plugin_free")
-                    .map_err(|e| format!("symbol vflow_plugin_free: {}", e))?;
+            let free_fn: libloading::Symbol<unsafe extern "C" fn(*mut u8, usize)> = lib
+                .get(b"vflow_plugin_free")
+                .map_err(|e| format!("symbol vflow_plugin_free: {}", e))?;
             let free_fn = *free_fn;
 
-            Ok(Self { _lib: lib, name, execute_fn, free_fn })
+            Ok(Self {
+                _lib: lib,
+                name,
+                execute_fn,
+                free_fn,
+            })
         }
     }
 
@@ -64,9 +71,8 @@ impl PluginHandle {
         let mut out_ptr: *mut u8 = std::ptr::null_mut();
         let mut out_len: usize = 0;
 
-        let rc = unsafe {
-            (self.execute_fn)(input.as_ptr(), input.len(), &mut out_ptr, &mut out_len)
-        };
+        let rc =
+            unsafe { (self.execute_fn)(input.as_ptr(), input.len(), &mut out_ptr, &mut out_len) };
 
         if rc != 0 {
             if !out_ptr.is_null() && out_len > 0 {
@@ -109,10 +115,18 @@ pub struct PluginRegistry {
     plugin_rt: Arc<tokio::runtime::Runtime>,
 }
 
+impl Default for PluginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRegistry {
     pub fn new() -> Self {
         let workers = std::thread::available_parallelism()
-            .map(|n| n.get()).unwrap_or(4).min(8);
+            .map(|n| n.get())
+            .unwrap_or(4)
+            .min(8);
         let plugin_rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(workers)
             .thread_name("vil-plugin")
@@ -141,7 +155,8 @@ impl PluginRegistry {
     /// (block_in_place, Handle::current, spawn_blocking all work).
     pub fn call(&self, handler_ref: &str, input: &Value) -> Result<Value, String> {
         let plugins = self.plugins.read().unwrap();
-        let handle = plugins.get(handler_ref)
+        let handle = plugins
+            .get(handler_ref)
             .ok_or_else(|| format!("plugin '{}' not loaded", handler_ref))?
             .clone();
         drop(plugins);
@@ -158,7 +173,8 @@ impl PluginRegistry {
             let result = handle.execute(&input_bytes);
             let _ = tx.send(result);
         });
-        let result = rx.recv()
+        let result = rx
+            .recv()
             .map_err(|_| format!("plugin '{}' channel closed", href))??;
 
         serde_json::from_slice(&result)
@@ -187,7 +203,8 @@ impl PluginRegistry {
         };
         for entry in entries.flatten() {
             let path = entry.path();
-            let is_plugin = path.extension()
+            let is_plugin = path
+                .extension()
                 .map(|e| e == "so" || e == "dylib")
                 .unwrap_or(false);
             if is_plugin {

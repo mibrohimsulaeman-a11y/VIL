@@ -21,7 +21,11 @@ fn villog_phase1_integration(_input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/509-villog-phase1-integration/vwfd/workflows", 3240)
-        .native("villog_phase1_integration", villog_phase1_integration)
-        .run().await;
+    vil_vwfd::app(
+        "examples/509-villog-phase1-integration/vwfd/workflows",
+        3240,
+    )
+    .native("villog_phase1_integration", villog_phase1_integration)
+    .run()
+    .await;
 }

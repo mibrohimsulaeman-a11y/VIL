@@ -25,8 +25,8 @@
 // Run:   cargo run -p vil-basic-integration-test
 // Test:  cargo test -p vil-basic-integration-test
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use tokio::sync::RwLock;
 use vil_server::prelude::*;
@@ -70,18 +70,17 @@ struct TaskStore {
 /// POST /tasks — Create a new task.
 /// ShmSlice: zero-copy body from ExchangeHeap (not Json<T>).
 /// ServiceCtx: state access via ctx.state (not Extension<T>).
-async fn create_task(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<Task>> {
-    let req: CreateTaskRequest = body.json()
+async fn create_task(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Task>> {
+    let req: CreateTaskRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected {title}"))?;
 
     if req.title.trim().is_empty() {
         return Err(VilError::bad_request("title must not be empty"));
     }
 
-    let store = ctx.state::<Arc<TaskStore>>()
+    let store = ctx
+        .state::<Arc<TaskStore>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let id = store.next_id.fetch_add(1, Ordering::Relaxed) + 1;
@@ -97,7 +96,8 @@ async fn create_task(
 
 /// GET /tasks — List all tasks.
 async fn list_tasks(ctx: ServiceCtx) -> HandlerResult<VilResponse<TaskListResponse>> {
-    let store = ctx.state::<Arc<TaskStore>>()
+    let store = ctx
+        .state::<Arc<TaskStore>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let tasks = store.tasks.read().await.clone();
@@ -107,7 +107,8 @@ async fn list_tasks(ctx: ServiceCtx) -> HandlerResult<VilResponse<TaskListRespon
 
 /// GET /tasks/stats — Task statistics.
 async fn task_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<TaskStatsResponse>> {
-    let store = ctx.state::<Arc<TaskStore>>()
+    let store = ctx
+        .state::<Arc<TaskStore>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let tasks = store.tasks.read().await;
@@ -188,10 +189,9 @@ mod tests {
     async fn test_create_task() {
         let client = TestClient::new(build_test_app());
 
-        let resp = client.post_json(
-            "/api/tasks",
-            r#"{"title":"Write integration tests"}"#,
-        ).await;
+        let resp = client
+            .post_json("/api/tasks", r#"{"title":"Write integration tests"}"#)
+            .await;
         resp.assert_ok();
 
         let body: serde_json::Value = resp.json();
@@ -205,8 +205,14 @@ mod tests {
         let client = TestClient::new(build_test_app());
 
         // Create two tasks
-        client.post_json("/api/tasks", r#"{"title":"Task A"}"#).await.assert_ok();
-        client.post_json("/api/tasks", r#"{"title":"Task B"}"#).await.assert_ok();
+        client
+            .post_json("/api/tasks", r#"{"title":"Task A"}"#)
+            .await
+            .assert_ok();
+        client
+            .post_json("/api/tasks", r#"{"title":"Task B"}"#)
+            .await
+            .assert_ok();
 
         // List should show both
         let resp = client.get("/api/tasks").await;
@@ -231,7 +237,10 @@ mod tests {
         assert_eq!(body["data"]["pending"], 0);
 
         // Create a task then check stats
-        client.post_json("/api/tasks", r#"{"title":"Task 1"}"#).await.assert_ok();
+        client
+            .post_json("/api/tasks", r#"{"title":"Task 1"}"#)
+            .await
+            .assert_ok();
         let resp = client.get("/api/tasks/stats").await;
         resp.assert_ok();
         let body: serde_json::Value = resp.json();

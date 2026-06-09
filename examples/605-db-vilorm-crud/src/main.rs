@@ -128,7 +128,9 @@ struct AppState {
 /// POST /authors — create author with optional bio (NULL-safe)
 async fn create_author(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Author>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreateAuthor = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreateAuthor = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
 
     // Pattern: insert with Option<String> → NULL if None
@@ -161,7 +163,9 @@ async fn list_authors(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<Author>>
 /// POST /posts — create post
 async fn create_post(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Post>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreatePost = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreatePost = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
     let status = req.status.unwrap_or_else(|| "draft".to_string());
 
@@ -199,7 +203,14 @@ async fn list_posts(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<PostListIt
 
     // Pattern: JOIN + column projection + ordering
     let posts = Post::q()
-        .select(&["p.id", "p.title", "a.name as author_name", "p.status", "p.views", "p.created_at"])
+        .select(&[
+            "p.id",
+            "p.title",
+            "a.name as author_name",
+            "p.status",
+            "p.views",
+            "p.created_at",
+        ])
         .alias("p")
         .join("authors a", "a.id = p.author_id")
         .order_by_desc("p.created_at")
@@ -239,7 +250,9 @@ async fn update_post(
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<Post>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: UpdatePost = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: UpdatePost = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     // Pattern: set_optional — only SET provided fields, skip None
     Post::q()
@@ -262,24 +275,36 @@ async fn update_post(
 }
 
 /// DELETE /posts/:id
-async fn delete_post(ctx: ServiceCtx, Path(id): Path<String>) -> HandlerResult<VilResponse<serde_json::Value>> {
+async fn delete_post(
+    ctx: ServiceCtx,
+    Path(id): Path<String>,
+) -> HandlerResult<VilResponse<serde_json::Value>> {
     let state = ctx.state::<AppState>().expect("state");
     let deleted = Post::delete(state.pool.inner(), &id)
         .await
         .map_err(|e| VilError::internal(format!("{e}")))?;
 
     if deleted {
-        Ok(VilResponse::ok(serde_json::json!({"deleted": true, "id": id})))
+        Ok(VilResponse::ok(
+            serde_json::json!({"deleted": true, "id": id}),
+        ))
     } else {
         Err(VilError::not_found("Post not found"))
     }
 }
 
 /// POST /tags — upsert tag (ON CONFLICT DO NOTHING)
-async fn create_tag(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<serde_json::Value>> {
+async fn create_tag(
+    ctx: ServiceCtx,
+    body: ShmSlice,
+) -> HandlerResult<VilResponse<serde_json::Value>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: serde_json::Value = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
-    let name = req["name"].as_str().ok_or_else(|| VilError::bad_request("name required"))?;
+    let req: serde_json::Value = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let name = req["name"]
+        .as_str()
+        .ok_or_else(|| VilError::bad_request("name required"))?;
     let id = uuid::Uuid::new_v4().to_string();
 
     // Pattern: ON CONFLICT DO NOTHING (idempotent upsert)
@@ -292,7 +317,9 @@ async fn create_tag(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilRespons
         .await
         .map_err(|e| VilError::internal(format!("{e}")))?;
 
-    Ok(VilResponse::ok(serde_json::json!({"ok": true, "tag": name})))
+    Ok(VilResponse::ok(
+        serde_json::json!({"ok": true, "tag": name}),
+    ))
 }
 
 /// GET /stats — aggregate queries via VilQuery scalar
@@ -331,9 +358,12 @@ async fn blog_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<serde_json::Va
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlxPool::connect("blog", vil_db_sqlx::SqlxConfig::sqlite("sqlite:blog.db?mode=rwc"))
-        .await
-        .expect("SQLite connect failed");
+    let pool = SqlxPool::connect(
+        "blog",
+        vil_db_sqlx::SqlxConfig::sqlite("sqlite:blog.db?mode=rwc"),
+    )
+    .await
+    .expect("SQLite connect failed");
 
     pool.execute_raw(
         "CREATE TABLE IF NOT EXISTS authors (
@@ -350,10 +380,14 @@ async fn main() {
         );
         CREATE TABLE IF NOT EXISTS tags (
             id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL
-        );"
-    ).await.expect("Migration failed");
+        );",
+    )
+    .await
+    .expect("Migration failed");
 
-    let state = AppState { pool: Arc::new(pool) };
+    let state = AppState {
+        pool: Arc::new(pool),
+    };
 
     let blog_svc = ServiceProcess::new("blog")
         .endpoint(Method::POST, "/authors", post(create_author))

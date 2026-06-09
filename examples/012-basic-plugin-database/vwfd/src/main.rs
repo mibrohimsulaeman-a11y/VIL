@@ -64,8 +64,14 @@ fn get_products(_input: &Value) -> Result<Value, String> {
 
 fn create_task(input: &Value) -> Result<Value, String> {
     let id = TASK_ID.fetch_add(1, Ordering::Relaxed);
-    let title = input.get("body").and_then(|b| b["title"].as_str()).unwrap_or("Untitled");
-    let desc = input.get("body").and_then(|b| b["description"].as_str()).unwrap_or("");
+    let title = input
+        .get("body")
+        .and_then(|b| b["title"].as_str())
+        .unwrap_or("Untitled");
+    let desc = input
+        .get("body")
+        .and_then(|b| b["description"].as_str())
+        .unwrap_or("");
     let task = json!({
         "id": id,
         "title": title,

@@ -2,9 +2,9 @@
 //!
 //! `vil test <manifest.yaml> --input <fixture.json> [--workflow <name>]`
 
-use vil_cli_core::manifest::WorkflowManifest;
 use colored::*;
 use std::time::Instant;
+use vil_cli_core::manifest::WorkflowManifest;
 
 /// Test fixture format.
 #[allow(dead_code)]

@@ -110,34 +110,46 @@ impl BankState {
     fn new() -> Self {
         let mut accounts = HashMap::new();
 
-        accounts.insert("ACC-1001".into(), Account {
-            id: "ACC-1001".into(),
-            holder_name: "Alice Wijaya".into(),
-            balance_cents: 500_000_00, // Rp 500,000.00
-            frozen: false,
-            daily_limit_cents: 100_000_00,
-        });
-        accounts.insert("ACC-1002".into(), Account {
-            id: "ACC-1002".into(),
-            holder_name: "Bob Santoso".into(),
-            balance_cents: 250_000_00, // Rp 250,000.00
-            frozen: false,
-            daily_limit_cents: 100_000_00,
-        });
-        accounts.insert("ACC-1003".into(), Account {
-            id: "ACC-1003".into(),
-            holder_name: "Charlie Pratama".into(),
-            balance_cents: 750_000_00, // Rp 750,000.00
-            frozen: true, // Compliance hold
-            daily_limit_cents: 100_000_00,
-        });
-        accounts.insert("ACC-1004".into(), Account {
-            id: "ACC-1004".into(),
-            holder_name: "Diana Sari".into(),
-            balance_cents: 1_000_000_00, // Rp 1,000,000.00
-            frozen: false,
-            daily_limit_cents: 200_000_00,
-        });
+        accounts.insert(
+            "ACC-1001".into(),
+            Account {
+                id: "ACC-1001".into(),
+                holder_name: "Alice Wijaya".into(),
+                balance_cents: 500_000_00, // Rp 500,000.00
+                frozen: false,
+                daily_limit_cents: 100_000_00,
+            },
+        );
+        accounts.insert(
+            "ACC-1002".into(),
+            Account {
+                id: "ACC-1002".into(),
+                holder_name: "Bob Santoso".into(),
+                balance_cents: 250_000_00, // Rp 250,000.00
+                frozen: false,
+                daily_limit_cents: 100_000_00,
+            },
+        );
+        accounts.insert(
+            "ACC-1003".into(),
+            Account {
+                id: "ACC-1003".into(),
+                holder_name: "Charlie Pratama".into(),
+                balance_cents: 750_000_00, // Rp 750,000.00
+                frozen: true,              // Compliance hold
+                daily_limit_cents: 100_000_00,
+            },
+        );
+        accounts.insert(
+            "ACC-1004".into(),
+            Account {
+                id: "ACC-1004".into(),
+                holder_name: "Diana Sari".into(),
+                balance_cents: 1_000_000_00, // Rp 1,000,000.00
+                frozen: false,
+                daily_limit_cents: 200_000_00,
+            },
+        );
 
         Self {
             accounts: RwLock::new(accounts),
@@ -152,8 +164,9 @@ async fn transfer_handler(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<TransferResult>> {
-    let req: TransferRequest = body.json()
-        .map_err(|_| VilError::bad_request("invalid JSON — expected from_account, to_account, amount_cents"))?;
+    let req: TransferRequest = body.json().map_err(|_| {
+        VilError::bad_request("invalid JSON — expected from_account, to_account, amount_cents")
+    })?;
 
     if req.amount_cents <= 0 {
         return Err(VilError::bad_request("amount_cents must be positive"));
@@ -163,20 +176,23 @@ async fn transfer_handler(
         return Err(VilError::bad_request("cannot transfer to the same account"));
     }
 
-    let state = ctx.state::<Arc<BankState>>()
+    let state = ctx
+        .state::<Arc<BankState>>()
         .map_err(|_| VilError::internal("bank state not found"))?;
 
     let mut accounts = state.accounts.write().unwrap();
 
     // Validate source account exists
-    let from_acct = accounts.get(&req.from_account)
+    let from_acct = accounts
+        .get(&req.from_account)
         .ok_or_else(|| BankingError::AccountNotFound {
             account_id: req.from_account.clone(),
         })?
         .clone();
 
     // Validate destination account exists
-    let _to_acct = accounts.get(&req.to_account)
+    let _to_acct = accounts
+        .get(&req.to_account)
         .ok_or_else(|| BankingError::AccountNotFound {
             account_id: req.to_account.clone(),
         })?
@@ -186,14 +202,16 @@ async fn transfer_handler(
     if from_acct.frozen {
         return Err(BankingError::AccountFrozen {
             account_id: req.from_account.clone(),
-        }.into());
+        }
+        .into());
     }
 
     // Check if destination is frozen
     if _to_acct.frozen {
         return Err(BankingError::AccountFrozen {
             account_id: req.to_account.clone(),
-        }.into());
+        }
+        .into());
     }
 
     // Check transaction limit
@@ -202,7 +220,8 @@ async fn transfer_handler(
             account_id: req.from_account.clone(),
             limit_cents: from_acct.daily_limit_cents,
             requested_cents: req.amount_cents,
-        }.into());
+        }
+        .into());
     }
 
     // Check sufficient funds
@@ -211,7 +230,8 @@ async fn transfer_handler(
             account_id: req.from_account.clone(),
             available_cents: from_acct.balance_cents,
             requested_cents: req.amount_cents,
-        }.into());
+        }
+        .into());
     }
 
     // Execute transfer
@@ -224,10 +244,13 @@ async fn transfer_handler(
     let to_new = to.balance_cents;
 
     // Generate transfer ID
-    let transfer_id = format!("TXN-{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis());
+    let transfer_id = format!(
+        "TXN-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    );
 
     Ok(VilResponse::ok(TransferResult {
         transfer_id,
@@ -245,11 +268,13 @@ async fn get_account(
     ctx: ServiceCtx,
     Path(id): Path<String>,
 ) -> HandlerResult<VilResponse<Account>> {
-    let state = ctx.state::<Arc<BankState>>()
+    let state = ctx
+        .state::<Arc<BankState>>()
         .map_err(|_| VilError::internal("bank state not found"))?;
 
     let accounts = state.accounts.read().unwrap();
-    let account = accounts.get(&id)
+    let account = accounts
+        .get(&id)
         .ok_or_else(|| BankingError::AccountNotFound {
             account_id: id.clone(),
         })?
@@ -260,16 +285,20 @@ async fn get_account(
 
 /// GET /accounts — list all accounts (summary view).
 async fn list_accounts(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<AccountSummary>>> {
-    let state = ctx.state::<Arc<BankState>>()
+    let state = ctx
+        .state::<Arc<BankState>>()
         .map_err(|_| VilError::internal("bank state not found"))?;
 
     let accounts = state.accounts.read().unwrap();
-    let mut summaries: Vec<AccountSummary> = accounts.values().map(|a| AccountSummary {
-        id: a.id.clone(),
-        holder_name: a.holder_name.clone(),
-        balance_cents: a.balance_cents,
-        frozen: a.frozen,
-    }).collect();
+    let mut summaries: Vec<AccountSummary> = accounts
+        .values()
+        .map(|a| AccountSummary {
+            id: a.id.clone(),
+            holder_name: a.holder_name.clone(),
+            balance_cents: a.balance_cents,
+            frozen: a.frozen,
+        })
+        .collect();
 
     // Sort by account ID for stable output
     summaries.sort_by(|a, b| a.id.cmp(&b.id));

@@ -240,11 +240,7 @@ impl HandlerMetricsRegistry {
             let errs = m.errors_total.load(Ordering::Relaxed);
             let dur_count = m.duration_count.load(Ordering::Relaxed);
             let dur_sum_ns = m.duration_sum_ns.load(Ordering::Relaxed);
-            let avg_ns = if dur_count > 0 {
-                dur_sum_ns / dur_count
-            } else {
-                0
-            };
+            let avg_ns = dur_sum_ns.checked_div(dur_count).unwrap_or(0);
 
             let min = m.min_ns.load(Ordering::Relaxed);
             let max = m.max_ns.load(Ordering::Relaxed);
@@ -285,7 +281,7 @@ pub async fn handler_metrics(
     let counter = METRICS_COUNTER.fetch_add(1, Ordering::Relaxed);
 
     // Fast path: skip metrics if not sampled
-    if sample_rate > 1 && counter % sample_rate != 0 {
+    if sample_rate > 1 && !counter.is_multiple_of(sample_rate) {
         return next.run(request).await;
     }
 

@@ -13,5 +13,6 @@ async fn main() {
             let bytes = serde_json::to_vec(body).unwrap_or_default().len();
             Ok(json!({"echo": body, "received": true, "received_bytes": bytes}))
         })
-        .run().await;
+        .run()
+        .await;
 }

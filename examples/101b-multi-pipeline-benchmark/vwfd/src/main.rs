@@ -7,6 +7,10 @@
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/101b-multi-pipeline-benchmark/vwfd/workflows", 3201)
-        .run().await;
+    vil_vwfd::app(
+        "examples/101b-multi-pipeline-benchmark/vwfd/workflows",
+        3201,
+    )
+    .run()
+    .await;
 }

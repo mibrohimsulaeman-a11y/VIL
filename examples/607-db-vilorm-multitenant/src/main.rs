@@ -116,7 +116,9 @@ struct AppState {
 /// POST /tenants -- create tenant
 async fn create_tenant(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Tenant>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreateTenant = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreateTenant = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
     let plan = req.plan.unwrap_or_else(|| "free".to_string());
 
@@ -157,7 +159,9 @@ async fn update_tenant(
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<Tenant>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: UpdateTenant = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: UpdateTenant = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     // Pattern: update().set_optional() -- partial tenant update, skips None fields
     Tenant::q()
@@ -185,7 +189,9 @@ async fn add_user(
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<serde_json::Value>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: AddUser = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: AddUser = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
     let role = req.role.unwrap_or_else(|| "member".to_string());
 
@@ -235,7 +241,9 @@ async fn upsert_setting(
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<serde_json::Value>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: UpsertSetting = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: UpsertSetting = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let id = uuid::Uuid::new_v4().to_string();
 
     // Pattern: on_conflict("tenant_id, key").do_update(&["value"]) -- upsert settings
@@ -321,9 +329,12 @@ async fn tenant_stats(
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlxPool::connect("multitenant", vil_db_sqlx::SqlxConfig::sqlite("sqlite:multitenant.db?mode=rwc"))
-        .await
-        .expect("SQLite connect failed");
+    let pool = SqlxPool::connect(
+        "multitenant",
+        vil_db_sqlx::SqlxConfig::sqlite("sqlite:multitenant.db?mode=rwc"),
+    )
+    .await
+    .expect("SQLite connect failed");
 
     pool.execute_raw(
         "CREATE TABLE IF NOT EXISTS tenants (
@@ -347,12 +358,14 @@ async fn main() {
             key TEXT NOT NULL,
             value TEXT,
             UNIQUE(tenant_id, key)
-        );"
+        );",
     )
     .await
     .expect("Migration failed");
 
-    let state = AppState { pool: Arc::new(pool) };
+    let state = AppState {
+        pool: Arc::new(pool),
+    };
 
     let saas_svc = ServiceProcess::new("saas")
         .endpoint(Method::POST, "/tenants", post(create_tenant))

@@ -1,5 +1,4 @@
 /// Evaluator — walk AST against variable map, produce serde_json::Value.
-
 use crate::ast::*;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -11,7 +10,8 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
         // ── Literals ──
         Expr::Int(n) => Ok(Value::Number((*n).into())),
         Expr::Float(n) => Ok(serde_json::Number::from_f64(*n)
-            .map(Value::Number).unwrap_or(Value::Null)),
+            .map(Value::Number)
+            .unwrap_or(Value::Null)),
         Expr::Bool(b) => Ok(Value::Bool(*b)),
         Expr::String(s) => Ok(Value::String(s.clone())),
         Expr::Null => Ok(Value::Null),
@@ -32,9 +32,7 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
         }
 
         // ── Ident (variable lookup) ──
-        Expr::Ident(name) => {
-            Ok(vars.get(name).cloned().unwrap_or(Value::Null))
-        }
+        Expr::Ident(name) => Ok(vars.get(name).cloned().unwrap_or(Value::Null)),
 
         // ── Field access: expr.field ──
         Expr::Field(obj, field) => {
@@ -65,14 +63,18 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
                 UnaryOp::Not => Ok(Value::Bool(!val_to_bool(&v))),
                 UnaryOp::Neg => match &v {
                     Value::Number(n) => {
-                        if let Some(i) = n.as_i64() { Ok(Value::Number((-i).into())) }
-                        else if let Some(f) = n.as_f64() {
-                            Ok(serde_json::Number::from_f64(-f).map(Value::Number).unwrap_or(Value::Null))
+                        if let Some(i) = n.as_i64() {
+                            Ok(Value::Number((-i).into()))
+                        } else if let Some(f) = n.as_f64() {
+                            Ok(serde_json::Number::from_f64(-f)
+                                .map(Value::Number)
+                                .unwrap_or(Value::Null))
+                        } else {
+                            Ok(Value::Null)
                         }
-                        else { Ok(Value::Null) }
                     }
                     _ => Err(format!("cannot negate {:?}", v)),
-                }
+                },
             }
         }
 
@@ -82,12 +84,16 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
             // Short-circuit for && and ||
             match op {
                 BinaryOp::And => {
-                    if !val_to_bool(&l) { return Ok(Value::Bool(false)); }
+                    if !val_to_bool(&l) {
+                        return Ok(Value::Bool(false));
+                    }
                     let r = eval(right, vars)?;
                     return Ok(Value::Bool(val_to_bool(&r)));
                 }
                 BinaryOp::Or => {
-                    if val_to_bool(&l) { return Ok(Value::Bool(true)); }
+                    if val_to_bool(&l) {
+                        return Ok(Value::Bool(true));
+                    }
                     let r = eval(right, vars)?;
                     return Ok(Value::Bool(val_to_bool(&r)));
                 }
@@ -133,8 +139,18 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
         }
 
         // ── Function call ──
-        Expr::FnCall(name, args) => {
-            eval_function(name, args, vars)
+        Expr::FnCall(name, args) => eval_function(name, args, vars),
+
+        // ── Comprehension method calls (V-CEL lambdas) ──
+        // Intercept BEFORE the generic MethodCall arm: the lambda body must stay
+        // unevaluated AST and be re-run per element with the binder bound.
+        Expr::MethodCall(obj, method, args)
+            if matches!(
+                method.as_str(),
+                "filter" | "map" | "all" | "exists" | "exists_one"
+            ) =>
+        {
+            eval_comprehension(obj, method, args, vars)
         }
 
         // ── Method call ──
@@ -143,6 +159,94 @@ pub fn eval(expr: &Expr, vars: &Vars) -> Result<Value, String> {
             let arg_vals: Result<Vec<Value>, _> = args.iter().map(|a| eval(a, vars)).collect();
             eval_method(&obj_val, method, &arg_vals?)
         }
+    }
+}
+
+// ── Comprehension evaluation (V-CEL list macros, method form) ──
+//
+// The body is re-evaluated against a child scope per element. We clone `vars`
+// once and overwrite only the binder slot each iteration to stay allocation-light.
+fn eval_comprehension(
+    obj: &Expr,
+    method: &str,
+    args: &[Expr],
+    vars: &Vars,
+) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(format!(
+            ".{}(binder, body) requires exactly 2 arguments",
+            method
+        ));
+    }
+    let binder = match &args[0] {
+        Expr::Ident(name) => name.clone(),
+        _ => return Err(format!(".{}() binder must be a plain identifier", method)),
+    };
+    let body = &args[1];
+    let coll = eval(obj, vars)?;
+    let items = match &coll {
+        Value::Array(a) => a,
+        other => {
+            return Err(format!(
+                ".{}() requires a list receiver, got {}",
+                method,
+                obj_type_name(other)
+            ))
+        }
+    };
+
+    let mut scope = vars.clone();
+    match method {
+        "map" => {
+            let mut out = Vec::with_capacity(items.len());
+            for it in items {
+                scope.insert(binder.clone(), it.clone());
+                out.push(eval(body, &scope)?);
+            }
+            Ok(Value::Array(out))
+        }
+        "filter" => {
+            let mut out = Vec::new();
+            for it in items {
+                scope.insert(binder.clone(), it.clone());
+                if val_to_bool(&eval(body, &scope)?) {
+                    out.push(it.clone());
+                }
+            }
+            Ok(Value::Array(out))
+        }
+        "all" => {
+            for it in items {
+                scope.insert(binder.clone(), it.clone());
+                if !val_to_bool(&eval(body, &scope)?) {
+                    return Ok(Value::Bool(false));
+                }
+            }
+            Ok(Value::Bool(true))
+        }
+        "exists" => {
+            for it in items {
+                scope.insert(binder.clone(), it.clone());
+                if val_to_bool(&eval(body, &scope)?) {
+                    return Ok(Value::Bool(true));
+                }
+            }
+            Ok(Value::Bool(false))
+        }
+        "exists_one" => {
+            let mut count = 0usize;
+            for it in items {
+                scope.insert(binder.clone(), it.clone());
+                if val_to_bool(&eval(body, &scope)?) {
+                    count += 1;
+                    if count > 1 {
+                        return Ok(Value::Bool(false));
+                    }
+                }
+            }
+            Ok(Value::Bool(count == 1))
+        }
+        _ => unreachable!("comprehension method already filtered by guard"),
     }
 }
 
@@ -157,9 +261,13 @@ fn eval_binary(op: BinaryOp, l: &Value, r: &Value) -> Result<Value, String> {
             } else if let (Some(a), Some(b)) = (l.as_f64(), r.as_f64()) {
                 // If both are integers, keep as integer
                 if l.is_i64() && r.is_i64() {
-                    Ok(Value::Number((l.as_i64().unwrap() + r.as_i64().unwrap()).into()))
+                    Ok(Value::Number(
+                        (l.as_i64().unwrap() + r.as_i64().unwrap()).into(),
+                    ))
                 } else {
-                    Ok(serde_json::Number::from_f64(a + b).map(Value::Number).unwrap_or(Value::Null))
+                    Ok(serde_json::Number::from_f64(a + b)
+                        .map(Value::Number)
+                        .unwrap_or(Value::Null))
                 }
             } else if let (Some(a), Some(b)) = (l.as_array(), r.as_array()) {
                 // List concat
@@ -173,7 +281,9 @@ fn eval_binary(op: BinaryOp, l: &Value, r: &Value) -> Result<Value, String> {
         BinaryOp::Sub => num_op(l, r, |a, b| a - b, |a, b| a - b),
         BinaryOp::Mul => num_op(l, r, |a, b| a * b, |a, b| a * b),
         BinaryOp::Div => {
-            if r.as_f64() == Some(0.0) { return Err("division by zero".into()); }
+            if r.as_f64() == Some(0.0) {
+                return Err("division by zero".into());
+            }
             num_op(l, r, |a, b| a / b, |a, b| a / b)
         }
         BinaryOp::Mod => num_op(l, r, |a, b| a % b, |a, b| a % b),
@@ -191,11 +301,18 @@ fn eval_binary(op: BinaryOp, l: &Value, r: &Value) -> Result<Value, String> {
     }
 }
 
-fn num_op(l: &Value, r: &Value, int_op: fn(i64, i64) -> i64, float_op: fn(f64, f64) -> f64) -> Result<Value, String> {
+fn num_op(
+    l: &Value,
+    r: &Value,
+    int_op: fn(i64, i64) -> i64,
+    float_op: fn(f64, f64) -> f64,
+) -> Result<Value, String> {
     if let (Some(a), Some(b)) = (l.as_i64(), r.as_i64()) {
         Ok(Value::Number(int_op(a, b).into()))
     } else if let (Some(a), Some(b)) = (l.as_f64(), r.as_f64()) {
-        Ok(serde_json::Number::from_f64(float_op(a, b)).map(Value::Number).unwrap_or(Value::Null))
+        Ok(serde_json::Number::from_f64(float_op(a, b))
+            .map(Value::Number)
+            .unwrap_or(Value::Null))
     } else {
         Err(format!("cannot apply arithmetic to {:?} and {:?}", l, r))
     }
@@ -203,7 +320,9 @@ fn num_op(l: &Value, r: &Value, int_op: fn(i64, i64) -> i64, float_op: fn(f64, f
 
 fn cmp_op(l: &Value, r: &Value, pred: fn(std::cmp::Ordering) -> bool) -> Result<Value, String> {
     if let (Some(a), Some(b)) = (l.as_f64(), r.as_f64()) {
-        Ok(Value::Bool(pred(a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))))
+        Ok(Value::Bool(pred(
+            a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal),
+        )))
     } else if let (Some(a), Some(b)) = (l.as_str(), r.as_str()) {
         Ok(Value::Bool(pred(a.cmp(b))))
     } else {
@@ -216,18 +335,25 @@ fn cmp_op(l: &Value, r: &Value, pred: fn(std::cmp::Ordering) -> bool) -> Result<
 fn eval_function(name: &str, args: &[Expr], vars: &Vars) -> Result<Value, String> {
     match name {
         "size" | "SIZE" => {
-            if args.len() != 1 { return Err("size() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("size() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
-            Ok(Value::Number(match &v {
-                Value::String(s) => s.len() as i64,
-                Value::Array(a) => a.len() as i64,
-                Value::Object(m) => m.len() as i64,
-                _ => 0,
-            }.into()))
+            Ok(Value::Number(
+                match &v {
+                    Value::String(s) => s.len() as i64,
+                    Value::Array(a) => a.len() as i64,
+                    Value::Object(m) => m.len() as i64,
+                    _ => 0,
+                }
+                .into(),
+            ))
         }
         // vdicl: ISBLANK(x) — true if null, empty string, or whitespace-only
         "ISBLANK" | "isblank" => {
-            if args.len() != 1 { return Err("ISBLANK() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("ISBLANK() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
             Ok(Value::Bool(match &v {
                 Value::Null => true,
@@ -237,19 +363,26 @@ fn eval_function(name: &str, args: &[Expr], vars: &Vars) -> Result<Value, String
         }
         // vdicl: LENGTH(x) — string/array length
         "LENGTH" | "length" => {
-            if args.len() != 1 { return Err("LENGTH() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("LENGTH() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
-            Ok(Value::Number(match &v {
-                Value::String(s) => s.len() as i64,
-                Value::Array(a) => a.len() as i64,
-                Value::Null => 0,
-                _ => 0,
-            }.into()))
+            Ok(Value::Number(
+                match &v {
+                    Value::String(s) => s.len() as i64,
+                    Value::Array(a) => a.len() as i64,
+                    Value::Null => 0,
+                    _ => 0,
+                }
+                .into(),
+            ))
         }
         "has" => {
             // has(obj.field) — check field existence
             // In vil-expr, `has` takes a field select expression
-            if args.len() != 1 { return Err("has() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("has() takes 1 argument".into());
+            }
             match &args[0] {
                 Expr::Field(obj, field) => {
                     let v = eval(obj, vars)?;
@@ -265,11 +398,15 @@ fn eval_function(name: &str, args: &[Expr], vars: &Vars) -> Result<Value, String
             }
         }
         "int" => {
-            if args.len() != 1 { return Err("int() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("int() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
             Ok(match &v {
                 Value::Number(n) => {
-                    let i = n.as_i64().unwrap_or_else(|| n.as_f64().unwrap_or(0.0) as i64);
+                    let i = n
+                        .as_i64()
+                        .unwrap_or_else(|| n.as_f64().unwrap_or(0.0) as i64);
                     Value::Number(i.into())
                 }
                 Value::String(s) => Value::Number(s.parse::<i64>().unwrap_or(0).into()),
@@ -278,56 +415,253 @@ fn eval_function(name: &str, args: &[Expr], vars: &Vars) -> Result<Value, String
             })
         }
         "double" | "float" => {
-            if args.len() != 1 { return Err(format!("{}() takes 1 argument", name)); }
+            if args.len() != 1 {
+                return Err(format!("{}() takes 1 argument", name));
+            }
             let v = eval(&args[0], vars)?;
             let f = match &v {
                 Value::Number(n) => n.as_f64().unwrap_or(0.0),
                 Value::String(s) => s.parse().unwrap_or(0.0),
                 _ => 0.0,
             };
-            Ok(serde_json::Number::from_f64(f).map(Value::Number).unwrap_or(Value::Null))
+            Ok(serde_json::Number::from_f64(f)
+                .map(Value::Number)
+                .unwrap_or(Value::Null))
         }
         "string" => {
-            if args.len() != 1 { return Err("string() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("string() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
             Ok(Value::String(val_to_string(&v)))
         }
         "type" => {
-            if args.len() != 1 { return Err("type() takes 1 argument".into()); }
+            if args.len() != 1 {
+                return Err("type() takes 1 argument".into());
+            }
             let v = eval(&args[0], vars)?;
-            Ok(Value::String(match &v {
-                Value::Null => "null", Value::Bool(_) => "bool",
-                Value::Number(_) => "number", Value::String(_) => "string",
-                Value::Array(_) => "list", Value::Object(_) => "map",
-            }.into()))
+            Ok(Value::String(
+                match &v {
+                    Value::Null => "null",
+                    Value::Bool(_) => "bool",
+                    Value::Number(_) => "number",
+                    Value::String(_) => "string",
+                    Value::Array(_) => "list",
+                    Value::Object(_) => "map",
+                }
+                .into(),
+            ))
         }
-        "max" => {
-            if args.is_empty() { return Err("max() needs at least 1 argument".into()); }
+        "max" | "greatest" => {
+            if args.is_empty() {
+                return Err("max() needs at least 1 argument".into());
+            }
             let vals: Result<Vec<Value>, _> = args.iter().map(|a| eval(a, vars)).collect();
             let vals = vals?;
             let mut best = &vals[0];
             for v in &vals[1..] {
                 if let (Some(a), Some(b)) = (v.as_f64(), best.as_f64()) {
-                    if a > b { best = v; }
+                    if a > b {
+                        best = v;
+                    }
                 }
             }
             Ok(best.clone())
         }
-        "min" => {
-            if args.is_empty() { return Err("min() needs at least 1 argument".into()); }
+        "min" | "least" => {
+            if args.is_empty() {
+                return Err("min() needs at least 1 argument".into());
+            }
             let vals: Result<Vec<Value>, _> = args.iter().map(|a| eval(a, vars)).collect();
             let vals = vals?;
             let mut best = &vals[0];
             for v in &vals[1..] {
                 if let (Some(a), Some(b)) = (v.as_f64(), best.as_f64()) {
-                    if a < b { best = v; }
+                    if a < b {
+                        best = v;
+                    }
                 }
             }
             Ok(best.clone())
         }
+        // ── V-CEL casts ──
+        "uint" => {
+            if args.len() != 1 {
+                return Err("uint() takes 1 argument".into());
+            }
+            let v = eval(&args[0], vars)?;
+            let i = match &v {
+                Value::Number(n) => n
+                    .as_i64()
+                    .unwrap_or_else(|| n.as_f64().unwrap_or(0.0) as i64),
+                Value::String(s) => s
+                    .trim()
+                    .parse::<i64>()
+                    .map_err(|_| format!("uint(): cannot parse '{}'", s))?,
+                Value::Bool(true) => 1,
+                Value::Bool(false) => 0,
+                _ => 0,
+            };
+            if i < 0 {
+                return Err("uint(): value is negative".into());
+            }
+            Ok(Value::Number(i.into()))
+        }
+        "dyn" => {
+            if args.len() != 1 {
+                return Err("dyn() takes 1 argument".into());
+            }
+            eval(&args[0], vars)
+        }
+        "bytes" => {
+            if args.len() != 1 {
+                return Err("bytes() takes 1 argument".into());
+            }
+            let v = eval(&args[0], vars)?;
+            // bytes(string) -> JSON array of UTF-8 byte values; bytes(list) -> passthrough.
+            let out = match &v {
+                Value::String(s) => s
+                    .as_bytes()
+                    .iter()
+                    .map(|b| Value::Number((*b as i64).into()))
+                    .collect::<Vec<_>>(),
+                Value::Array(a) => a.clone(),
+                _ => return Err("bytes(): expected a string".into()),
+            };
+            Ok(Value::Array(out))
+        }
+
+        // ── Regex (core, non-feature-gated) ──
+        "matches" => {
+            if args.len() != 2 {
+                return Err("matches(s, re) takes 2 arguments".into());
+            }
+            let s = eval(&args[0], vars)?;
+            let re = eval(&args[1], vars)?;
+            let text = s.as_str().unwrap_or("");
+            let pat = re.as_str().ok_or("matches(): pattern must be a string")?;
+            let compiled = regex::Regex::new(pat).map_err(|e| format!("matches(): {}", e))?;
+            Ok(Value::Bool(compiled.is_match(text)))
+        }
+
+        // ── String free-function forms (mirror the method forms) ──
+        "startsWith" | "endsWith" | "contains" | "replace" | "split" | "substring" | "trim"
+        | "to_lower" | "to_upper" | "toLowerCase" | "toUpperCase" => {
+            let vals: Result<Vec<Value>, _> = args.iter().map(|a| eval(a, vars)).collect();
+            let vals = vals?;
+            let (recv, rest) = vals
+                .split_first()
+                .ok_or_else(|| format!("{}() requires a receiver argument", name))?;
+            eval_method(recv, name, rest)
+        }
+
+        // ── Encoding ──
+        "base64_encode" => {
+            if args.len() != 1 {
+                return Err("base64_encode() takes 1 argument".into());
+            }
+            use base64::Engine;
+            let v = eval(&args[0], vars)?;
+            let bytes = match &v {
+                Value::String(s) => s.as_bytes().to_vec(),
+                other => val_to_string(other).into_bytes(),
+            };
+            Ok(Value::String(
+                base64::engine::general_purpose::STANDARD.encode(bytes),
+            ))
+        }
+        "base64_decode" => {
+            if args.len() != 1 {
+                return Err("base64_decode() takes 1 argument".into());
+            }
+            use base64::Engine;
+            let v = eval(&args[0], vars)?;
+            let s = v.as_str().ok_or("base64_decode(): string required")?;
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(s)
+                .map_err(|e| format!("base64_decode(): {}", e))?;
+            Ok(Value::String(
+                String::from_utf8_lossy(&decoded).into_owned(),
+            ))
+        }
+
+        // ── JSON ──
+        "json_parse" => {
+            if args.len() != 1 {
+                return Err("json_parse() takes 1 argument".into());
+            }
+            let v = eval(&args[0], vars)?;
+            let s = v.as_str().ok_or("json_parse(): string required")?;
+            serde_json::from_str(s).map_err(|e| format!("json_parse(): {}", e))
+        }
+        "ndjson_parse" => {
+            if args.len() != 1 {
+                return Err("ndjson_parse() takes 1 argument".into());
+            }
+            let v = eval(&args[0], vars)?;
+            let s = v.as_str().ok_or("ndjson_parse(): string required")?;
+            let mut out = Vec::new();
+            for line in s.lines() {
+                let t = line.trim();
+                if t.is_empty() {
+                    continue;
+                }
+                out.push(serde_json::from_str(t).map_err(|e| format!("ndjson_parse(): {}", e))?);
+            }
+            Ok(Value::Array(out))
+        }
+
+        // ── Temporal (core, chrono + chrono-tz) ──
+        // timestamp() returns a normalized RFC3339 string; accessors parse it.
+        // duration() returns {"__duration_ms__": i64}.
+        "timestamp" => {
+            if args.len() != 1 {
+                return Err("timestamp() takes 1 argument".into());
+            }
+            let v = eval(&args[0], vars)?;
+            let s = v.as_str().ok_or("timestamp(): RFC3339 string required")?;
+            let dt = chrono::DateTime::parse_from_rfc3339(s)
+                .map_err(|e| format!("timestamp(): invalid RFC3339 '{}': {}", s, e))?;
+            Ok(Value::String(dt.to_rfc3339()))
+        }
+        "duration" if args.len() == 1 => {
+            let v = eval(&args[0], vars)?;
+            let s = v.as_str().ok_or("duration(): string required")?;
+            let ms = parse_duration_ms(s)?;
+            let mut m = serde_json::Map::new();
+            m.insert("__duration_ms__".into(), Value::Number(ms.into()));
+            Ok(Value::Object(m))
+        }
+        "getYear" | "getMonth" | "getDayOfMonth" | "getDate" | "getDayOfWeek" | "getDayOfYear"
+        | "getHours" | "getMinutes" | "getSeconds" | "getMilliseconds" => {
+            if args.is_empty() || args.len() > 2 {
+                return Err(format!("{}(timestamp, [tz]) takes 1 or 2 arguments", name));
+            }
+            let v = eval(&args[0], vars)?;
+            let s = v
+                .as_str()
+                .ok_or_else(|| format!("{}(): timestamp string required", name))?;
+            let tz = if args.len() == 2 {
+                let tzv = eval(&args[1], vars)?;
+                Some(
+                    tzv.as_str()
+                        .ok_or_else(|| format!("{}(): timezone must be a string", name))?
+                        .to_string(),
+                )
+            } else {
+                None
+            };
+            temporal_accessor(name, s, tz.as_deref())
+        }
+
+        // ── Comprehension macros (free-function form) ──
+        "transformList" => eval_transform_list(args, vars),
+        "transformMap" => eval_transform_map(args, vars),
+
         // ── Built-in FaaS functions (feature-gated) ──
         _ => {
-            let evaluated_args: Result<Vec<Value>, _> = args.iter().map(|a| eval(a, vars)).collect();
+            let evaluated_args: Result<Vec<Value>, _> =
+                args.iter().map(|a| eval(a, vars)).collect();
             let evaluated_args = evaluated_args?;
             dispatch_faas(name, &evaluated_args)
         }
@@ -377,7 +711,9 @@ fn dispatch_faas(name: &str, #[allow(unused)] args: &[Value]) -> Result<Value, S
         _ => {}
     }
     #[cfg(feature = "faas-core")]
-    if name == "parse_csv" { return vil_parse_csv::parse_csv(args); }
+    if name == "parse_csv" {
+        return vil_parse_csv::parse_csv(args);
+    }
     #[cfg(feature = "faas-core")]
     match name {
         "parse_xml" => return vil_parse_xml::parse_xml(args),
@@ -392,19 +728,31 @@ fn dispatch_faas(name: &str, #[allow(unused)] args: &[Value]) -> Result<Value, S
         _ => {}
     }
     #[cfg(feature = "faas-core")]
-    if name == "parse_phone" { return vil_phone::parse_phone(args); }
+    if name == "parse_phone" {
+        return vil_phone::parse_phone(args);
+    }
 
     // ── Batch 2: Transform + Stats + Notification + Geo ──
     #[cfg(feature = "faas-full")]
-    if name == "validate_schema" { return vil_validate_schema::validate_schema(args); }
+    if name == "validate_schema" {
+        return vil_validate_schema::validate_schema(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "mask_pii" { return vil_mask::mask_pii(args); }
+    if name == "mask_pii" {
+        return vil_mask::mask_pii(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "reshape" { return vil_reshape::reshape(args); }
+    if name == "reshape" {
+        return vil_reshape::reshape(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "render_template" { return vil_template::render_template(args); }
+    if name == "render_template" {
+        return vil_template::render_template(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "validate_email" { return vil_email_validate::validate_email(args); }
+    if name == "validate_email" {
+        return vil_email_validate::validate_email(args);
+    }
     #[cfg(feature = "faas-full")]
     match name {
         "mean" => return vil_stats::mean(args),
@@ -415,15 +763,26 @@ fn dispatch_faas(name: &str, #[allow(unused)] args: &[Value]) -> Result<Value, S
         _ => {}
     }
     #[cfg(feature = "faas-full")]
-    if name == "is_anomaly" { return vil_anomaly::is_anomaly(args); }
+    if name == "is_anomaly" {
+        return vil_anomaly::is_anomaly(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "send_email" { return vil_email::send_email(args); }
+    if name == "send_email" {
+        return vil_email::send_email(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "send_webhook" { return vil_webhook_out::send_webhook(args); }
+    if name == "send_webhook" {
+        return vil_webhook_out::send_webhook(args);
+    }
     #[cfg(feature = "faas-full")]
-    if name == "geo_distance" { return vil_geodist::geo_distance(args); }
+    if name == "geo_distance" {
+        return vil_geodist::geo_distance(args);
+    }
 
-    Err(format!("unknown function: {}(). Enable 'faas-core' or 'faas-full' feature.", name))
+    Err(format!(
+        "unknown function: {}(). Enable 'faas-core' or 'faas-full' feature.",
+        name
+    ))
 }
 
 // ── Method evaluation (vil-expr §3.2.2-4) ──
@@ -443,15 +802,29 @@ fn eval_method(obj: &Value, method: &str, args: &[Value]) -> Result<Value, Strin
             let arg = args.first().and_then(|a| a.as_str()).unwrap_or("");
             Ok(Value::Bool(s.ends_with(arg)))
         }
-        (Value::String(s), "size") | (Value::String(s), "length") => Ok(Value::Number((s.len() as i64).into())),
+        (Value::String(s), "size") | (Value::String(s), "length") => {
+            Ok(Value::Number((s.len() as i64).into()))
+        }
         (Value::String(s), "split") => {
             let delim = args.first().and_then(|a| a.as_str()).unwrap_or("/");
-            let parts: Vec<Value> = s.split(delim).map(|p| Value::String(p.to_string())).collect();
+            let parts: Vec<Value> = s
+                .split(delim)
+                .map(|p| Value::String(p.to_string()))
+                .collect();
             Ok(Value::Array(parts))
         }
         (Value::String(s), "trim") => Ok(Value::String(s.trim().to_string())),
-        (Value::String(s), "toUpperCase") => Ok(Value::String(s.to_uppercase())),
-        (Value::String(s), "toLowerCase") => Ok(Value::String(s.to_lowercase())),
+        (Value::String(s), "toUpperCase") | (Value::String(s), "to_upper") => {
+            Ok(Value::String(s.to_uppercase()))
+        }
+        (Value::String(s), "toLowerCase") | (Value::String(s), "to_lower") => {
+            Ok(Value::String(s.to_lowercase()))
+        }
+        (Value::String(s), "matches") => {
+            let pat = args.first().and_then(|a| a.as_str()).unwrap_or("");
+            let compiled = regex::Regex::new(pat).map_err(|e| format!("matches(): {}", e))?;
+            Ok(Value::Bool(compiled.is_match(s)))
+        }
         (Value::String(s), "replace") => {
             let from = args.first().and_then(|a| a.as_str()).unwrap_or("");
             let to = args.get(1).and_then(|a| a.as_str()).unwrap_or("");
@@ -459,26 +832,36 @@ fn eval_method(obj: &Value, method: &str, args: &[Value]) -> Result<Value, Strin
         }
         (Value::String(s), "substring") => {
             let start = args.first().and_then(|a| a.as_u64()).unwrap_or(0) as usize;
-            let end = args.get(1).and_then(|a| a.as_u64()).map(|e| e as usize).unwrap_or(s.len());
-            Ok(Value::String(s.get(start..end.min(s.len())).unwrap_or("").to_string()))
+            let end = args
+                .get(1)
+                .and_then(|a| a.as_u64())
+                .map(|e| e as usize)
+                .unwrap_or(s.len());
+            Ok(Value::String(
+                s.get(start..end.min(s.len())).unwrap_or("").to_string(),
+            ))
         }
 
         // List/Map size method
-        (Value::Array(a), "size") | (Value::Array(a), "length") => Ok(Value::Number((a.len() as i64).into())),
+        (Value::Array(a), "size") | (Value::Array(a), "length") => {
+            Ok(Value::Number((a.len() as i64).into()))
+        }
         (Value::Array(a), "last") => Ok(a.last().cloned().unwrap_or(Value::Null)),
         (Value::Array(a), "first") => Ok(a.first().cloned().unwrap_or(Value::Null)),
         (Value::Object(m), "size") => Ok(Value::Number((m.len() as i64).into())),
 
         // Unsupported macros → clear error
-        (_, "map" | "filter" | "all" | "exists" | "exists_one") => {
-            Err(format!(
-                ".{}() is a vil-expr list macro that requires VFlow cloud compiler. \
+        (_, "map" | "filter" | "all" | "exists" | "exists_one") => Err(format!(
+            ".{}() is a vil-expr list macro that requires VFlow cloud compiler. \
                  Rewrite using basic expressions or use: vflow compile --cloud",
-                method
-            ))
-        }
+            method
+        )),
 
-        _ => Err(format!("unknown method .{}() on {:?}", method, obj_type_name(obj))),
+        _ => Err(format!(
+            "unknown method .{}() on {:?}",
+            method,
+            obj_type_name(obj)
+        )),
     }
 }
 
@@ -533,8 +916,179 @@ fn val_in(item: &Value, collection: &Value) -> bool {
 
 fn obj_type_name(v: &Value) -> &'static str {
     match v {
-        Value::Null => "null", Value::Bool(_) => "bool",
-        Value::Number(_) => "number", Value::String(_) => "string",
-        Value::Array(_) => "list", Value::Object(_) => "map",
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "list",
+        Value::Object(_) => "map",
+    }
+}
+
+// ── V-CEL comprehension macros (free-function form) ──
+fn eval_transform_list(args: &[Expr], vars: &Vars) -> Result<Value, String> {
+    // transformList(coll, x, body) | transformList(coll, x, filter, body)
+    if args.len() != 3 && args.len() != 4 {
+        return Err("transformList(coll, x, [filter,] body) takes 3 or 4 arguments".into());
+    }
+    let coll = eval(&args[0], vars)?;
+    let items = match &coll {
+        Value::Array(a) => a,
+        other => {
+            return Err(format!(
+                "transformList(): first argument must be a list, got {}",
+                obj_type_name(other)
+            ))
+        }
+    };
+    let binder = match &args[1] {
+        Expr::Ident(n) => n.clone(),
+        _ => return Err("transformList(): binder must be a plain identifier".into()),
+    };
+    let (filter, body) = if args.len() == 4 {
+        (Some(&args[2]), &args[3])
+    } else {
+        (None, &args[2])
+    };
+    let mut scope = vars.clone();
+    let mut out = Vec::new();
+    for it in items {
+        scope.insert(binder.clone(), it.clone());
+        if let Some(f) = filter {
+            if !val_to_bool(&eval(f, &scope)?) {
+                continue;
+            }
+        }
+        out.push(eval(body, &scope)?);
+    }
+    Ok(Value::Array(out))
+}
+
+fn eval_transform_map(args: &[Expr], vars: &Vars) -> Result<Value, String> {
+    // transformMap(map, k, v, body) | transformMap(map, k, v, filter, body)
+    if args.len() != 4 && args.len() != 5 {
+        return Err("transformMap(map, k, v, [filter,] body) takes 4 or 5 arguments".into());
+    }
+    let src = eval(&args[0], vars)?;
+    let obj = match &src {
+        Value::Object(m) => m,
+        other => {
+            return Err(format!(
+                "transformMap(): first argument must be a map, got {}",
+                obj_type_name(other)
+            ))
+        }
+    };
+    let kbind = match &args[1] {
+        Expr::Ident(n) => n.clone(),
+        _ => return Err("transformMap(): key binder must be a plain identifier".into()),
+    };
+    let vbind = match &args[2] {
+        Expr::Ident(n) => n.clone(),
+        _ => return Err("transformMap(): value binder must be a plain identifier".into()),
+    };
+    let (filter, body) = if args.len() == 5 {
+        (Some(&args[3]), &args[4])
+    } else {
+        (None, &args[3])
+    };
+    let mut scope = vars.clone();
+    let mut out = serde_json::Map::new();
+    for (k, v) in obj {
+        scope.insert(kbind.clone(), Value::String(k.clone()));
+        scope.insert(vbind.clone(), v.clone());
+        if let Some(f) = filter {
+            if !val_to_bool(&eval(f, &scope)?) {
+                continue;
+            }
+        }
+        out.insert(k.clone(), eval(body, &scope)?);
+    }
+    Ok(Value::Object(out))
+}
+
+// ── Temporal helpers (chrono + chrono-tz) ──
+fn parse_duration_ms(s: &str) -> Result<i64, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err("duration(): empty string".into());
+    }
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    let mut total_ms = 0f64;
+    let mut found = false;
+    while i < bytes.len() {
+        let start = i;
+        if bytes[i] == b'-' || bytes[i] == b'+' {
+            i += 1;
+        }
+        while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+            i += 1;
+        }
+        if i == start {
+            return Err(format!("duration(): invalid number in '{}'", s));
+        }
+        let num: f64 = s[start..i]
+            .parse()
+            .map_err(|_| format!("duration(): bad number in '{}'", s))?;
+        let ustart = i;
+        while i < bytes.len()
+            && !bytes[i].is_ascii_digit()
+            && bytes[i] != b'.'
+            && bytes[i] != b'-'
+            && bytes[i] != b'+'
+        {
+            i += 1;
+        }
+        let unit = &s[ustart..i];
+        let ms = match unit {
+            "h" => num * 3_600_000.0,
+            "m" => num * 60_000.0,
+            "s" => num * 1_000.0,
+            "ms" => num,
+            "us" | "µs" => num / 1_000.0,
+            "ns" => num / 1_000_000.0,
+            "" => return Err(format!("duration(): missing unit in '{}'", s)),
+            other => return Err(format!("duration(): unknown unit '{}'", other)),
+        };
+        total_ms += ms;
+        found = true;
+    }
+    if !found {
+        return Err(format!("duration(): invalid '{}'", s));
+    }
+    Ok(total_ms.round() as i64)
+}
+
+fn temporal_accessor(name: &str, s: &str, tz: Option<&str>) -> Result<Value, String> {
+    let dt = chrono::DateTime::parse_from_rfc3339(s)
+        .map_err(|e| format!("{}(): invalid timestamp '{}': {}", name, s, e))?;
+    let comp = match tz {
+        Some(tzname) => {
+            let zone: chrono_tz::Tz = tzname
+                .parse()
+                .map_err(|_| format!("{}(): unknown timezone '{}'", name, tzname))?;
+            extract_component(name, &dt.with_timezone(&zone))
+        }
+        None => extract_component(name, &dt.with_timezone(&chrono::Utc)),
+    };
+    Ok(Value::Number(comp.into()))
+}
+
+// CEL-compatible component semantics: getMonth/getDayOfMonth/getDayOfYear are
+// 0-based; getDate is 1-based; getDayOfWeek is 0-based with Sunday = 0.
+fn extract_component<T: chrono::Datelike + chrono::Timelike>(name: &str, dt: &T) -> i64 {
+    match name {
+        "getYear" => dt.year() as i64,
+        "getMonth" => dt.month0() as i64,
+        "getDayOfMonth" => dt.day0() as i64,
+        "getDate" => dt.day() as i64,
+        "getDayOfWeek" => dt.weekday().num_days_from_sunday() as i64,
+        "getDayOfYear" => dt.ordinal0() as i64,
+        "getHours" => dt.hour() as i64,
+        "getMinutes" => dt.minute() as i64,
+        "getSeconds" => dt.second() as i64,
+        "getMilliseconds" => (dt.nanosecond() / 1_000_000) as i64,
+        _ => 0,
     }
 }

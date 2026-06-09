@@ -15,7 +15,8 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 const GITHUB_RAW_BASE: &str = "https://raw.githubusercontent.com/OceanOS-id/VIL/main";
-const GITHUB_INDEX_URL: &str = "https://raw.githubusercontent.com/OceanOS-id/VIL/main/template-index.json";
+const GITHUB_INDEX_URL: &str =
+    "https://raw.githubusercontent.com/OceanOS-id/VIL/main/template-index.json";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Example-based init: fetch from GitHub or local examples/
@@ -30,7 +31,11 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     let index = match fetch_template_index() {
         Ok(idx) => idx,
         Err(e) => {
-            println!("  {} Could not fetch template index: {}", "NOTE".yellow(), e);
+            println!(
+                "  {} Could not fetch template index: {}",
+                "NOTE".yellow(),
+                e
+            );
             println!("  Falling back to built-in templates.");
             println!();
             return None;
@@ -41,8 +46,20 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     let tmpl = match index.templates.iter().find(|t| t.id == template_id) {
         Some(t) => t,
         None => {
-            println!("  {} Template '{}' not found in remote index.", "NOTE".yellow(), template_id);
-            println!("  Available: {}", index.templates.iter().map(|t| t.id.as_str()).collect::<Vec<_>>().join(", "));
+            println!(
+                "  {} Template '{}' not found in remote index.",
+                "NOTE".yellow(),
+                template_id
+            );
+            println!(
+                "  Available: {}",
+                index
+                    .templates
+                    .iter()
+                    .map(|t| t.id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
             println!("  Falling back to built-in templates.");
             println!();
             return None;
@@ -50,11 +67,24 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     };
 
     let port = args.port.unwrap_or(tmpl.default_port);
-    let upstream = args.upstream.clone().unwrap_or(tmpl.default_upstream.clone());
+    let upstream = args
+        .upstream
+        .clone()
+        .unwrap_or(tmpl.default_upstream.clone());
 
-    println!("  {} {} ({})", "TEMPLATE".cyan().bold(), tmpl.title, tmpl.id);
+    println!(
+        "  {} {} ({})",
+        "TEMPLATE".cyan().bold(),
+        tmpl.title,
+        tmpl.id
+    );
     println!("  {} {}", "DESC".dimmed(), tmpl.description);
-    println!("  {} {} files from examples/{}", "SOURCE".dimmed(), tmpl.files.len(), tmpl.example_dir);
+    println!(
+        "  {} {} files from examples/{}",
+        "SOURCE".dimmed(),
+        tmpl.files.len(),
+        tmpl.example_dir
+    );
     println!();
 
     // Resolve output directory
@@ -70,7 +100,11 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     let project_dir = if is_vilapp {
         if !vastar_home.exists() {
             let _ = std::fs::create_dir_all(&vastar_home);
-            println!("  {} VASTAR_HOME: {}", "HOME".green(), vastar_home.display());
+            println!(
+                "  {} VASTAR_HOME: {}",
+                "HOME".green(),
+                vastar_home.display()
+            );
         }
         vastar_home.join(name)
     } else {
@@ -78,14 +112,21 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     };
 
     if project_dir.exists() {
-        println!("  {} Directory '{}' already exists. Remove it first.", "ERROR".red().bold(), project_dir.display());
+        println!(
+            "  {} Directory '{}' already exists. Remove it first.",
+            "ERROR".red().bold(),
+            project_dir.display()
+        );
         return Some(Err(format!("Directory {} exists", project_dir.display())));
     }
 
     // Download and write files
     println!("  {} Downloading template files...", "FETCH".cyan());
     for file_path in &tmpl.files {
-        let url = format!("{}/examples/{}/{}", GITHUB_RAW_BASE, tmpl.example_dir, file_path);
+        let url = format!(
+            "{}/examples/{}/{}",
+            GITHUB_RAW_BASE, tmpl.example_dir, file_path
+        );
         let dest = project_dir.join(file_path);
 
         // Create parent dirs
@@ -94,7 +135,8 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
         }
 
         // GitHub first, VASTAR_HOME local as offline fallback
-        let content = fetch_url(&url).ok()
+        let content = fetch_url(&url)
+            .ok()
             .or_else(|| try_read_local_example(&vastar_home, &tmpl.example_dir, file_path));
 
         match content {
@@ -152,14 +194,24 @@ fn try_init_from_example(args: &InitArgs) -> Option<Result<(), String>> {
     Some(Ok(()))
 }
 
-fn try_read_local_example(vastar_home: &Path, example_dir: &str, file_path: &str) -> Option<String> {
+fn try_read_local_example(
+    vastar_home: &Path,
+    example_dir: &str,
+    file_path: &str,
+) -> Option<String> {
     // Check VASTAR_HOME/vil/examples/ (cloned VIL repo)
-    let vil_examples = vastar_home.join("vil/examples").join(example_dir).join(file_path);
+    let vil_examples = vastar_home
+        .join("vil/examples")
+        .join(example_dir)
+        .join(file_path);
     if vil_examples.exists() {
         return std::fs::read_to_string(&vil_examples).ok();
     }
     // Check VASTAR_HOME/examples/ (flat layout)
-    let flat = vastar_home.join("examples").join(example_dir).join(file_path);
+    let flat = vastar_home
+        .join("examples")
+        .join(example_dir)
+        .join(file_path);
     if flat.exists() {
         return std::fs::read_to_string(&flat).ok();
     }
@@ -207,8 +259,7 @@ pub fn list_templates() -> Result<(), String> {
     println!();
     println!("  {}", "Pipeline & SDK:".yellow().bold());
 
-    let index = fetch_template_index()
-        .map_err(|e| format!("Cannot fetch template list: {}", e))?;
+    let index = fetch_template_index().map_err(|e| format!("Cannot fetch template list: {}", e))?;
 
     let vastar_home = std::env::var("VASTAR_HOME")
         .map(PathBuf::from)
@@ -224,9 +275,18 @@ pub fn list_templates() -> Result<(), String> {
     for tmpl in &index.templates {
         let local_dir = vastar_home.join("vil/examples").join(&tmpl.example_dir);
         let is_synced = local_dir.exists() && local_dir.join("src/main.rs").exists();
-        let marker = if is_synced { "OK".green().to_string() } else { "--".dimmed().to_string() };
-        if is_synced { synced += 1; }
-        println!("  {:<4} {:<22} {:<26} {}", marker, tmpl.id, tmpl.title, tmpl.description);
+        let marker = if is_synced {
+            "OK".green().to_string()
+        } else {
+            "--".dimmed().to_string()
+        };
+        if is_synced {
+            synced += 1;
+        }
+        println!(
+            "  {:<4} {:<22} {:<26} {}",
+            marker, tmpl.id, tmpl.title, tmpl.description
+        );
     }
 
     println!();
@@ -255,13 +315,24 @@ pub fn sync_templates() -> Result<(), String> {
         });
 
     // Fetch index from GitHub
-    println!("  {} Fetching template index from GitHub...", "FETCH".cyan());
-    let index_text = fetch_url(GITHUB_INDEX_URL)
-        .map_err(|e| format!("Cannot reach GitHub: {}. Check your internet connection.", e))?;
-    let index: TemplateIndex = serde_json::from_str(&index_text)
-        .map_err(|e| format!("Invalid template index: {}", e))?;
+    println!(
+        "  {} Fetching template index from GitHub...",
+        "FETCH".cyan()
+    );
+    let index_text = fetch_url(GITHUB_INDEX_URL).map_err(|e| {
+        format!(
+            "Cannot reach GitHub: {}. Check your internet connection.",
+            e
+        )
+    })?;
+    let index: TemplateIndex =
+        serde_json::from_str(&index_text).map_err(|e| format!("Invalid template index: {}", e))?;
 
-    println!("  {} {} templates found", "OK".green(), index.templates.len());
+    println!(
+        "  {} {} templates found",
+        "OK".green(),
+        index.templates.len()
+    );
     println!();
 
     // Save index locally
@@ -282,14 +353,20 @@ pub fn sync_templates() -> Result<(), String> {
         let example_dir = vastar_home.join("vil/examples").join(&tmpl.example_dir);
 
         // Save template.toml
-        let toml_url = format!("{}/examples/{}/template.toml", GITHUB_RAW_BASE, tmpl.example_dir);
+        let toml_url = format!(
+            "{}/examples/{}/template.toml",
+            GITHUB_RAW_BASE, tmpl.example_dir
+        );
         if let Ok(toml_text) = fetch_url(&toml_url) {
             let _ = std::fs::create_dir_all(&example_dir);
             let _ = std::fs::write(example_dir.join("template.toml"), &toml_text);
         }
 
         for file_path in &tmpl.files {
-            let url = format!("{}/examples/{}/{}", GITHUB_RAW_BASE, tmpl.example_dir, file_path);
+            let url = format!(
+                "{}/examples/{}/{}",
+                GITHUB_RAW_BASE, tmpl.example_dir, file_path
+            );
             let dest = example_dir.join(file_path);
 
             if let Some(parent) = dest.parent() {
@@ -298,8 +375,7 @@ pub fn sync_templates() -> Result<(), String> {
 
             match fetch_url(&url) {
                 Ok(text) => {
-                    std::fs::write(&dest, &text)
-                        .map_err(|e| format!("Write error: {}", e))?;
+                    std::fs::write(&dest, &text).map_err(|e| format!("Write error: {}", e))?;
                     println!("    {} {}", "+".green(), file_path);
                     total_files += 1;
                 }
@@ -345,10 +421,8 @@ fn fetch_template_index() -> Result<TemplateIndex, String> {
         vastar_home.join("template-index.json"),
     ] {
         if path.exists() {
-            let text = std::fs::read_to_string(path)
-                .map_err(|e| format!("Read error: {}", e))?;
-            return serde_json::from_str(&text)
-                .map_err(|e| format!("Parse error: {}", e));
+            let text = std::fs::read_to_string(path).map_err(|e| format!("Read error: {}", e))?;
+            return serde_json::from_str(&text).map_err(|e| format!("Parse error: {}", e));
         }
     }
     Err("Could not fetch template index from GitHub or local VASTAR_HOME".into())
@@ -405,9 +479,21 @@ struct ProjectConfig {
 // =============================================================================
 
 const WEB_TEMPLATES: &[(&str, &str, &str)] = &[
-    ("rest-api", "REST API", "CRUD backend with VilApp + SQLite + auth ready"),
-    ("rest-api-auth", "REST API + Auth", "REST + VilJwt + VilPassword + VilClaims"),
-    ("rest-api-ai", "REST API + AI", "REST + auth + Groq/OpenAI LLM proxy"),
+    (
+        "rest-api",
+        "REST API",
+        "CRUD backend with VilApp + SQLite + auth ready",
+    ),
+    (
+        "rest-api-auth",
+        "REST API + Auth",
+        "REST + VilJwt + VilPassword + VilClaims",
+    ),
+    (
+        "rest-api-ai",
+        "REST API + AI",
+        "REST + auth + Groq/OpenAI LLM proxy",
+    ),
 ];
 
 fn is_web_template(id: &str) -> bool {
@@ -452,15 +538,16 @@ chrono = "0.4"
     // .env.example
     std::fs::write(
         dir.join(".env.example"),
-        format!(
-            "PORT={port}\nDATABASE_URL=sqlite:data.db\nJWT_SECRET=change-me\n"
-        ),
+        format!("PORT={port}\nDATABASE_URL=sqlite:data.db\nJWT_SECRET=change-me\n"),
     )
     .map_err(|e| e.to_string())?;
 
     // .gitignore
-    std::fs::write(dir.join(".gitignore"), "/target\n*.db\n*.db-wal\n*.db-shm\nuploads/\n.env\n")
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        dir.join(".gitignore"),
+        "/target\n*.db\n*.db-wal\n*.db-shm\nuploads/\n.env\n",
+    )
+    .map_err(|e| e.to_string())?;
 
     // src/main.rs
     let auth_block = if template == "rest-api-auth" || template == "rest-api-ai" {
@@ -550,7 +637,6 @@ pub async fn me() -> VilResponse<&'static str> {
 
     Ok(())
 }
-
 
 const TEMPLATES: &[Template] = &[
     Template {
@@ -686,12 +772,17 @@ pub fn run_init(args: InitArgs) -> Result<(), String> {
     // Check for web app templates first (VilApp-based, no YAML pipeline)
     if let Some(ref tmpl) = args.template {
         if is_web_template(tmpl) {
-            let name = args.name
+            let name = args
+                .name
                 .ok_or("Project name required. Usage: vil init <name> --template rest-api")?;
             let port = args.port.unwrap_or(8082);
             generate_web_project(&name, tmpl, port)?;
             println!();
-            println!("  {} Created web project: {}", "✅".green(), name.cyan().bold());
+            println!(
+                "  {} Created web project: {}",
+                "✅".green(),
+                name.cyan().bold()
+            );
             println!("  cd {} && cargo run", name);
             println!("  → http://localhost:{}/health", port);
             println!("  → http://localhost:{}/_vil/dashboard/", port);
@@ -716,7 +807,15 @@ pub fn run_init(args: InitArgs) -> Result<(), String> {
                 lang: Some(lang.clone()),
                 port: args.port,
                 upstream: args.upstream.clone(),
-                ..InitArgs { name: None, template: None, lang: None, token: None, port: None, upstream: None, wizard: false }
+                ..InitArgs {
+                    name: None,
+                    template: None,
+                    lang: None,
+                    token: None,
+                    port: None,
+                    upstream: None,
+                    wizard: false,
+                }
             };
             if let Some(result) = try_init_from_example(&example_args) {
                 return result;
@@ -782,11 +881,24 @@ pub fn run_init(args: InitArgs) -> Result<(), String> {
 
     // Setup VASTAR_HOME if VilApp template
     if is_vilapp && !vastar_home.exists() {
-        std::fs::create_dir_all(&vastar_home)
-            .map_err(|e| format!("Failed to create VASTAR_HOME at {}: {}", vastar_home.display(), e))?;
-        println!("  {} VASTAR_HOME: {}", "HOME".green(), vastar_home.display());
+        std::fs::create_dir_all(&vastar_home).map_err(|e| {
+            format!(
+                "Failed to create VASTAR_HOME at {}: {}",
+                vastar_home.display(),
+                e
+            )
+        })?;
+        println!(
+            "  {} VASTAR_HOME: {}",
+            "HOME".green(),
+            vastar_home.display()
+        );
     } else if is_vilapp {
-        println!("  {} VASTAR_HOME: {}", "HOME".dimmed(), vastar_home.display());
+        println!(
+            "  {} VASTAR_HOME: {}",
+            "HOME".dimmed(),
+            vastar_home.display()
+        );
     }
 
     if project_dir.exists() {
@@ -1033,7 +1145,11 @@ fn generate_rust_project(
         let vastar_home = project_dir.parent().unwrap_or(project_dir);
         let compose_path = vastar_home.join("docker-compose.yaml");
         update_docker_compose(&compose_path, config)?;
-        println!("  {} {}/docker-compose.yaml", "DOCK".cyan(), vastar_home.display());
+        println!(
+            "  {} {}/docker-compose.yaml",
+            "DOCK".cyan(),
+            vastar_home.display()
+        );
     }
 
     if template.has_handler && !template.handler_name.is_empty() {
@@ -1725,7 +1841,10 @@ fn run_wizard(args: &InitArgs) -> Result<(String, String, String, String, u16, S
     let remote_templates = fetch_template_index().ok();
 
     let (template_id, default_port, default_upstream) = if let Some(ref idx) = remote_templates {
-        println!("  {} Available templates (from GitHub):", "TEMPLATES".cyan());
+        println!(
+            "  {} Available templates (from GitHub):",
+            "TEMPLATES".cyan()
+        );
         for (i, t) in idx.templates.iter().enumerate() {
             println!("    {}. {:25} {}", i + 1, t.title.green(), t.description);
         }
@@ -1742,13 +1861,22 @@ fn run_wizard(args: &InitArgs) -> Result<(String, String, String, String, u16, S
                 return Err(format!("Invalid template number: {}", n));
             }
         } else {
-            idx.templates.iter().find(|t| t.id == tmpl_input)
+            idx.templates
+                .iter()
+                .find(|t| t.id == tmpl_input)
                 .ok_or_else(|| format!("Template '{}' not found", tmpl_input))?
         };
-        (tmpl.id.clone(), tmpl.default_port, tmpl.default_upstream.clone())
+        (
+            tmpl.id.clone(),
+            tmpl.default_port,
+            tmpl.default_upstream.clone(),
+        )
     } else {
         // Fallback to hardcoded if GitHub unreachable
-        println!("  {} Could not fetch remote templates, using built-in list.", "NOTE".yellow());
+        println!(
+            "  {} Could not fetch remote templates, using built-in list.",
+            "NOTE".yellow()
+        );
         println!("  {} Available templates:", "TEMPLATES".cyan());
         for (i, t) in TEMPLATES.iter().enumerate() {
             println!("    {}. {:25} {}", i + 1, t.title.green(), t.description);
@@ -2583,7 +2711,10 @@ CMD ["./{name}"]
 // VilApp pattern generator (ai-gateway template)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-fn generate_vilapp_rust(manifest: &crate::manifest::WorkflowManifest, config: &ProjectConfig) -> String {
+fn generate_vilapp_rust(
+    manifest: &crate::manifest::WorkflowManifest,
+    config: &ProjectConfig,
+) -> String {
     let port = config.port;
     let upstream_url = manifest
         .nodes

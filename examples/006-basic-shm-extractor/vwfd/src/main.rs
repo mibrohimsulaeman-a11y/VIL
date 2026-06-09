@@ -15,7 +15,10 @@ fn ingest_handler(input: &Value) -> Result<Value, String> {
     let body_str = serde_json::to_string(&body).unwrap_or_default();
     let len = body_str.len();
     INGEST_BYTES.fetch_add(len as u64, Ordering::Relaxed);
-    let region_id = format!("shm-region-{}", REGION_COUNTER.fetch_add(1, Ordering::Relaxed));
+    let region_id = format!(
+        "shm-region-{}",
+        REGION_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
     let preview: String = body_str.chars().take(64).collect();
     let is_valid_json = serde_json::from_str::<Value>(&body_str).is_ok();
 
@@ -88,5 +91,6 @@ async fn main() {
         .native("compute_handler", compute_handler)
         .native("shm_stats_handler", shm_stats_handler)
         .native("benchmark_handler", benchmark_handler)
-        .run().await;
+        .run()
+        .await;
 }

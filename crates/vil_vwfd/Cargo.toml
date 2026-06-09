@@ -10,6 +10,7 @@ publish = false
 # VIL own engines
 vil_expr = { version = "0.4", path = "../vil_expr" }
 vil_rules = { version = "0.4", path = "../vil_rules" }
+vil_validate_schema = { version = "0.4", path = "../vil_validate_schema" }
 
 # VIL infrastructure (per dev plan §7)
 vil_server_core = { version = "0.4", path = "../vil_server_core" }
@@ -33,6 +34,7 @@ wasmtime = { version = "24", optional = true }
 wasmtime-wasi = { version = "24", optional = true }
 vil_capsule = { version = "0.4", path = "../vil_capsule", optional = true, features = ["wasi"] }
 vil_sidecar = { version = "0.4", path = "../vil_sidecar", optional = true }
+vil_starlark = { version = "0.4", path = "../vil_starlark", optional = true }
 # Sidecar execution (subprocess stdin/stdout, no external dep needed)
 async-trait = { version = "0.1", optional = true }
 bson = { version = "2.13", optional = true }
@@ -117,10 +119,17 @@ triggers = [
 ]
 wasm = ["dep:wasmtime", "dep:wasmtime-wasi", "dep:vil_capsule"]
 sidecar = ["dep:vil_sidecar"]
+compute-starlark = ["dep:vil_starlark"]
 faas-core = ["vil_expr/faas-core"]
 faas-full = ["vil_expr/faas-full"]
-all = ["connectors-db", "connectors-mq", "connectors-storage", "connectors-protocol", "triggers", "wasm", "sidecar", "faas-full", "dep:async-trait"]
+all = ["connectors-db", "connectors-mq", "connectors-storage", "connectors-protocol", "triggers", "wasm", "sidecar", "compute-starlark", "faas-full", "dep:async-trait"]
 
 [dev-dependencies]
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
+
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "workflow_exec"
+harness = false

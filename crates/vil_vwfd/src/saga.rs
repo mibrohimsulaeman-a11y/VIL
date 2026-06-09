@@ -4,8 +4,8 @@
 //! On workflow failure: walk completed nodes in reverse,
 //! execute compensation connector calls.
 
-use crate::graph::VilwGraph;
 use crate::executor::ExecConfig;
+use crate::graph::VilwGraph;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -35,7 +35,10 @@ pub fn collect_compensations(
                         node_id: node_id.clone(),
                         connector_ref: cref.into(),
                         operation: op.into(),
-                        input_mappings: comp.get("input_mappings").cloned().unwrap_or(Value::Array(Vec::new())),
+                        input_mappings: comp
+                            .get("input_mappings")
+                            .cloned()
+                            .unwrap_or(Value::Array(Vec::new())),
                     });
                 }
             }
@@ -156,9 +159,7 @@ spec:
         let config = ExecConfig {
             connector_fn: Some(std::sync::Arc::new(move |cref, op, _input| {
                 let (cref, op) = (cref.to_string(), op.to_string());
-                Box::pin(async move {
-                    Ok(json!({"compensated": true, "ref": cref, "op": op}))
-                })
+                Box::pin(async move { Ok(json!({"compensated": true, "ref": cref, "op": op})) })
             })),
             ..Default::default()
         };

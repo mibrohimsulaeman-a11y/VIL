@@ -18,6 +18,16 @@ pub struct VilwGraph {
     pub webhook_method: String,
     /// Trigger type
     pub trigger_type: String,
+    /// Resolved workflow dialect ("vil" | "vflow").
+    #[serde(default = "default_dialect")]
+    pub dialect: String,
+    /// Declarative audit_log block preserved from workflow spec.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audit_log: Option<serde_json::Value>,
+}
+
+fn default_dialect() -> String {
+    "vil".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +42,9 @@ pub struct VilwNode {
     pub mappings: Vec<CompiledMapping>,
     /// Compensation config (for saga)
     pub compensation: Option<serde_json::Value>,
+    /// Optional per-activity audit_log override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audit_log: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,11 +68,16 @@ pub enum NodeKind {
     SubWorkflow,
     HumanTask,
     NativeCode,
+    Compute,
+    Validate,
+    Timer,
+    Signal,
+    EventGateway,
     Noop,
 }
 
 impl NodeKind {
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_activity_type(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "trigger" => Self::Trigger,
             "connector" => Self::Connector,
@@ -80,6 +98,11 @@ impl NodeKind {
             "subworkflow" => Self::SubWorkflow,
             "humantask" => Self::HumanTask,
             "nativecode" | "native_code" | "code" => Self::NativeCode,
+            "compute" => Self::Compute,
+            "validate" => Self::Validate,
+            "timer" => Self::Timer,
+            "signal" => Self::Signal,
+            "eventgateway" | "event_gateway" => Self::EventGateway,
             _ => Self::Noop,
         }
     }
@@ -106,6 +129,9 @@ pub struct CompiledMapping {
     pub compiled_sql: Option<String>,
     /// Param refs for vil_query (variable paths to resolve at runtime).
     pub param_refs: Option<Vec<String>>,
+    /// Optional compile metadata, e.g. dual SQL variants for where_eq_if.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub optional: Option<serde_json::Value>,
 }
 
 impl VilwGraph {
@@ -114,10 +140,15 @@ impl VilwGraph {
     }
 
     pub fn outgoing_edges(&self, node_idx: usize) -> Vec<&VilwEdge> {
-        self.edges.iter().filter(|e| e.from_idx == node_idx).collect()
+        self.edges
+            .iter()
+            .filter(|e| e.from_idx == node_idx)
+            .collect()
     }
 
-    pub fn node_count(&self) -> usize { self.nodes.len() }
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         serde_json::to_vec(self).unwrap_or_default()

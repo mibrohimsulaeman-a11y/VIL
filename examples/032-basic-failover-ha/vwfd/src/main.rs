@@ -60,5 +60,6 @@ async fn main() {
         .native("primary_charge", primary_charge)
         .native("backup_health", backup_health)
         .native("backup_charge", backup_charge)
-        .run().await;
+        .run()
+        .await;
 }

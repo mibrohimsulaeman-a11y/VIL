@@ -22,16 +22,25 @@ fn calculate(input: &Value) -> Result<Value, String> {
     let mut discount = 0i64;
 
     // Volume discount
-    if quantity >= 10 { discount = 15; }
-    else if quantity >= 5 { discount = 10; }
-    else if quantity >= 3 { discount = 5; }
+    if quantity >= 10 {
+        discount = 15;
+    } else if quantity >= 5 {
+        discount = 10;
+    } else if quantity >= 3 {
+        discount = 5;
+    }
 
     // Tier discount
-    if customer_tier == "gold" { discount += 10; }
-    else if customer_tier == "silver" { discount += 5; }
+    if customer_tier == "gold" {
+        discount += 10;
+    } else if customer_tier == "silver" {
+        discount += 5;
+    }
 
     // Cap at 25%
-    if discount > 25 { discount = 25; }
+    if discount > 25 {
+        discount = 25;
+    }
 
     let final_price = price - (price * discount / 100);
     let reason = format!("qty:{} tier:{}", quantity, customer_tier);
@@ -74,5 +83,6 @@ async fn main() {
         .native("pricing_calculate_handler", calculate)
         .native("pricing_rules_handler", rules)
         .native("pricing_update_handler", update_rule)
-        .run().await;
+        .run()
+        .await;
 }

@@ -22,8 +22,8 @@
 //     -H 'Content-Type: application/json' \
 //     -d '{"rule":"function calculate(input) { return { final_price: input.base_price * 0.8 }; }"}'
 
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 
 use vil_script_js::{JsRuntime, SandboxConfig};
 use vil_server::prelude::*;
@@ -105,18 +105,17 @@ function calculate(input) {
 // ── Handlers ─────────────────────────────────────────────────────────────
 
 /// POST /calculate — Execute pricing rule in JS sandbox.
-async fn calculate(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<PriceResponse>> {
-    let req: PriceRequest = body.json()
+async fn calculate(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<PriceResponse>> {
+    let req: PriceRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     if req.base_price <= 0 {
         return Err(VilError::bad_request("base_price must be positive"));
     }
 
-    let state = ctx.state::<Arc<PricingState>>()
+    let state = ctx
+        .state::<Arc<PricingState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     state.executions.fetch_add(1, Ordering::Relaxed);
@@ -132,7 +131,8 @@ async fn calculate(
     // Execute in sandbox (memory + time limited)
     let result = {
         let runtime = state.runtime.read().unwrap();
-        runtime.execute(input)
+        runtime
+            .execute(input)
             .map_err(|e| VilError::internal(format!("script execution failed: {}", e)))?
     };
 
@@ -150,14 +150,13 @@ async fn calculate(
 }
 
 /// POST /update-rule — Hot-swap pricing rule without restart.
-async fn update_rule(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<UpdateResult>> {
-    let req: UpdateRuleRequest = body.json()
+async fn update_rule(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<UpdateResult>> {
+    let req: UpdateRuleRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
-    let state = ctx.state::<Arc<PricingState>>()
+    let state = ctx
+        .state::<Arc<PricingState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let new_version = {
@@ -167,7 +166,8 @@ async fn update_rule(
         let test_input = serde_json::json!({
             "product_id": "test", "base_price": 100, "quantity": 1, "customer_tier": "standard"
         });
-        runtime.execute(test_input)
+        runtime
+            .execute(test_input)
             .map_err(|e| VilError::bad_request(format!("invalid script: {}", e)))?;
         runtime.version()
     };
@@ -181,7 +181,8 @@ async fn update_rule(
 
 /// GET /rules — Current rule info + execution stats.
 async fn rules(ctx: ServiceCtx) -> HandlerResult<VilResponse<RuleInfo>> {
-    let state = ctx.state::<Arc<PricingState>>()
+    let state = ctx
+        .state::<Arc<PricingState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let version = state.runtime.read().unwrap().version();
@@ -200,10 +201,10 @@ async fn rules(ctx: ServiceCtx) -> HandlerResult<VilResponse<RuleInfo>> {
 async fn main() {
     // Initialize JS sandbox with strict limits
     let sandbox_cfg = SandboxConfig {
-        timeout_ms: 10,        // 10ms max per execution
-        max_memory_mb: 8,      // 8MB memory limit
-        allow_net: false,      // no network access
-        allow_fs: false,       // no filesystem access
+        timeout_ms: 10,   // 10ms max per execution
+        max_memory_mb: 8, // 8MB memory limit
+        allow_net: false, // no network access
+        allow_fs: false,  // no filesystem access
         max_output_size_kb: 64,
     };
 

@@ -103,8 +103,12 @@ impl Migrator {
                     .map_err(|e| MigrateError::Io(format!("read: {e}")))?;
                 for stmt in sql.split(';') {
                     let trimmed = stmt.trim();
-                    if trimmed.is_empty() || trimmed.starts_with("--") { continue; }
-                    sqlx::query(trimmed).execute(&pool).await
+                    if trimmed.is_empty() || trimmed.starts_with("--") {
+                        continue;
+                    }
+                    sqlx::query(trimmed)
+                        .execute(&pool)
+                        .await
                         .map_err(|e| MigrateError::Sql(format!("{name}: {e}")))?;
                 }
             }
@@ -165,14 +169,18 @@ impl Migrator {
     }
 
     async fn get_applied(&self, pool: &AnyPool) -> Result<Vec<i64>, MigrateError> {
-        let rows = sqlx::query_as::<_, (i64,)>("SELECT version FROM _vil_migrations ORDER BY version")
-            .fetch_all(pool)
-            .await
-            .map_err(|e| MigrateError::Sql(e.to_string()))?;
+        let rows =
+            sqlx::query_as::<_, (i64,)>("SELECT version FROM _vil_migrations ORDER BY version")
+                .fetch_all(pool)
+                .await
+                .map_err(|e| MigrateError::Sql(e.to_string()))?;
         Ok(rows.into_iter().map(|r| r.0).collect())
     }
 
-    async fn get_applied_ordered(&self, pool: &AnyPool) -> Result<Vec<(i64, String)>, MigrateError> {
+    async fn get_applied_ordered(
+        &self,
+        pool: &AnyPool,
+    ) -> Result<Vec<(i64, String)>, MigrateError> {
         let rows = sqlx::query_as::<_, (i64, String)>(
             "SELECT version, name FROM _vil_migrations ORDER BY version",
         )
@@ -190,12 +198,16 @@ impl Migrator {
             return Ok(files);
         }
 
-        for entry in std::fs::read_dir(&self.dir)
-            .map_err(|e| MigrateError::Io(format!("read dir: {e}")))?
+        for entry in
+            std::fs::read_dir(&self.dir).map_err(|e| MigrateError::Io(format!("read dir: {e}")))?
         {
             let entry = entry.map_err(|e| MigrateError::Io(e.to_string()))?;
             let path = entry.path();
-            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
 
             if name.ends_with(".up.sql") {
                 // Parse version from filename: 001_name.up.sql

@@ -97,9 +97,7 @@ fn encode_token(claims: &JwtClaims) -> String {
     let payload_bytes = serde_json::to_vec(claims).unwrap_or_default();
     let payload = base64_encode(&payload_bytes);
     // For demo: signature = base64 of header.payload.secret
-    let signature = base64_encode(
-        format!("{}.{}.{}", header, payload, JWT_SECRET).as_bytes(),
-    );
+    let signature = base64_encode(format!("{}.{}.{}", header, payload, JWT_SECRET).as_bytes());
     format!("{}.{}.{}", header, payload, signature)
 }
 
@@ -110,16 +108,15 @@ fn decode_token(token: &str) -> Result<JwtClaims, VilError> {
         return Err(VilError::unauthorized("malformed token"));
     }
 
-    let payload_bytes = base64_decode(parts[1])
-        .map_err(|_| VilError::unauthorized("invalid token encoding"))?;
+    let payload_bytes =
+        base64_decode(parts[1]).map_err(|_| VilError::unauthorized("invalid token encoding"))?;
 
     let claims: JwtClaims = serde_json::from_slice(&payload_bytes)
         .map_err(|_| VilError::unauthorized("invalid token payload"))?;
 
     // Verify signature
-    let expected_sig = base64_encode(
-        format!("{}.{}.{}", parts[0], parts[1], JWT_SECRET).as_bytes(),
-    );
+    let expected_sig =
+        base64_encode(format!("{}.{}.{}", parts[0], parts[1], JWT_SECRET).as_bytes());
     if parts[2] != expected_sig {
         return Err(VilError::unauthorized("invalid token signature"));
     }
@@ -254,7 +251,10 @@ impl AuthState {
                     count: AtomicU64::new(0),
                     window_start: RwLock::new(now),
                 });
-                self.rate_buckets.write().unwrap().insert(key.to_string(), b.clone());
+                self.rate_buckets
+                    .write()
+                    .unwrap()
+                    .insert(key.to_string(), b.clone());
                 b
             }
         };
@@ -281,7 +281,8 @@ impl AuthState {
 
 /// POST /login — authenticate with demo credentials, return JWT token.
 async fn login_handler(body: ShmSlice) -> HandlerResult<VilResponse<LoginResponse>> {
-    let req: LoginRequest = body.json()
+    let req: LoginRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected username and password"))?;
 
     if req.username != DEMO_USERNAME || req.password != DEMO_PASSWORD {
@@ -320,7 +321,8 @@ async fn protected_data(
     let claims = decode_token(&token)?;
 
     // Step 2: Check rate limit per tenant (10 req/min)
-    let state = ctx.state::<Arc<AuthState>>()
+    let state = ctx
+        .state::<Arc<AuthState>>()
         .map_err(|_| VilError::internal("auth state not found"))?;
 
     let remaining = state.check_rate_limit(&claims.tenant_id)?;
@@ -347,7 +349,9 @@ async fn public_info() -> VilResponse<PublicInfo> {
 }
 
 /// GET /tenant — extract tenant_id from JWT claims.
-async fn tenant_info(headers: vil_server::axum::http::HeaderMap) -> HandlerResult<VilResponse<TenantInfo>> {
+async fn tenant_info(
+    headers: vil_server::axum::http::HeaderMap,
+) -> HandlerResult<VilResponse<TenantInfo>> {
     let token = extract_bearer(&headers)?;
     let claims = decode_token(&token)?;
 
@@ -365,16 +369,15 @@ async fn tenant_info(headers: vil_server::axum::http::HeaderMap) -> HandlerResul
 async fn main() {
     let state = Arc::new(AuthState::new(10)); // 10 requests per minute per tenant
 
-    let admin_svc = ServiceProcess::new("admin")
-        .endpoint(Method::POST, "/login", post(login_handler));
+    let admin_svc =
+        ServiceProcess::new("admin").endpoint(Method::POST, "/login", post(login_handler));
 
     let protected_svc = ServiceProcess::new("protected")
         .endpoint(Method::GET, "/data", get(protected_data))
         .endpoint(Method::GET, "/tenant", get(tenant_info))
         .state(state);
 
-    let public_svc = ServiceProcess::new("public")
-        .endpoint(Method::GET, "/info", get(public_info));
+    let public_svc = ServiceProcess::new("public").endpoint(Method::GET, "/info", get(public_info));
 
     VilApp::new("auth-middleware-stack")
         .port(8080)

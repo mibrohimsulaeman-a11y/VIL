@@ -81,11 +81,9 @@ struct AppState {
 
 // ── Handler: Process customer query through LLM ──────────────────────
 
-async fn chat_handler(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<ChatResponse>> {
-    let req: ChatRequest = body.json()
+async fn chat_handler(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<ChatResponse>> {
+    let req: ChatRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     if req.prompt.trim().is_empty() {
@@ -142,7 +140,8 @@ async fn chat_handler(
 
     // ── Update LlmUsageState (from vil_llm::semantic) ──
     // Cumulative tracking: total requests, tokens, avg latency.
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     state.usage.lock().unwrap().record(&event);
 
@@ -158,7 +157,8 @@ async fn chat_handler(
 // Exposes LlmUsageState for monitoring dashboards.
 
 async fn usage_handler(ctx: ServiceCtx) -> HandlerResult<VilResponse<UsageResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     let usage = state.usage.lock().unwrap();
 

@@ -21,7 +21,10 @@ pub struct LoadError {
 /// Files that fail to compile are collected in errors (not fatal).
 pub fn load_dir(dir: &str) -> LoadResult {
     let path = Path::new(dir);
-    let mut result = LoadResult { graphs: Vec::new(), errors: Vec::new() };
+    let mut result = LoadResult {
+        graphs: Vec::new(),
+        errors: Vec::new(),
+    };
 
     if !path.exists() || !path.is_dir() {
         result.errors.push(LoadError {
@@ -34,7 +37,10 @@ pub fn load_dir(dir: &str) -> LoadResult {
     let entries = match std::fs::read_dir(path) {
         Ok(e) => e,
         Err(e) => {
-            result.errors.push(LoadError { file: dir.into(), error: e.to_string() });
+            result.errors.push(LoadError {
+                file: dir.into(),
+                error: e.to_string(),
+            });
             return result;
         }
     };
@@ -56,13 +62,21 @@ pub fn load_dir(dir: &str) -> LoadResult {
         let file_name = file_path.display().to_string();
         match load_file(&file_path) {
             Ok(graph) => {
-                tracing::info!("Loaded workflow: {} (id={}, {} nodes, route={:?})",
-                    file_name, graph.id, graph.node_count(), graph.webhook_route);
+                tracing::info!(
+                    "Loaded workflow: {} (id={}, {} nodes, route={:?})",
+                    file_name,
+                    graph.id,
+                    graph.node_count(),
+                    graph.webhook_route
+                );
                 result.graphs.push(graph);
             }
             Err(e) => {
                 tracing::warn!("Failed to load {}: {}", file_name, e);
-                result.errors.push(LoadError { file: file_name, error: e });
+                result.errors.push(LoadError {
+                    file: file_name,
+                    error: e,
+                });
             }
         }
     }
@@ -72,16 +86,14 @@ pub fn load_dir(dir: &str) -> LoadResult {
 
 /// Load single VWFD file → VilwGraph.
 pub fn load_file(path: &Path) -> Result<VilwGraph, String> {
-    let yaml = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {}", path.display(), e))?;
-    compiler::compile(&yaml)
-        .map_err(|e| e.to_string())
+    let yaml =
+        std::fs::read_to_string(path).map_err(|e| format!("read {}: {}", path.display(), e))?;
+    compiler::compile(&yaml).map_err(|e| e.to_string())
 }
 
 /// Load from YAML string (for embedded workflows from macros).
 pub fn load_yaml(yaml: &str) -> Result<VilwGraph, String> {
-    compiler::compile(yaml)
-        .map_err(|e| e.to_string())
+    compiler::compile(yaml).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -124,7 +136,9 @@ spec:
         // Create temp dir with a workflow file
         let dir = std::env::temp_dir().join("vil_vwfd_test_loader");
         let _ = std::fs::create_dir_all(&dir);
-        std::fs::write(dir.join("test.yaml"), r#"
+        std::fs::write(
+            dir.join("test.yaml"),
+            r#"
 version: "3.0"
 metadata:
   id: dir-test
@@ -140,7 +154,9 @@ spec:
       activity_type: End
   flows:
     - { id: f1, from: { node: trigger }, to: { node: end } }
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = load_dir(dir.to_str().unwrap());
         assert_eq!(result.graphs.len(), 1);

@@ -3,10 +3,10 @@
 //! Follows vflow pattern: single HttpSink (wildcard) → VwfdKernel → HttpSink.
 //! GenericToken transport, async executor, lock-free router.
 
-use crate::graph::VilwGraph;
 use crate::executor::{self, ExecConfig};
-use std::sync::Arc;
+use crate::graph::VilwGraph;
 use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::Arc;
 
 /// Workflow metadata (used by macro-generated code).
 pub struct WorkflowMeta {
@@ -19,7 +19,7 @@ pub struct WorkflowMeta {
 // ── WorkflowRouter (Lock-Free Read) ─────────────────────────────────────
 
 struct Route {
-    method: String,  // GET, POST, PUT, DELETE, ANY
+    method: String, // GET, POST, PUT, DELETE, ANY
     path: String,
     graph: Arc<VilwGraph>,
 }
@@ -56,14 +56,23 @@ impl WorkflowRouter {
             let mut new_routes: Vec<Route> = old_arc
                 .iter()
                 .filter(|r| !(r.method == method && r.path == path))
-                .map(|r| Route { method: r.method.clone(), path: r.path.clone(), graph: r.graph.clone() })
+                .map(|r| Route {
+                    method: r.method.clone(),
+                    path: r.path.clone(),
+                    graph: r.graph.clone(),
+                })
                 .collect();
-            new_routes.push(Route { method: method.clone(), path: path.clone(), graph: graph.clone() });
+            new_routes.push(Route {
+                method: method.clone(),
+                path: path.clone(),
+                graph: graph.clone(),
+            });
 
             let new_arc = Arc::new(new_routes);
             let new_ptr = Box::into_raw(Box::new(new_arc));
 
-            if self.routes
+            if self
+                .routes
                 .compare_exchange(old_ptr, new_ptr, Ordering::AcqRel, Ordering::Relaxed)
                 .is_ok()
             {
@@ -73,7 +82,12 @@ impl WorkflowRouter {
                 let _ = unsafe { Box::from_raw(new_ptr) };
             }
         }
-        tracing::info!("WorkflowRouter: registered {} {} ({} nodes)", method, path, node_count);
+        tracing::info!(
+            "WorkflowRouter: registered {} {} ({} nodes)",
+            method,
+            path,
+            node_count
+        );
     }
 
     /// Lookup workflow graph by webhook path. Lock-free hot path.
@@ -96,13 +110,16 @@ impl WorkflowRouter {
         // 2. Exact method + longest prefix match
         let mut best: Option<&Route> = None;
         for r in routes.iter() {
-            if r.method == method && path.starts_with(&r.path) {
-                if best.is_none() || r.path.len() > best.unwrap().path.len() {
-                    best = Some(r);
-                }
+            if r.method == method
+                && path.starts_with(&r.path)
+                && (best.is_none() || r.path.len() > best.unwrap().path.len())
+            {
+                best = Some(r);
             }
         }
-        if let Some(r) = best { return Some(r.graph.clone()); }
+        if let Some(r) = best {
+            return Some(r.graph.clone());
+        }
         // 3. ANY/POST (legacy) + exact path
         for r in routes.iter() {
             if (r.method == "ANY" || r.method == "POST") && r.path == path {
@@ -121,7 +138,10 @@ impl WorkflowRouter {
     pub fn routes(&self) -> Vec<String> {
         let ptr = self.routes.load(Ordering::Acquire);
         let routes = unsafe { &*ptr };
-        routes.iter().map(|r| format!("{} {}", r.method, r.path)).collect()
+        routes
+            .iter()
+            .map(|r| format!("{} {}", r.method, r.path))
+            .collect()
     }
 
     /// Clear all routes. Used by provisioning API on reload/sync.
@@ -129,7 +149,9 @@ impl WorkflowRouter {
         let new_routes: Arc<Vec<Route>> = Arc::new(Vec::new());
         let new_ptr = Box::into_raw(Box::new(new_routes));
         let old_ptr = self.routes.swap(new_ptr, Ordering::AcqRel);
-        unsafe { let _ = Box::from_raw(old_ptr); }
+        unsafe {
+            let _ = Box::from_raw(old_ptr);
+        }
     }
 
     pub fn count(&self) -> usize {
@@ -140,7 +162,9 @@ impl WorkflowRouter {
 }
 
 impl Default for WorkflowRouter {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── Request handling ────────────────────────────────────────────────────
@@ -153,7 +177,8 @@ pub async fn handle_request(
     input: serde_json::Value,
     config: &ExecConfig,
 ) -> Result<serde_json::Value, String> {
-    let graph = router.lookup(method, path)
+    let graph = router
+        .lookup(method, path)
         .ok_or_else(|| format!("no workflow for {} {}", method, path))?;
 
     executor::execute(&graph, input, config)
@@ -165,20 +190,29 @@ pub async fn handle_request(
 /// Load workflows from directory, start VilApp server, block.
 pub async fn serve(workflow_dir: &str, port: u16) -> Result<(), String> {
     use vil_server_core::{
-        axum::{self, extract::Extension, body::Bytes, response::IntoResponse, http::Method},
         axum::routing::post,
-        Json, StatusCode, ServiceProcess, VilApp,
+        axum::{self, body::Bytes, extract::Extension, http::Method, response::IntoResponse},
+        Json, ServiceProcess, StatusCode, VilApp,
     };
 
     let load_result = crate::loader::load_dir(workflow_dir);
     if load_result.graphs.is_empty() && !load_result.errors.is_empty() {
-        return Err(format!("no workflows loaded: {:?}",
-            load_result.errors.iter().map(|e| &e.error).collect::<Vec<_>>()));
+        return Err(format!(
+            "no workflows loaded: {:?}",
+            load_result
+                .errors
+                .iter()
+                .map(|e| &e.error)
+                .collect::<Vec<_>>()
+        ));
     }
 
     let router = WorkflowRouter::new();
     for g in load_result.graphs {
-        let path = g.webhook_route.clone().unwrap_or_else(|| format!("/{}", g.id));
+        let path = g
+            .webhook_route
+            .clone()
+            .unwrap_or_else(|| format!("/{}", g.id));
         let method = g.webhook_method.clone();
         router.register(method, path, Arc::new(g));
     }
@@ -213,11 +247,13 @@ pub async fn serve(workflow_dir: &str, port: u16) -> Result<(), String> {
         body: Bytes,
     ) -> impl IntoResponse {
         let path = uri.path().to_string();
-        let input: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::json!({}));
+        let input: serde_json::Value =
+            serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
         match handle_request(&router, "POST", &path, input, &config).await {
             Ok(output) => (StatusCode::OK, Json(output)).into_response(),
-            Err(e) => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": e}))).into_response(),
+            Err(e) => {
+                (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": e}))).into_response()
+            }
         }
     }
 
@@ -227,11 +263,7 @@ pub async fn serve(workflow_dir: &str, port: u16) -> Result<(), String> {
         .extension(router_ext)
         .extension(config_ext);
 
-    VilApp::new("vil-vwfd")
-        .port(port)
-        .service(svc)
-        .run()
-        .await;
+    VilApp::new("vil-vwfd").port(port).service(svc).run().await;
 
     Ok(())
 }
@@ -290,7 +322,15 @@ spec:
         router.register("POST".into(), path, Arc::new(graph));
 
         let config = ExecConfig::default();
-        let result = handle_request(&router, "POST", "/api/test", json!({"name": "Alice"}), &config).await.unwrap();
+        let result = handle_request(
+            &router,
+            "POST",
+            "/api/test",
+            json!({"name": "Alice"}),
+            &config,
+        )
+        .await
+        .unwrap();
         assert_eq!(result["echo"], "Alice");
         assert_eq!(result["status"], "ok");
     }

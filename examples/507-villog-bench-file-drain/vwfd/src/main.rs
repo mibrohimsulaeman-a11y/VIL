@@ -21,5 +21,6 @@ fn villog_bench_file(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/507-villog-bench-file-drain/vwfd/workflows", 3238)
         .native("villog_bench_file", villog_bench_file)
-        .run().await;
+        .run()
+        .await;
 }

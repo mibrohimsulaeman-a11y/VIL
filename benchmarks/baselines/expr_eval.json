@@ -1,0 +1,13 @@
+{
+  "arithmetic": 1316.09,
+  "field_access": 1517.57,
+  "filter": 3429.3,
+  "json_construction": 6139.67,
+  "map": 3449.84,
+  "matches": 16687.07,
+  "size": 1131.48,
+  "string_methods": 2938.15,
+  "ternary": 1702.59,
+  "timestamp_accessor": 2161.39,
+  "transformList": 4780.44
+}

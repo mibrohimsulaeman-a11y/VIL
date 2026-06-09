@@ -17,15 +17,22 @@ fn split_into_chunks(text: &str, max_size: usize) -> Vec<String> {
         }
         current.push_str(sentence);
     }
-    if !current.is_empty() { chunks.push(current); }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
     if chunks.is_empty() && !text.is_empty() {
         // No sentence boundaries — split at word boundaries
         let mut start = 0;
         while start < text.len() {
             let end = (start + max_size).min(text.len());
             let split = if end < text.len() {
-                text[start..end].rfind(' ').map(|p| start + p + 1).unwrap_or(end)
-            } else { end };
+                text[start..end]
+                    .rfind(' ')
+                    .map(|p| start + p + 1)
+                    .unwrap_or(end)
+            } else {
+                end
+            };
             chunks.push(text[start..split].to_string());
             start = split;
         }

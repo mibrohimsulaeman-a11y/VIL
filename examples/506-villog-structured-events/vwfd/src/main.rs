@@ -40,5 +40,6 @@ fn villog_structured_events(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/506-villog-structured-events/vwfd/workflows", 3237)
         .native("villog_structured_events", villog_structured_events)
-        .run().await;
+        .run()
+        .await;
 }

@@ -117,13 +117,17 @@ fn search_kb(query: &str) -> Vec<(f64, &'static KbArticle)> {
     let mut scored: Vec<(f64, &KbArticle)> = KNOWLEDGE_BASE
         .iter()
         .map(|article| {
-            let keyword_hits = article.keywords.iter()
+            let keyword_hits = article
+                .keywords
+                .iter()
                 .filter(|kw| words.iter().any(|w| w.contains(*kw) || kw.contains(w)))
                 .count();
-            let title_hits = words.iter()
+            let title_hits = words
+                .iter()
                 .filter(|w| article.title.to_lowercase().contains(*w))
                 .count();
-            let content_hits = words.iter()
+            let content_hits = words
+                .iter()
                 .filter(|w| article.content.to_lowercase().contains(*w))
                 .count();
             let score = keyword_hits as f64 * 3.0 + title_hits as f64 * 2.0 + content_hits as f64;
@@ -216,9 +220,8 @@ fn configure_source() -> HttpSourceBuilder {
 // ── Main ─────────────────────────────────────────────────────────────────
 
 fn main() {
-    let world = Arc::new(
-        VastarRuntimeWorld::new_shared().expect("Failed to initialize VIL SHM Runtime"),
-    );
+    let world =
+        Arc::new(VastarRuntimeWorld::new_shared().expect("Failed to initialize VIL SHM Runtime"));
 
     let sink_builder = configure_sink();
     let source_builder = configure_source();
@@ -235,10 +238,16 @@ fn main() {
 
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║  016 — RAG Pipeline with Real Knowledge Base Retrieval      ║");
-    println!("║  {} KB articles indexed, keyword-scored retrieval    ║", KNOWLEDGE_BASE.len());
+    println!(
+        "║  {} KB articles indexed, keyword-scored retrieval    ║",
+        KNOWLEDGE_BASE.len()
+    );
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
-    println!("  Listening: http://localhost:{}{}", WEBHOOK_PORT, WEBHOOK_PATH);
+    println!(
+        "  Listening: http://localhost:{}{}",
+        WEBHOOK_PORT, WEBHOOK_PATH
+    );
     println!("  Upstream:  {}", SSE_URL);
     println!("  KB Size:   {} articles", KNOWLEDGE_BASE.len());
     println!();

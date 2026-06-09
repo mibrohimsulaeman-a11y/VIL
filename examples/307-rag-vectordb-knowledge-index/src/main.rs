@@ -120,14 +120,16 @@ async fn index_handler(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<IndexResponse>> {
-    let req: IndexRequest = body.json()
+    let req: IndexRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected {id, title, content}"))?;
 
     if req.title.trim().is_empty() || req.content.trim().is_empty() {
         return Err(VilError::bad_request("title and content are required"));
     }
 
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let combined = format!("{} {}", req.title, req.content);
@@ -159,14 +161,16 @@ async fn query_handler(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<QueryResponse>> {
-    let req: QueryRequest = body.json()
+    let req: QueryRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected {query, top_k?}"))?;
 
     if req.query.trim().is_empty() {
         return Err(VilError::bad_request("query is required"));
     }
 
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let query_vec = mock_embed(&req.query);
@@ -184,24 +188,31 @@ async fn query_handler(
             .execute()
     };
 
-    let doc_results: Vec<DocResult> = results.into_iter().map(|r| {
-        let doc_id = r.metadata.get("doc_id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown")
-            .to_string();
-        let title = r.metadata.get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or("untitled")
-            .to_string();
-        let snippet = r.text.unwrap_or_default();
-        DocResult {
-            id: r.id,
-            score: r.score,
-            doc_id,
-            title,
-            snippet,
-        }
-    }).collect();
+    let doc_results: Vec<DocResult> = results
+        .into_iter()
+        .map(|r| {
+            let doc_id = r
+                .metadata
+                .get("doc_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let title = r
+                .metadata
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("untitled")
+                .to_string();
+            let snippet = r.text.unwrap_or_default();
+            DocResult {
+                id: r.id,
+                score: r.score,
+                doc_id,
+                title,
+                snippet,
+            }
+        })
+        .collect();
 
     Ok(VilResponse::ok(QueryResponse {
         query: req.query,
@@ -213,7 +224,8 @@ async fn query_handler(
 // ── Handler: GET /api/search/stats — index stats ────────────────────
 
 async fn stats_handler(ctx: ServiceCtx) -> HandlerResult<VilResponse<StatsResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     Ok(VilResponse::ok(StatsResponse {
@@ -304,7 +316,7 @@ async fn main() {
         .prefix("/api/search")
         .endpoint(Method::POST, "/index", post(index_handler))
         .endpoint(Method::POST, "/query", post(query_handler))
-        .endpoint(Method::GET,  "/stats", get(stats_handler))
+        .endpoint(Method::GET, "/stats", get(stats_handler))
         .state(app_state);
 
     VilApp::new("rag-vectordb-knowledge-index")

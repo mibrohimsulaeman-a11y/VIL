@@ -22,8 +22,8 @@
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_llm::{ChatMessage, LlmProvider, OpenAiConfig, OpenAiProvider};
 use vil_server::prelude::*;
@@ -91,7 +91,9 @@ struct QueryRequest {
     #[serde(default = "default_top_k")]
     top_k: usize,
 }
-fn default_top_k() -> usize { 3 }
+fn default_top_k() -> usize {
+    3
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, VilModel)]
 struct QueryResponse {
@@ -124,12 +126,18 @@ struct AppState {
 // ── Handlers ─────────────────────────────────────────────────────────────
 
 async fn ingest(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<IngestResponse>> {
-    let req: IngestRequest = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
-    let state = ctx.state::<Arc<AppState>>().map_err(|_| VilError::internal("state"))?;
+    let req: IngestRequest = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let state = ctx
+        .state::<Arc<AppState>>()
+        .map_err(|_| VilError::internal("state"))?;
 
     let embedding = mock_embed(&format!("{} {}", req.title, req.content));
     let meta = serde_json::json!({"title": req.title, "doc_id": req.doc_id});
-    state.collection.add(embedding, meta, Some(req.content.clone()));
+    state
+        .collection
+        .add(embedding, meta, Some(req.content.clone()));
 
     Ok(VilResponse::ok(IngestResponse {
         doc_id: req.doc_id,
@@ -139,8 +147,12 @@ async fn ingest(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<In
 }
 
 async fn query(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<QueryResponse>> {
-    let req: QueryRequest = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
-    let state = ctx.state::<Arc<AppState>>().map_err(|_| VilError::internal("state"))?;
+    let req: QueryRequest = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let state = ctx
+        .state::<Arc<AppState>>()
+        .map_err(|_| VilError::internal("state"))?;
     state.query_count.fetch_add(1, Ordering::Relaxed);
 
     // Retrieve
@@ -149,17 +161,24 @@ async fn query(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Que
     let results = state.collection.search(&query_vec, req.top_k);
     let retrieval_ms = ret_start.elapsed().as_secs_f64() * 1000.0;
 
-    let sources: Vec<SourceRef> = results.iter().map(|r| {
-        SourceRef {
+    let sources: Vec<SourceRef> = results
+        .iter()
+        .map(|r| SourceRef {
             doc_id: r.metadata["doc_id"].as_str().unwrap_or("?").into(),
             score: r.score,
             excerpt: r.text.as_deref().unwrap_or("").chars().take(100).collect(),
-        }
-    }).collect();
+        })
+        .collect();
 
-    let context = results.iter()
-        .map(|r| format!("[{}] {}", r.metadata["doc_id"].as_str().unwrap_or("?"),
-                         r.text.as_deref().unwrap_or("")))
+    let context = results
+        .iter()
+        .map(|r| {
+            format!(
+                "[{}] {}",
+                r.metadata["doc_id"].as_str().unwrap_or("?"),
+                r.text.as_deref().unwrap_or("")
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n\n");
 
@@ -171,7 +190,10 @@ async fn query(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Que
         )),
         ChatMessage::user(&req.question),
     ];
-    let resp = state.llm.chat(&messages).await
+    let resp = state
+        .llm
+        .chat(&messages)
+        .await
         .map_err(|e| VilError::internal(format!("LLM: {}", e)))?;
     let generation_ms = gen_start.elapsed().as_secs_f64() * 1000.0;
 
@@ -184,7 +206,9 @@ async fn query(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Que
 }
 
 async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<StatsResponse>> {
-    let state = ctx.state::<Arc<AppState>>().map_err(|_| VilError::internal("state"))?;
+    let state = ctx
+        .state::<Arc<AppState>>()
+        .map_err(|_| VilError::internal("state"))?;
     Ok(VilResponse::ok(StatsResponse {
         total_documents: state.collection.count(),
         embedding_dim: EMBEDDING_DIM,
@@ -211,7 +235,11 @@ async fn main() {
     }
     println!("Indexed {} legal contract sections", CONTRACTS.len());
 
-    let state = Arc::new(AppState { collection, llm, query_count: AtomicU64::new(0) });
+    let state = Arc::new(AppState {
+        collection,
+        llm,
+        query_count: AtomicU64::new(0),
+    });
 
     let svc = ServiceProcess::new("rag")
         .endpoint(Method::POST, "/ingest", post(ingest))

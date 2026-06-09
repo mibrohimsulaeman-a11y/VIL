@@ -173,20 +173,19 @@ struct ListResponse {
 // ── Handlers ─────────────────────────────────────────────────────────────
 
 /// POST /api/storage/upload — upload asset to selected cloud provider.
-async fn upload(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<UploadResponse>> {
-    let req: UploadRequest = body.json()
-        .map_err(|_| VilError::bad_request(
-            "invalid JSON — expected {\"filename\", \"provider\", \"content_base64\"}"
-        ))?;
+async fn upload(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<UploadResponse>> {
+    let req: UploadRequest = body.json().map_err(|_| {
+        VilError::bad_request(
+            "invalid JSON — expected {\"filename\", \"provider\", \"content_base64\"}",
+        )
+    })?;
 
     // Decode base64 content
     let data = base64_decode(&req.content_base64)
         .map_err(|e| VilError::bad_request(format!("invalid base64: {}", e)))?;
 
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let id = uuid::Uuid::new_v4().to_string();
@@ -206,9 +205,10 @@ async fn upload(
         }
     };
 
-    let meta = state.store.upload(
-        id, req.filename, req.content_type, req.provider, data,
-    ).await;
+    let meta = state
+        .store
+        .upload(id, req.filename, req.content_type, req.provider, data)
+        .await;
 
     Ok(VilResponse::ok(UploadResponse {
         status: "uploaded".into(),
@@ -222,11 +222,14 @@ async fn download(
     ctx: ServiceCtx,
     Path(id): Path<String>,
 ) -> HandlerResult<VilResponse<DownloadResponse>> {
-
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
-    let (meta, data) = state.store.download(&id).await
+    let (meta, data) = state
+        .store
+        .download(&id)
+        .await
         .ok_or_else(|| VilError::not_found(format!("asset {} not found", id)))?;
 
     Ok(VilResponse::ok(DownloadResponse {
@@ -236,10 +239,9 @@ async fn download(
 }
 
 /// GET /api/storage/list — list all stored assets across providers.
-async fn list_assets(
-    ctx: ServiceCtx,
-) -> HandlerResult<VilResponse<ListResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+async fn list_assets(ctx: ServiceCtx) -> HandlerResult<VilResponse<ListResponse>> {
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let assets = state.store.list().await;
@@ -261,8 +263,12 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
     let mut buf: u32 = 0;
     let mut bits: u32 = 0;
     for c in input.bytes() {
-        if c == b'=' { break; }
-        let val = TABLE.iter().position(|&t| t == c)
+        if c == b'=' {
+            break;
+        }
+        let val = TABLE
+            .iter()
+            .position(|&t| t == c)
             .ok_or_else(|| format!("invalid base64 char: {}", c as char))? as u32;
         buf = (buf << 6) | val;
         bits += 6;

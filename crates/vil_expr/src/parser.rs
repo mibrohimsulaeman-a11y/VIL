@@ -1,5 +1,4 @@
 /// Pratt parser — vil-expr precedence table (§3.2.1).
-
 use crate::ast::*;
 use crate::token::Token;
 
@@ -25,8 +24,14 @@ impl Parser {
 
     fn expect(&mut self, expected: &Token) -> Result<(), String> {
         let tok = self.advance();
-        if &tok == expected { Ok(()) }
-        else { Err(format!("expected {:?}, got {:?} at pos {}", expected, tok, self.pos)) }
+        if &tok == expected {
+            Ok(())
+        } else {
+            Err(format!(
+                "expected {:?}, got {:?} at pos {}",
+                expected, tok, self.pos
+            ))
+        }
     }
 
     // ── vil-expr Precedence (§3.2.1, low to high) ──
@@ -54,7 +59,11 @@ impl Parser {
             let then = self.parse_ternary()?; // right-assoc
             self.expect(&Token::Colon)?;
             let else_ = self.parse_ternary()?;
-            Ok(Expr::Ternary(Box::new(cond), Box::new(then), Box::new(else_)))
+            Ok(Expr::Ternary(
+                Box::new(cond),
+                Box::new(then),
+                Box::new(else_),
+            ))
         } else {
             Ok(cond)
         }
@@ -84,8 +93,16 @@ impl Parser {
         let mut left = self.parse_comparison()?;
         loop {
             match self.peek() {
-                Token::EqEq => { self.advance(); let r = self.parse_comparison()?; left = Expr::Binary(BinaryOp::Eq, Box::new(left), Box::new(r)); }
-                Token::BangEq => { self.advance(); let r = self.parse_comparison()?; left = Expr::Binary(BinaryOp::Neq, Box::new(left), Box::new(r)); }
+                Token::EqEq => {
+                    self.advance();
+                    let r = self.parse_comparison()?;
+                    left = Expr::Binary(BinaryOp::Eq, Box::new(left), Box::new(r));
+                }
+                Token::BangEq => {
+                    self.advance();
+                    let r = self.parse_comparison()?;
+                    left = Expr::Binary(BinaryOp::Neq, Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -96,10 +113,26 @@ impl Parser {
         let mut left = self.parse_membership()?;
         loop {
             match self.peek() {
-                Token::Lt => { self.advance(); let r = self.parse_membership()?; left = Expr::Binary(BinaryOp::Lt, Box::new(left), Box::new(r)); }
-                Token::Lte => { self.advance(); let r = self.parse_membership()?; left = Expr::Binary(BinaryOp::Lte, Box::new(left), Box::new(r)); }
-                Token::Gt => { self.advance(); let r = self.parse_membership()?; left = Expr::Binary(BinaryOp::Gt, Box::new(left), Box::new(r)); }
-                Token::Gte => { self.advance(); let r = self.parse_membership()?; left = Expr::Binary(BinaryOp::Gte, Box::new(left), Box::new(r)); }
+                Token::Lt => {
+                    self.advance();
+                    let r = self.parse_membership()?;
+                    left = Expr::Binary(BinaryOp::Lt, Box::new(left), Box::new(r));
+                }
+                Token::Lte => {
+                    self.advance();
+                    let r = self.parse_membership()?;
+                    left = Expr::Binary(BinaryOp::Lte, Box::new(left), Box::new(r));
+                }
+                Token::Gt => {
+                    self.advance();
+                    let r = self.parse_membership()?;
+                    left = Expr::Binary(BinaryOp::Gt, Box::new(left), Box::new(r));
+                }
+                Token::Gte => {
+                    self.advance();
+                    let r = self.parse_membership()?;
+                    left = Expr::Binary(BinaryOp::Gte, Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -168,7 +201,9 @@ impl Parser {
                 let mut entries = vec![(first, val)];
                 while *self.peek() == Token::Comma {
                     self.advance();
-                    if *self.peek() == Token::RBrace { break; }
+                    if *self.peek() == Token::RBrace {
+                        break;
+                    }
                     let key = self.parse_ternary()?;
                     self.expect(&Token::Colon)?;
                     let val = self.parse_ternary()?;
@@ -181,7 +216,9 @@ impl Parser {
                 let mut items = vec![first];
                 while *self.peek() == Token::Comma {
                     self.advance();
-                    if *self.peek() == Token::RBrace { break; }
+                    if *self.peek() == Token::RBrace {
+                        break;
+                    }
                     items.push(self.parse_ternary()?);
                 }
                 self.expect(&Token::RBrace)?;
@@ -196,8 +233,16 @@ impl Parser {
         let mut left = self.parse_multiplicative()?;
         loop {
             match self.peek() {
-                Token::Plus => { self.advance(); let r = self.parse_multiplicative()?; left = Expr::Binary(BinaryOp::Add, Box::new(left), Box::new(r)); }
-                Token::Minus => { self.advance(); let r = self.parse_multiplicative()?; left = Expr::Binary(BinaryOp::Sub, Box::new(left), Box::new(r)); }
+                Token::Plus => {
+                    self.advance();
+                    let r = self.parse_multiplicative()?;
+                    left = Expr::Binary(BinaryOp::Add, Box::new(left), Box::new(r));
+                }
+                Token::Minus => {
+                    self.advance();
+                    let r = self.parse_multiplicative()?;
+                    left = Expr::Binary(BinaryOp::Sub, Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -208,9 +253,21 @@ impl Parser {
         let mut left = self.parse_unary()?;
         loop {
             match self.peek() {
-                Token::Star => { self.advance(); let r = self.parse_unary()?; left = Expr::Binary(BinaryOp::Mul, Box::new(left), Box::new(r)); }
-                Token::Slash => { self.advance(); let r = self.parse_unary()?; left = Expr::Binary(BinaryOp::Div, Box::new(left), Box::new(r)); }
-                Token::Percent => { self.advance(); let r = self.parse_unary()?; left = Expr::Binary(BinaryOp::Mod, Box::new(left), Box::new(r)); }
+                Token::Star => {
+                    self.advance();
+                    let r = self.parse_unary()?;
+                    left = Expr::Binary(BinaryOp::Mul, Box::new(left), Box::new(r));
+                }
+                Token::Slash => {
+                    self.advance();
+                    let r = self.parse_unary()?;
+                    left = Expr::Binary(BinaryOp::Div, Box::new(left), Box::new(r));
+                }
+                Token::Percent => {
+                    self.advance();
+                    let r = self.parse_unary()?;
+                    left = Expr::Binary(BinaryOp::Mod, Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -219,8 +276,16 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Result<Expr, String> {
         match self.peek() {
-            Token::Bang | Token::Not => { self.advance(); let e = self.parse_unary()?; Ok(Expr::Unary(UnaryOp::Not, Box::new(e))) }
-            Token::Minus => { self.advance(); let e = self.parse_unary()?; Ok(Expr::Unary(UnaryOp::Neg, Box::new(e))) }
+            Token::Bang | Token::Not => {
+                self.advance();
+                let e = self.parse_unary()?;
+                Ok(Expr::Unary(UnaryOp::Not, Box::new(e)))
+            }
+            Token::Minus => {
+                self.advance();
+                let e = self.parse_unary()?;
+                Ok(Expr::Unary(UnaryOp::Neg, Box::new(e)))
+            }
             _ => self.parse_postfix(),
         }
     }
@@ -234,7 +299,9 @@ impl Parser {
                     self.advance();
                     let name = match self.advance() {
                         Token::Ident(s) => s,
-                        other => return Err(format!("expected field name after '.', got {:?}", other)),
+                        other => {
+                            return Err(format!("expected field name after '.', got {:?}", other))
+                        }
                     };
                     if *self.peek() == Token::LParen {
                         // Method call
@@ -260,12 +327,30 @@ impl Parser {
 
     fn parse_primary(&mut self) -> Result<Expr, String> {
         match self.peek().clone() {
-            Token::Int(n) => { self.advance(); Ok(Expr::Int(n)) }
-            Token::Float(n) => { self.advance(); Ok(Expr::Float(n)) }
-            Token::Str(s) => { self.advance(); Ok(Expr::String(s)) }
-            Token::True => { self.advance(); Ok(Expr::Bool(true)) }
-            Token::False => { self.advance(); Ok(Expr::Bool(false)) }
-            Token::Null => { self.advance(); Ok(Expr::Null) }
+            Token::Int(n) => {
+                self.advance();
+                Ok(Expr::Int(n))
+            }
+            Token::Float(n) => {
+                self.advance();
+                Ok(Expr::Float(n))
+            }
+            Token::Str(s) => {
+                self.advance();
+                Ok(Expr::String(s))
+            }
+            Token::True => {
+                self.advance();
+                Ok(Expr::Bool(true))
+            }
+            Token::False => {
+                self.advance();
+                Ok(Expr::Bool(false))
+            }
+            Token::Null => {
+                self.advance();
+                Ok(Expr::Null)
+            }
 
             // Parenthesized
             Token::LParen => {
@@ -283,7 +368,9 @@ impl Parser {
                     items.push(self.parse_ternary()?);
                     while *self.peek() == Token::Comma {
                         self.advance();
-                        if *self.peek() == Token::RBracket { break; } // trailing comma
+                        if *self.peek() == Token::RBracket {
+                            break;
+                        } // trailing comma
                         items.push(self.parse_ternary()?);
                     }
                 }
@@ -306,7 +393,9 @@ impl Parser {
                     let mut entries = vec![(first, val)];
                     while *self.peek() == Token::Comma {
                         self.advance();
-                        if *self.peek() == Token::RBrace { break; }
+                        if *self.peek() == Token::RBrace {
+                            break;
+                        }
                         let key = self.parse_ternary()?;
                         self.expect(&Token::Colon)?;
                         let v = self.parse_ternary()?;
@@ -318,7 +407,9 @@ impl Parser {
                     let mut items = vec![first];
                     while *self.peek() == Token::Comma {
                         self.advance();
-                        if *self.peek() == Token::RBrace { break; }
+                        if *self.peek() == Token::RBrace {
+                            break;
+                        }
                         items.push(self.parse_ternary()?);
                     }
                     self.expect(&Token::RBrace)?;

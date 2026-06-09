@@ -123,10 +123,10 @@ impl RegionSlot {
             OFlag::O_CREAT | OFlag::O_RDWR,
             Mode::S_IRUSR | Mode::S_IWUSR,
         )
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         nix::unistd::ftruncate(&fd, size as nix::libc::off_t)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // SAFETY: fd is valid, obtained from shm_open. Ownership transferred via into_raw_fd.
         let file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
@@ -148,10 +148,10 @@ impl RegionSlot {
         let shm_path = format!("/vil_{}", name);
 
         let fd = mman::shm_open(shm_path.as_str(), OFlag::O_RDWR, Mode::empty())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         let stat = nix::sys::stat::fstat(fd.as_raw_fd())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
         let size = stat.st_size as usize;
 
         // SAFETY: fd is valid, obtained from shm_open. Ownership transferred via into_raw_fd.
@@ -206,11 +206,8 @@ impl BumpRegion {
         let aligned_size = (size + 7) & !7; // 8-byte align
         loop {
             let current = self.cursor.load(std::sync::atomic::Ordering::Acquire);
-            // SAFETY: use checked_add to prevent integer overflow
-            let new_offset = match current.checked_add(aligned_size) {
-                Some(n) => n,
-                None => return None, // overflow — region exhausted
-            };
+            // Checked add prevents integer overflow; None means the region is exhausted.
+            let new_offset = current.checked_add(aligned_size)?;
             if new_offset > self.capacity {
                 // Wrap around: try to reset cursor to beginning.
                 // Only one thread will succeed the CAS; others retry.
@@ -239,13 +236,26 @@ impl BumpRegion {
     }
 
     /// Write bytes at offset. No lock — direct pointer write.
-    /// SAFETY: Caller must ensure offset is valid (from alloc).
+    ///
+    /// # Safety
+    ///
+    /// Caller must provide an `offset` returned by this region's allocator and
+    /// ensure `data.len()` fits in the originally allocated range. The target
+    /// memory must not overlap `data`, and concurrent writers must coordinate so
+    /// they do not write the same range at the same time.
     pub unsafe fn write(&self, offset: Offset, data: &[u8]) {
         let dst = self.base_ptr.add(offset.as_usize());
         std::ptr::copy_nonoverlapping(data.as_ptr(), dst, data.len());
     }
 
     /// Read bytes at offset. No lock — direct pointer read.
+    ///
+    /// # Safety
+    ///
+    /// Caller must provide an `offset` returned by this region's allocator and a
+    /// `len` that fits in the allocated range. The returned slice borrows shared
+    /// memory directly, so callers must ensure no mutable writer aliases that
+    /// range for the duration of the borrow.
     pub unsafe fn read(&self, offset: Offset, len: usize) -> &[u8] {
         let src = self.base_ptr.add(offset.as_usize());
         std::slice::from_raw_parts(src, len)
@@ -322,8 +332,7 @@ impl ExchangeHeap {
     #[doc(alias = "vil_keep")]
     pub fn unlink_region(name: &str) -> std::io::Result<()> {
         let shm_path = format!("/vil_{}", name);
-        mman::shm_unlink(shm_path.as_str())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        mman::shm_unlink(shm_path.as_str()).map_err(|e| std::io::Error::other(e.to_string()))
     }
 
     #[doc(alias = "vil_keep")]
@@ -372,7 +381,7 @@ impl ExchangeHeap {
 
         if off
             .checked_add(size)
-            .map_or(true, |end| end > slot.buffer.len())
+            .is_none_or(|end| end > slot.buffer.len())
         {
             return None;
         }
@@ -402,7 +411,7 @@ impl ExchangeHeap {
 
         if off
             .checked_add(size)
-            .map_or(true, |end| end > slot.buffer.len())
+            .is_none_or(|end| end > slot.buffer.len())
         {
             return false;
         }
@@ -456,7 +465,7 @@ impl ExchangeHeap {
         let off = offset.as_usize();
         if off
             .checked_add(data.len())
-            .map_or(true, |end| end > slot.buffer.len())
+            .is_none_or(|end| end > slot.buffer.len())
         {
             return false;
         }
@@ -478,7 +487,7 @@ impl ExchangeHeap {
         let off = offset.as_usize();
         if off
             .checked_add(len)
-            .map_or(true, |end| end > slot.buffer.len())
+            .is_none_or(|end| end > slot.buffer.len())
         {
             return None;
         }

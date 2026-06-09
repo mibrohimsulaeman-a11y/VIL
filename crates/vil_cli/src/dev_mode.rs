@@ -27,14 +27,20 @@ pub struct DevConfig {
 pub fn run_dev(config: DevConfig) -> Result<(), String> {
     clear_screen();
     println!();
-    println!("  {}", "╔══════════════════════════════════════════════════╗".cyan());
+    println!(
+        "  {}",
+        "╔══════════════════════════════════════════════════╗".cyan()
+    );
     println!(
         "  {}  {} — Development Mode                     {}",
         "║".cyan(),
         "vil dev".green().bold(),
         "║".cyan()
     );
-    println!("  {}", "╚══════════════════════════════════════════════════╝".cyan());
+    println!(
+        "  {}",
+        "╚══════════════════════════════════════════════════╝".cyan()
+    );
     println!();
 
     // Load .env file if present (fix #5)
@@ -55,12 +61,12 @@ pub fn run_dev(config: DevConfig) -> Result<(), String> {
 
     println!("  {}   {}", "Package:".dimmed(), package.cyan());
     println!("  {}    {}", "Binary:".dimmed(), binary_name.cyan());
-    println!("  {}      {}", "Port:".dimmed(), config.port.to_string().cyan());
     println!(
-        "  {}  {}ms",
-        "Debounce:".dimmed(),
-        debounce_ms
+        "  {}      {}",
+        "Port:".dimmed(),
+        config.port.to_string().cyan()
     );
+    println!("  {}  {}ms", "Debounce:".dimmed(), debounce_ms);
     println!(
         "  {}  {}",
         "Watching:".dimmed(),
@@ -78,26 +84,27 @@ pub fn run_dev(config: DevConfig) -> Result<(), String> {
     // Set up notify watcher (fix #1 — event-based, not polling)
     let (tx, rx) = mpsc::channel();
 
-    let mut watcher = notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
-        if let Ok(event) = res {
-            // Only care about modify/create/remove
-            use notify::EventKind::*;
-            match event.kind {
-                Modify(_) | Create(_) | Remove(_) => {
-                    // Filter by extension
-                    let dominated = event.paths.iter().any(|p| {
-                        let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-                        matches!(ext, "rs" | "sql" | "toml" | "env")
-                    });
-                    if dominated {
-                        let _ = tx.send(event);
+    let mut watcher =
+        notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+            if let Ok(event) = res {
+                // Only care about modify/create/remove
+                use notify::EventKind::*;
+                match event.kind {
+                    Modify(_) | Create(_) | Remove(_) => {
+                        // Filter by extension
+                        let dominated = event.paths.iter().any(|p| {
+                            let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+                            matches!(ext, "rs" | "sql" | "toml" | "env")
+                        });
+                        if dominated {
+                            let _ = tx.send(event);
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-    })
-    .map_err(|e| format!("Failed to create file watcher: {e}"))?;
+        })
+        .map_err(|e| format!("Failed to create file watcher: {e}"))?;
 
     // Watch directories
     if Path::new("src").exists() {
@@ -187,7 +194,11 @@ pub fn run_dev(config: DevConfig) -> Result<(), String> {
                 }
 
                 // Reload .env if changed (fix #5)
-                let current_dotenv = if has_env { load_dotenv() } else { dotenv.clone() };
+                let current_dotenv = if has_env {
+                    load_dotenv()
+                } else {
+                    dotenv.clone()
+                };
 
                 // Graceful shutdown (fix #3)
                 graceful_stop(&mut child);
@@ -343,12 +354,7 @@ fn build_and_run(
     let bin_path = candidates
         .iter()
         .find(|p| Path::new(p).exists())
-        .ok_or_else(|| {
-            format!(
-                "Binary not found. Tried: {}",
-                candidates.join(", ")
-            )
-        })?;
+        .ok_or_else(|| format!("Binary not found. Tried: {}", candidates.join(", ")))?;
 
     // Build env vars for child process (fix #2 + #4 + #7)
     let mut cmd = Command::new(bin_path);

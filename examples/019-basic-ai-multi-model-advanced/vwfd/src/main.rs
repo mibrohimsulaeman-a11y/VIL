@@ -11,10 +11,12 @@ static TOTAL_ASSESSMENTS: AtomicU64 = AtomicU64::new(0);
 
 fn triage_assess(input: &Value) -> Result<Value, String> {
     TOTAL_ASSESSMENTS.fetch_add(1, Ordering::Relaxed);
-    let symptoms = input.get("body")
+    let symptoms = input
+        .get("body")
         .and_then(|b| b["symptoms"].as_str())
         .unwrap_or("unspecified");
-    let severity = input.get("body")
+    let severity = input
+        .get("body")
         .and_then(|b| b["severity"].as_str())
         .unwrap_or("low");
     let urgency = match severity {
@@ -46,9 +48,12 @@ fn triage_stats(_input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/019-basic-ai-multi-model-advanced/vwfd/workflows", 8080)
-        .native("triage_assess", triage_assess)
-        .native("triage_stats", triage_stats)
-        .run()
-        .await;
+    vil_vwfd::app(
+        "examples/019-basic-ai-multi-model-advanced/vwfd/workflows",
+        8080,
+    )
+    .native("triage_assess", triage_assess)
+    .native("triage_stats", triage_stats)
+    .run()
+    .await;
 }

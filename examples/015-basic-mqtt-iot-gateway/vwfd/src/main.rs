@@ -45,10 +45,12 @@ fn mqtt_topics(_input: &Value) -> Result<Value, String> {
 }
 
 fn publish_sensor_data(input: &Value) -> Result<Value, String> {
-    let sensor_id = input.get("body")
+    let sensor_id = input
+        .get("body")
         .and_then(|b| b["sensor_id"].as_str())
         .unwrap_or("unknown");
-    let sensor_type = input.get("body")
+    let sensor_type = input
+        .get("body")
         .and_then(|b| b["type"].as_str())
         .unwrap_or("generic");
     Ok(json!({

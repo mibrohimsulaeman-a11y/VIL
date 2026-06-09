@@ -4,9 +4,9 @@
 //!
 //! Performs 9 validation checks beyond basic YAML parsing.
 
-use vil_cli_core::manifest::WorkflowManifest;
 use colored::*;
 use std::path::Path;
+use vil_cli_core::manifest::WorkflowManifest;
 
 /// Run all checks on a manifest file.
 pub fn run_check(manifest_path: &str) -> Result<(), String> {

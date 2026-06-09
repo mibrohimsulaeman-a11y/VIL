@@ -45,6 +45,10 @@ enum Commands {
         /// Concurrent connections
         #[arg(short, long, default_value = "10")]
         concurrency: usize,
+
+        /// Emit results as JSON (for CI / release sign-off)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Initialize VIL pipeline in current directory (use vil server init for server)
@@ -611,7 +615,6 @@ enum GenerateAction {
 #[derive(Subcommand)]
 enum ProvisionAction {
     // ── New: vil-server provision commands ──────────────────────
-
     /// Inspect workflow YAML — list required handlers (NativeCode, WASM, Sidecar)
     Inspect {
         /// Path to workflow YAML file, workflows/ dir, or project dir
@@ -704,7 +707,6 @@ enum ProvisionAction {
     },
 
     // ── Legacy: vflow-server commands ───────────────────────────
-
     /// Push a .vlb artifact to vflow-server
     Push {
         /// vflow-server host URL
@@ -829,15 +831,16 @@ mod codegen;
 mod compiler;
 mod deploy;
 mod dev_mode;
-mod generate;
 mod doctor;
 mod error_catalog;
 mod errors;
 mod gen_scaffold;
+mod generate;
 mod hot_reload;
 mod manifest;
 mod mock_server;
 mod node_types;
+mod orm_cmd;
 mod pipeline_init;
 mod project_init;
 mod provision;
@@ -856,7 +859,6 @@ mod vlb_inspector;
 mod wasm_builder;
 mod yaml_pipeline;
 mod yaml_tools;
-mod orm_cmd;
 
 fn main() {
     let cli = Cli::parse();
@@ -932,14 +934,17 @@ fn main() {
         Commands::Bench {
             requests,
             concurrency,
+            json,
         } => {
-            println!(
-                "{} Running benchmark ({} requests, {} concurrent)",
-                "✓".green().bold(),
-                requests,
-                concurrency
-            );
-            if let Err(e) = runner::run_benchmark(*requests, *concurrency) {
+            if !*json {
+                println!(
+                    "{} Running benchmark ({} requests, {} concurrent)",
+                    "✓".green().bold(),
+                    requests,
+                    concurrency
+                );
+            }
+            if let Err(e) = runner::run_benchmark(*requests, *concurrency, *json) {
                 eprintln!("{} {}", "Error:".red().bold(), e);
                 std::process::exit(1);
             }
@@ -988,16 +993,26 @@ fn main() {
             }
         }
 
-        Commands::Orm { action } => {
-            match action {
-                OrmAction::Gen { target, schema, output, name, table } => {
-                    if let Err(e) = orm_cmd::run_orm_gen(&target, &schema, output.as_deref(), name.as_deref(), table.as_deref()) {
-                        eprintln!("{} {}", "Error:".red().bold(), e);
-                        std::process::exit(1);
-                    }
+        Commands::Orm { action } => match action {
+            OrmAction::Gen {
+                target,
+                schema,
+                output,
+                name,
+                table,
+            } => {
+                if let Err(e) = orm_cmd::run_orm_gen(
+                    &target,
+                    &schema,
+                    output.as_deref(),
+                    name.as_deref(),
+                    table.as_deref(),
+                ) {
+                    eprintln!("{} {}", "Error:".red().bold(), e);
+                    std::process::exit(1);
                 }
             }
-        }
+        },
 
         Commands::ExportManifest { source, output } => {
             if let Err(e) = orm_cmd::run_export_manifest(source, output.as_deref()) {
@@ -1006,7 +1021,13 @@ fn main() {
             }
         }
 
-        Commands::Deploy { action, host, user, path, service } => {
+        Commands::Deploy {
+            action,
+            host,
+            user,
+            path,
+            service,
+        } => {
             if let Err(e) = deploy::run_deploy(
                 action,
                 host.as_deref(),
@@ -1339,7 +1360,10 @@ fn main() {
         Commands::Provision { action } => {
             // Helper: resolve value with env var fallback
             let env_or = |val: &str, env_key: &str| -> String {
-                if val != "/tmp/vil-plugins" && val != "/tmp/vil-wasm" && val != "http://localhost:3080" {
+                if val != "/tmp/vil-plugins"
+                    && val != "/tmp/vil-wasm"
+                    && val != "http://localhost:3080"
+                {
                     val.to_string() // user explicitly set via CLI
                 } else {
                     std::env::var(env_key).unwrap_or_else(|_| val.to_string())
@@ -1348,7 +1372,13 @@ fn main() {
 
             match action {
                 // ── New vil-server provision commands ──
-                ProvisionAction::Inspect { path, check_dir, format, plugin_dir, wasm_dir } => {
+                ProvisionAction::Inspect {
+                    path,
+                    check_dir,
+                    format,
+                    plugin_dir,
+                    wasm_dir,
+                } => {
                     let pd = env_or(plugin_dir, "VIL_PLUGIN_DIR");
                     let wd = env_or(wasm_dir, "VIL_WASM_DIR");
                     if let Err(e) = provision::run_inspect(path, *check_dir, format, &pd, &wd) {
@@ -1356,25 +1386,53 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
-                ProvisionAction::Prepare { path, plugin_dir, wasm_dir, build_dir, so_only, wasm_only, clean, dry_run, jobs } => {
+                ProvisionAction::Prepare {
+                    path,
+                    plugin_dir,
+                    wasm_dir,
+                    build_dir,
+                    so_only,
+                    wasm_only,
+                    clean,
+                    dry_run,
+                    jobs,
+                } => {
                     let pd = env_or(plugin_dir, "VIL_PLUGIN_DIR");
                     let wd = env_or(wasm_dir, "VIL_WASM_DIR");
                     if let Err(e) = provision_prepare::run_prepare(
-                        path, &pd, &wd, build_dir,
-                        *so_only, *wasm_only, *clean, *dry_run, *jobs,
+                        path, &pd, &wd, build_dir, *so_only, *wasm_only, *clean, *dry_run, *jobs,
                     ) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
                     }
                 }
-                ProvisionAction::Upload { path, host, key, plugin_dir, wasm_dir, handlers_only, workflows_only, no_activate, timeout } => {
+                ProvisionAction::Upload {
+                    path,
+                    host,
+                    key,
+                    plugin_dir,
+                    wasm_dir,
+                    handlers_only,
+                    workflows_only,
+                    no_activate,
+                    timeout,
+                } => {
                     let h = env_or(host, "VIL_PROVISION_HOST");
-                    let key_resolved: Option<String> = key.clone().or_else(|| std::env::var("VIL_PROVISION_KEY").ok());
+                    let key_resolved: Option<String> = key
+                        .clone()
+                        .or_else(|| std::env::var("VIL_PROVISION_KEY").ok());
                     let pd = env_or(plugin_dir, "VIL_PLUGIN_DIR");
                     let wd = env_or(wasm_dir, "VIL_WASM_DIR");
                     if let Err(e) = provision::run_upload(
-                        path, &h, key_resolved.as_deref(), &pd, &wd,
-                        *handlers_only, *workflows_only, !*no_activate, *timeout,
+                        path,
+                        &h,
+                        key_resolved.as_deref(),
+                        &pd,
+                        &wd,
+                        *handlers_only,
+                        *workflows_only,
+                        !*no_activate,
+                        *timeout,
                     ) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
@@ -1382,7 +1440,9 @@ fn main() {
                 }
                 ProvisionAction::Status { host, key, format } => {
                     let h = env_or(host, "VIL_PROVISION_HOST");
-                    let key_resolved: Option<String> = key.clone().or_else(|| std::env::var("VIL_PROVISION_KEY").ok());
+                    let key_resolved: Option<String> = key
+                        .clone()
+                        .or_else(|| std::env::var("VIL_PROVISION_KEY").ok());
                     if let Err(e) = provision::run_status(&h, key_resolved.as_deref(), format) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
@@ -1391,28 +1451,40 @@ fn main() {
 
                 // ── Legacy vflow-server commands ──
                 ProvisionAction::Push { host, artifact } => {
-                    let paction = provision::Action::Push { host: host.clone(), artifact: artifact.clone() };
+                    let paction = provision::Action::Push {
+                        host: host.clone(),
+                        artifact: artifact.clone(),
+                    };
                     if let Err(e) = provision::run_provision(paction) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
                     }
                 }
                 ProvisionAction::Activate { host, service } => {
-                    let paction = provision::Action::Activate { host: host.clone(), service: service.clone() };
+                    let paction = provision::Action::Activate {
+                        host: host.clone(),
+                        service: service.clone(),
+                    };
                     if let Err(e) = provision::run_provision(paction) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
                     }
                 }
                 ProvisionAction::Drain { host, service } => {
-                    let paction = provision::Action::Drain { host: host.clone(), service: service.clone() };
+                    let paction = provision::Action::Drain {
+                        host: host.clone(),
+                        service: service.clone(),
+                    };
                     if let Err(e) = provision::run_provision(paction) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
                     }
                 }
                 ProvisionAction::Deactivate { host, service } => {
-                    let paction = provision::Action::Deactivate { host: host.clone(), service: service.clone() };
+                    let paction = provision::Action::Deactivate {
+                        host: host.clone(),
+                        service: service.clone(),
+                    };
                     if let Err(e) = provision::run_provision(paction) {
                         eprintln!("{} {}", "Error:".red().bold(), e);
                         std::process::exit(1);
@@ -1711,7 +1783,10 @@ fn main() {
                                     cr.node_count,
                                     cr.bytes,
                                     cr.duration_ms,
-                                    cr.route.as_deref().map(|r| format!(" → {}", r)).unwrap_or_default(),
+                                    cr.route
+                                        .as_deref()
+                                        .map(|r| format!(" → {}", r))
+                                        .unwrap_or_default(),
                                 );
                                 ok += 1;
                             }
@@ -1721,14 +1796,24 @@ fn main() {
                             }
                         }
                     }
-                    println!("\n{} compiled, {} failed", ok.to_string().green(), fail.to_string().red());
-                    if fail > 0 { std::process::exit(1); }
+                    println!(
+                        "\n{} compiled, {} failed",
+                        ok.to_string().green(),
+                        fail.to_string().red()
+                    );
+                    if fail > 0 {
+                        std::process::exit(1);
+                    }
                 } else {
                     match vil_vwfd::cli::compile_vwfd(&path) {
                         Ok(cr) => {
                             println!(
                                 "{} {} compiled ({} nodes, {} bytes, {}ms)",
-                                "✓".green().bold(), cr.id, cr.node_count, cr.bytes, cr.duration_ms,
+                                "✓".green().bold(),
+                                cr.id,
+                                cr.node_count,
+                                cr.bytes,
+                                cr.duration_ms,
                             );
                             if let Some(route) = cr.route {
                                 println!("  webhook: {}", route.cyan());
@@ -1756,24 +1841,54 @@ fn main() {
                     } else {
                         println!("{}", lr.file.bold());
                         for e in &lr.errors {
-                            eprintln!("  {} [{}] {}{}", "ERROR".red().bold(), e.code,
-                                e.message, e.location.as_deref().map(|l| format!(" ({})", l)).unwrap_or_default());
+                            eprintln!(
+                                "  {} [{}] {}{}",
+                                "ERROR".red().bold(),
+                                e.code,
+                                e.message,
+                                e.location
+                                    .as_deref()
+                                    .map(|l| format!(" ({})", l))
+                                    .unwrap_or_default()
+                            );
                         }
                         for w in &lr.warnings {
-                            println!("  {} [{}] {}{}", "WARN".yellow().bold(), w.code,
-                                w.message, w.location.as_deref().map(|l| format!(" ({})", l)).unwrap_or_default());
+                            println!(
+                                "  {} [{}] {}{}",
+                                "WARN".yellow().bold(),
+                                w.code,
+                                w.message,
+                                w.location
+                                    .as_deref()
+                                    .map(|l| format!(" ({})", l))
+                                    .unwrap_or_default()
+                            );
                         }
                         for i in &lr.infos {
-                            println!("  {} [{}] {}{}", "INFO".cyan(), i.code,
-                                i.message, i.location.as_deref().map(|l| format!(" ({})", l)).unwrap_or_default());
+                            println!(
+                                "  {} [{}] {}{}",
+                                "INFO".cyan(),
+                                i.code,
+                                i.message,
+                                i.location
+                                    .as_deref()
+                                    .map(|l| format!(" ({})", l))
+                                    .unwrap_or_default()
+                            );
                         }
                     }
                     total_errors += lr.errors.len();
                     total_warnings += lr.warnings.len();
                 }
-                println!("\n{} files, {} errors, {} warnings",
-                    results.len(), total_errors.to_string().red(), total_warnings.to_string().yellow());
-                if total_errors > 0 { std::process::exit(1); }
+                println!(
+                    "\n{} files, {} errors, {} warnings",
+                    results.len(),
+                    total_errors.to_string().red(),
+                    total_warnings.to_string().yellow()
+                );
+                if total_errors > 0 {
+                    std::process::exit(1);
+                }
             }
             VwfdAction::Export { src, output } => {
                 match vil_vwfd::cli::export_vwfd_from_source(&src, &output) {
@@ -1781,7 +1896,11 @@ fn main() {
                         for f in &files {
                             println!("{} {}", "✓".green().bold(), f);
                         }
-                        println!("\n{} workflow(s) exported to {}", files.len(), output.cyan());
+                        println!(
+                            "\n{} workflow(s) exported to {}",
+                            files.len(),
+                            output.cyan()
+                        );
                     }
                     Err(e) => {
                         eprintln!("{} {}", "Error:".red().bold(), e);

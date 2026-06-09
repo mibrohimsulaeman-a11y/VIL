@@ -121,11 +121,7 @@ impl UpstreamRegistry {
                 let errs = m.errors.load(Ordering::Relaxed);
                 let dur_count = m.duration_count.load(Ordering::Relaxed);
                 let dur_sum = m.duration_sum_ns.load(Ordering::Relaxed);
-                let avg_ns = if dur_count > 0 {
-                    dur_sum / dur_count
-                } else {
-                    0
-                };
+                let avg_ns = dur_sum.checked_div(dur_count).unwrap_or(0);
 
                 let p95 = crate::obs_middleware::HandlerMetricsRegistry::percentile_ns(
                     &m.latency_buckets,

@@ -2719,29 +2719,37 @@ fn generate_handler_wasm(fn_name: &str, module: &str, function: &str) -> String 
         fn_name
     ));
     s.push_str(&format!(
-        "    // WASM handler: module={}, function={}\n", module, function
+        "    // WASM handler: module={}, function={}\n",
+        module, function
     ));
     s.push_str(&format!(
         "    let wasm_module = ctx.state::<WasmRuntime>().map_err(|_| VilError::internal(\"WASM runtime not configured\"))?;\n"
     ));
-    s.push_str(&format!(
-        "    let input_bytes = body.as_bytes();\n"
-    ));
+    s.push_str(&format!("    let input_bytes = body.as_bytes();\n"));
     s.push_str(&format!(
         "    let output_bytes = wasm_module.call(\"{}\", \"{}\", input_bytes)\n",
         module, function
     ));
     s.push_str("        .await\n");
-    s.push_str("        .map_err(|e| VilError::internal(format!(\"WASM call failed: {}\", e)))?;\n");
+    s.push_str(
+        "        .map_err(|e| VilError::internal(format!(\"WASM call failed: {}\", e)))?;\n",
+    );
     s.push_str("    let result: serde_json::Value = serde_json::from_slice(&output_bytes)\n");
-    s.push_str("        .map_err(|e| VilError::internal(format!(\"WASM output not JSON: {}\", e)))?;\n");
+    s.push_str(
+        "        .map_err(|e| VilError::internal(format!(\"WASM output not JSON: {}\", e)))?;\n",
+    );
     s.push_str("    Ok(VilResponse::ok(result))\n");
     s.push_str("}\n");
     s
 }
 
 /// Generate handler that delegates to a sidecar process via SHM or HTTP.
-fn generate_handler_sidecar(fn_name: &str, command: &str, protocol: &str, timeout_ms: u64) -> String {
+fn generate_handler_sidecar(
+    fn_name: &str,
+    command: &str,
+    protocol: &str,
+    timeout_ms: u64,
+) -> String {
     let mut s = String::new();
     s.push_str("#[vil_endpoint]\n");
     s.push_str(&format!(
@@ -2760,7 +2768,9 @@ fn generate_handler_sidecar(fn_name: &str, command: &str, protocol: &str, timeou
             fn_name, timeout_ms
         ));
         s.push_str("        .await\n");
-        s.push_str("        .map_err(|e| VilError::internal(format!(\"Sidecar call failed: {}\", e)))?;\n");
+        s.push_str(
+            "        .map_err(|e| VilError::internal(format!(\"Sidecar call failed: {}\", e)))?;\n",
+        );
     } else {
         // HTTP protocol
         s.push_str("    let client = reqwest::Client::new();\n");
@@ -2769,15 +2779,24 @@ fn generate_handler_sidecar(fn_name: &str, command: &str, protocol: &str, timeou
             fn_name
         ));
         s.push_str("        .body(body.as_bytes().to_vec())\n");
-        s.push_str(&format!("        .timeout(std::time::Duration::from_millis({}))\n", timeout_ms));
+        s.push_str(&format!(
+            "        .timeout(std::time::Duration::from_millis({}))\n",
+            timeout_ms
+        ));
         s.push_str("        .send().await\n");
-        s.push_str("        .map_err(|e| VilError::internal(format!(\"Sidecar HTTP failed: {}\", e)))?\n");
+        s.push_str(
+            "        .map_err(|e| VilError::internal(format!(\"Sidecar HTTP failed: {}\", e)))?\n",
+        );
         s.push_str("        .bytes().await\n");
-        s.push_str("        .map_err(|e| VilError::internal(format!(\"Sidecar read failed: {}\", e)))?;\n");
+        s.push_str(
+            "        .map_err(|e| VilError::internal(format!(\"Sidecar read failed: {}\", e)))?;\n",
+        );
     }
 
     s.push_str("    let parsed: serde_json::Value = serde_json::from_slice(&result)\n");
-    s.push_str("        .map_err(|e| VilError::internal(format!(\"Sidecar output not JSON: {}\", e)))?;\n");
+    s.push_str(
+        "        .map_err(|e| VilError::internal(format!(\"Sidecar output not JSON: {}\", e)))?;\n",
+    );
     s.push_str("    Ok(VilResponse::ok(parsed))\n");
     s.push_str("}\n");
     s
@@ -2792,7 +2811,8 @@ fn generate_handler_stub(fn_name: &str, response: &str) -> String {
         fn_name
     ));
     s.push_str(&format!(
-        "    Ok(VilResponse::ok(serde_json::json!({})))\n", response
+        "    Ok(VilResponse::ok(serde_json::json!({})))\n",
+        response
     ));
     s.push_str("}\n");
     s

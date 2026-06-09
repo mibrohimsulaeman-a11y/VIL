@@ -53,8 +53,12 @@ async fn run_workflow(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowRunR
     let start = std::time::Instant::now();
 
     let tasks = vec![
-        Task::new("extract", "Extract from API", TaskType::Custom("extract".into()))
-            .with_timeout(10000),
+        Task::new(
+            "extract",
+            "Extract from API",
+            TaskType::Custom("extract".into()),
+        )
+        .with_timeout(10000),
         Task::new("validate", "Validate schema", TaskType::Filter)
             .with_deps(vec!["extract".into()])
             .with_timeout(5000),
@@ -64,9 +68,13 @@ async fn run_workflow(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowRunR
         Task::new("load", "Load to database", TaskType::Custom("load".into()))
             .with_deps(vec!["validate".into(), "transform".into()])
             .with_timeout(15000),
-        Task::new("notify", "Send notification", TaskType::Custom("notify".into()))
-            .with_deps(vec!["load".into()])
-            .with_timeout(5000),
+        Task::new(
+            "notify",
+            "Send notification",
+            TaskType::Custom("notify".into()),
+        )
+        .with_deps(vec!["load".into()])
+        .with_timeout(5000),
     ];
 
     let task_count = tasks.len();
@@ -77,15 +85,24 @@ async fn run_workflow(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowRunR
 
     let response = match result {
         Ok(wf_result) => {
-            let task_results: Vec<TaskResultInfo> = wf_result.results.iter()
+            let task_results: Vec<TaskResultInfo> = wf_result
+                .results
+                .iter()
                 .map(|tr| TaskResultInfo {
                     id: tr.task_id.clone(),
                     status: format!("{:?}", tr.status),
                 })
                 .collect();
-            let failed = task_results.iter().filter(|t| t.status.contains("Failed")).count();
+            let failed = task_results
+                .iter()
+                .filter(|t| t.status.contains("Failed"))
+                .count();
             WorkflowRunResponse {
-                status: if failed == 0 { "completed".into() } else { "partial_failure".into() },
+                status: if failed == 0 {
+                    "completed".into()
+                } else {
+                    "partial_failure".into()
+                },
                 tasks_total: task_count,
                 tasks_completed: task_results.len() - failed,
                 tasks_failed: failed,
@@ -95,12 +112,17 @@ async fn run_workflow(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowRunR
         }
         Err(e) => WorkflowRunResponse {
             status: format!("error: {}", e),
-            tasks_total: task_count, tasks_completed: 0, tasks_failed: task_count,
-            duration_ms, task_results: vec![],
+            tasks_total: task_count,
+            tasks_completed: 0,
+            tasks_failed: task_count,
+            duration_ms,
+            task_results: vec![],
         },
     };
 
-    let state = ctx.state::<Arc<AppState>>().map_err(|_| VilError::internal("state"))?;
+    let state = ctx
+        .state::<Arc<AppState>>()
+        .map_err(|_| VilError::internal("state"))?;
     *state.last_run.lock().unwrap() = Some(response.clone());
     *state.total_runs.lock().unwrap() += 1;
 
@@ -108,7 +130,9 @@ async fn run_workflow(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowRunR
 }
 
 async fn workflow_status(ctx: ServiceCtx) -> HandlerResult<VilResponse<WorkflowStatusResponse>> {
-    let state = ctx.state::<Arc<AppState>>().map_err(|_| VilError::internal("state"))?;
+    let state = ctx
+        .state::<Arc<AppState>>()
+        .map_err(|_| VilError::internal("state"))?;
     Ok(VilResponse::ok(WorkflowStatusResponse {
         last_run: state.last_run.lock().unwrap().clone(),
         total_runs: *state.total_runs.lock().unwrap(),

@@ -57,28 +57,18 @@ pub async fn echo_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
 
 async fn echo_socket(mut socket: WebSocket) {
     while let Some(Ok(msg)) = socket.recv().await {
-        match msg {
-            Message::Text(text) => {
-                if socket
-                    .send(Message::Text(format!("echo: {}", text)))
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-            Message::Binary(data) => {
-                if socket.send(Message::Binary(data)).await.is_err() {
-                    break;
-                }
-            }
-            Message::Ping(data) => {
-                if socket.send(Message::Pong(data)).await.is_err() {
-                    break;
-                }
-            }
-            Message::Close(_) => break,
-            _ => {}
+        let should_break = match msg {
+            Message::Text(text) => socket
+                .send(Message::Text(format!("echo: {}", text)))
+                .await
+                .is_err(),
+            Message::Binary(data) => socket.send(Message::Binary(data)).await.is_err(),
+            Message::Ping(data) => socket.send(Message::Pong(data)).await.is_err(),
+            Message::Close(_) => true,
+            _ => false,
+        };
+        if should_break {
+            break;
         }
     }
 }

@@ -87,8 +87,7 @@ impl VilUpload {
 
     /// Save file with custom filename.
     pub fn save_as(self, dir: &str, filename: &str) -> Result<SavedFile, VilError> {
-        std::fs::create_dir_all(dir)
-            .map_err(|e| VilError::internal(format!("create dir: {e}")))?;
+        std::fs::create_dir_all(dir).map_err(|e| VilError::internal(format!("create dir: {e}")))?;
 
         let path = format!("{}/{}", dir, filename);
         std::fs::write(&path, &self.bytes)

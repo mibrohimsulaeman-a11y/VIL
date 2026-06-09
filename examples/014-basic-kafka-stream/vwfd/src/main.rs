@@ -18,10 +18,12 @@ fn kafka_config(_input: &Value) -> Result<Value, String> {
 }
 
 fn kafka_produce(input: &Value) -> Result<Value, String> {
-    let topic = input.get("body")
+    let topic = input
+        .get("body")
         .and_then(|b| b["topic"].as_str())
         .unwrap_or("events.default");
-    let key = input.get("body")
+    let key = input
+        .get("body")
         .and_then(|b| b["key"].as_str())
         .unwrap_or("default-key");
     Ok(json!({

@@ -54,5 +54,6 @@ async fn main() {
                 "status": "confirmed — reminder will be sent 24 hours before"
             }))
         })
-        .run().await;
+        .run()
+        .await;
 }

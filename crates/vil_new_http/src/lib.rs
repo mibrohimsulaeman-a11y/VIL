@@ -6,9 +6,9 @@
 // mapper over vil_rt::session (core reactive primitives).
 // =============================================================================
 
+pub mod request;
 pub mod sink;
 pub mod source;
-pub mod request;
 
 pub mod format;
 pub use format::HttpFormat;

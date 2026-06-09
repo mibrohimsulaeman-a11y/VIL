@@ -187,10 +187,10 @@ async fn order_status(Path(id): Path<String>) -> Result<VilResponse<OrderStatus>
 async fn kitchen_status() -> VilResponse<KitchenStatus> {
     // Demo values — in production: query kitchen display system or order queue
     VilResponse::ok(KitchenStatus {
-        orders_in_queue: 5,     // demo value
-        orders_cooking: 3,      // demo value
-        chefs_on_duty: 2,       // demo value
-        avg_wait_minutes: 18,   // demo value
+        orders_in_queue: 5,       // demo value
+        orders_cooking: 3,        // demo value
+        chefs_on_duty: 2,         // demo value
+        avg_wait_minutes: 18,     // demo value
         kitchen_load_percent: 75, // demo value
     })
 }

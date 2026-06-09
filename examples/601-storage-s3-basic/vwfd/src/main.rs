@@ -16,5 +16,6 @@ fn s3_upload(input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/601-storage-s3-basic/vwfd/workflows", 3241)
         .native("s3_upload", s3_upload)
-        .run().await;
+        .run()
+        .await;
 }

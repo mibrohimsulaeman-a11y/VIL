@@ -52,7 +52,9 @@ struct SystemStatusTool;
 
 #[async_trait]
 impl Tool for SystemStatusTool {
-    fn name(&self) -> &str { "system_status" }
+    fn name(&self) -> &str {
+        "system_status"
+    }
     fn description(&self) -> &str {
         "Check IT service status. Input: {\"service\": \"vpn\"} or {\"service\": \"all\"}"
     }
@@ -76,17 +78,22 @@ impl Tool for SystemStatusTool {
             ("wifi", "online", "99.3%"),
         ];
         let output = if service == "all" {
-            services.iter()
+            services
+                .iter()
                 .map(|(n, s, u)| format!("{}: {} (uptime {})", n, s, u))
                 .collect::<Vec<_>>()
                 .join("\n")
         } else {
-            services.iter()
+            services
+                .iter()
                 .find(|(n, _, _)| *n == service)
                 .map(|(n, s, u)| format!("{}: {} (uptime {})", n, s, u))
                 .unwrap_or_else(|| format!("{}: unknown service", service))
         };
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
@@ -109,7 +116,9 @@ const KB_ARTICLES: &[(&str, &str, &str)] = &[
 
 #[async_trait]
 impl Tool for KnowledgeBaseTool {
-    fn name(&self) -> &str { "knowledge_base" }
+    fn name(&self) -> &str {
+        "knowledge_base"
+    }
     fn description(&self) -> &str {
         "Search IT knowledge base articles. Input: {\"query\": \"vpn not connecting\"}"
     }
@@ -124,7 +133,8 @@ impl Tool for KnowledgeBaseTool {
         let query = params["query"].as_str().unwrap_or("").to_lowercase();
         let words: Vec<&str> = query.split_whitespace().collect();
 
-        let mut scored: Vec<(usize, &str, &str, &str)> = KB_ARTICLES.iter()
+        let mut scored: Vec<(usize, &str, &str, &str)> = KB_ARTICLES
+            .iter()
             .map(|(id, title, content)| {
                 let text = format!("{} {}", title.to_lowercase(), content.to_lowercase());
                 let score = words.iter().filter(|w| text.contains(*w)).count();
@@ -140,11 +150,16 @@ impl Tool for KnowledgeBaseTool {
             "No matching articles found.".into()
         } else {
             top3.iter()
-                .map(|(score, id, title, content)| format!("[{}] {} (relevance: {})\n{}", id, title, score, content))
+                .map(|(score, id, title, content)| {
+                    format!("[{}] {} (relevance: {})\n{}", id, title, score, content)
+                })
                 .collect::<Vec<_>>()
                 .join("\n\n")
         };
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
@@ -154,7 +169,9 @@ struct SlaCalculatorTool;
 
 #[async_trait]
 impl Tool for SlaCalculatorTool {
-    fn name(&self) -> &str { "sla_calculator" }
+    fn name(&self) -> &str {
+        "sla_calculator"
+    }
     fn description(&self) -> &str {
         "Calculate SLA deadline for a ticket. Input: {\"priority\": \"P1\"}"
     }
@@ -178,28 +195,35 @@ impl Tool for SlaCalculatorTool {
             "Priority: {}\nResolution deadline: {} hours\nFirst response: {} minutes\nEscalation: auto-escalate if no response in {} min",
             priority, resolve_h, response_min, response_min * 2
         );
-        Ok(ToolResult { output, metadata: None })
+        Ok(ToolResult {
+            output,
+            metadata: None,
+        })
     }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────
 
-async fn ask(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<HelpResponse>> {
-    let req: HelpRequest = body.json()
+async fn ask(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<HelpResponse>> {
+    let req: HelpRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
-    let state = ctx.state::<Arc<HelpState>>()
+    let state = ctx
+        .state::<Arc<HelpState>>()
         .map_err(|_| VilError::internal("agent state not found"))?;
 
-    let response = state.agent.run(&req.query).await
+    let response = state
+        .agent
+        .run(&req.query)
+        .await
         .map_err(|e| VilError::internal(format!("agent failed: {:?}", e)))?;
 
     Ok(VilResponse::ok(HelpResponse {
         answer: response.answer,
-        tools_used: response.tool_calls_made.iter()
+        tools_used: response
+            .tool_calls_made
+            .iter()
             .map(|tc| format!("{}({})", tc.tool, tc.input))
             .collect(),
         iterations: response.iterations,
@@ -210,8 +234,7 @@ async fn ask(
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     let llm = Arc::new(OpenAiProvider::new(
@@ -227,7 +250,7 @@ async fn main() {
         .system_prompt(
             "You are an IT helpdesk agent. Use tools to check system status, \
              search knowledge base, and calculate SLA deadlines. \
-             Always search the knowledge base before answering user questions."
+             Always search the knowledge base before answering user questions.",
         )
         .build();
 

@@ -38,8 +38,8 @@
 //   curl http://localhost:8080/api/notifications/stats
 
 use std::convert::Infallible;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_server::axum;
 use vil_server::prelude::*;
@@ -94,7 +94,9 @@ struct NotificationState {
 /// are published. The connection stays open until the client disconnects.
 /// Browser EventSource API handles auto-reconnection natively.
 async fn subscribe(ctx: ServiceCtx) -> impl IntoResponse {
-    let state = ctx.state::<Arc<NotificationState>>().expect("NotificationState");
+    let state = ctx
+        .state::<Arc<NotificationState>>()
+        .expect("NotificationState");
     let hub = state.hub.clone();
     let mut rx = hub.subscribe();
 
@@ -117,20 +119,19 @@ async fn subscribe(ctx: ServiceCtx) -> impl IntoResponse {
 ///
 /// ShmSlice: zero-copy body from ExchangeHeap (not Json<T>).
 /// ServiceCtx: state access via ctx.state (not Extension<T>).
-async fn publish(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<PublishResponse>> {
-    let notification: Notification = body.json()
-        .map_err(|_| VilError::bad_request(
-            "invalid JSON — expected {kind, from_user, to_user, content}"
-        ))?;
+async fn publish(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<PublishResponse>> {
+    let notification: Notification = body.json().map_err(|_| {
+        VilError::bad_request("invalid JSON — expected {kind, from_user, to_user, content}")
+    })?;
 
     if notification.kind.is_empty() || notification.from_user.is_empty() {
-        return Err(VilError::bad_request("kind and from_user must not be empty"));
+        return Err(VilError::bad_request(
+            "kind and from_user must not be empty",
+        ));
     }
 
-    let state = ctx.state::<Arc<NotificationState>>()
+    let state = ctx
+        .state::<Arc<NotificationState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let notification_id = state.notification_count.fetch_add(1, Ordering::Relaxed) + 1;
@@ -152,7 +153,8 @@ async fn publish(
 /// Operations teams use this to monitor platform health:
 /// how many users are listening, how many notifications have been pushed.
 async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<SubscriptionStats>> {
-    let state = ctx.state::<Arc<NotificationState>>()
+    let state = ctx
+        .state::<Arc<NotificationState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     Ok(VilResponse::ok(SubscriptionStats {

@@ -37,7 +37,7 @@ pub mod prelude {
 
     // Auth
     #[cfg(feature = "web")]
-    pub use vil_server_auth::{VilPassword, VilJwt, VilClaims, TokenPair};
+    pub use vil_server_auth::{TokenPair, VilClaims, VilJwt, VilPassword};
 
     // Logging
     #[cfg(feature = "log")]
@@ -47,17 +47,17 @@ pub mod prelude {
 // ── Crate re-exports ──
 
 #[cfg(feature = "web")]
-pub use vil_server;
+pub use vil_json;
 #[cfg(feature = "web")]
-pub use vil_server_core;
+pub use vil_server;
 #[cfg(feature = "web")]
 pub use vil_server_auth;
 #[cfg(feature = "web")]
 pub use vil_server_auth as auth;
 #[cfg(feature = "web")]
-pub use vil_server_web as web;
+pub use vil_server_core;
 #[cfg(feature = "web")]
-pub use vil_json;
+pub use vil_server_web as web;
 
 #[cfg(feature = "log")]
 pub use vil_log;
@@ -72,32 +72,32 @@ pub use vil_orm;
 pub use vil_orm::VilEntity;
 
 // Database
-#[cfg(feature = "db-sqlite")]
-pub use vil_db_sqlx;
-#[cfg(feature = "db-postgres")]
-pub use vil_db_sqlx;
-#[cfg(feature = "db-sqlite")]
-pub use vil_db_semantic;
-#[cfg(feature = "db-postgres")]
-pub use vil_db_semantic;
 #[cfg(feature = "db-redis")]
 pub use vil_db_redis;
+#[cfg(feature = "db-sqlite")]
+pub use vil_db_semantic;
+#[cfg(feature = "db-postgres")]
+pub use vil_db_semantic;
+#[cfg(feature = "db-sqlite")]
+pub use vil_db_sqlx;
+#[cfg(feature = "db-postgres")]
+pub use vil_db_sqlx;
 
 // AI
 #[cfg(feature = "ai")]
 pub mod ai {
-    pub use vil_llm::*;
     pub use vil_ai_gateway::*;
     pub use vil_ai_trace::*;
     pub use vil_cost_tracker::*;
-    pub use vil_prompts::*;
-    pub use vil_prompt_shield::*;
-    pub use vil_output_parser::*;
     pub use vil_guardrails::*;
+    pub use vil_llm::*;
+    pub use vil_output_parser::*;
+    pub use vil_prompt_shield::*;
+    pub use vil_prompts::*;
 }
 
 // Infrastructure
-#[cfg(feature = "ws")]
-pub use vil_ws;
 #[cfg(feature = "cache")]
 pub use vil_cache;
+#[cfg(feature = "ws")]
+pub use vil_ws;

@@ -20,8 +20,12 @@ fn catalog_search(input: &Value) -> Result<Value, String> {
     let category = body["category"].as_str().unwrap_or("electronics");
     let max_price = body["max_price_cents"].as_i64().unwrap_or(999999);
 
-    let products: Vec<Value> = catalog().into_iter()
-        .filter(|p| p["category"].as_str() == Some(category) && p["price_cents"].as_i64().unwrap_or(0) <= max_price)
+    let products: Vec<Value> = catalog()
+        .into_iter()
+        .filter(|p| {
+            p["category"].as_str() == Some(category)
+                && p["price_cents"].as_i64().unwrap_or(0) <= max_price
+        })
         .collect();
 
     Ok(json!({
@@ -48,5 +52,6 @@ async fn main() {
     vil_vwfd::app("examples/033-basic-shm-write-through/vwfd/workflows", 8080)
         .native("catalog_health_handler", catalog_health)
         .native("catalog_search_handler", catalog_search)
-        .run().await;
+        .run()
+        .await;
 }

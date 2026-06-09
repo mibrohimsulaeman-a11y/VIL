@@ -1,15 +1,17 @@
+pub mod error_catalog;
+pub mod errors;
 pub mod manifest;
 pub mod node_types;
 pub mod templates;
-pub mod error_catalog;
-pub mod errors;
 
 /// SDK path detection — lightweight, no downloads.
 pub mod sdk_path {
     use std::path::PathBuf;
 
     pub fn sdk_dir() -> PathBuf {
-        dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("vil-sdk")
+        dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("vil-sdk")
     }
 
     pub fn sdk_current_path() -> PathBuf {

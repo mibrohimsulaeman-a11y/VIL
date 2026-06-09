@@ -85,7 +85,7 @@ impl EndpointMetrics {
             } else {
                 0.0
             },
-            avg_latency_ns: if requests > 0 { total / requests } else { 0 },
+            avg_latency_ns: total.checked_div(requests).unwrap_or(0),
             min_latency_ns: if min == u64::MAX { 0 } else { min },
             max_latency_ns: max,
             p95_ns: self.p95_ns.load(Ordering::Relaxed),
@@ -178,6 +178,11 @@ impl MetricsCollector {
 
     /// Sync endpoint data from an external metrics source (e.g. HandlerMetricsRegistry).
     /// Creates the endpoint entry if it doesn't exist, then overwrites counters.
+    ///
+    /// The argument list mirrors exported endpoint metric fields. Keeping it
+    /// flat preserves the current low-friction sync call sites and avoids a
+    /// one-off allocation for the common metrics refresh path.
+    #[allow(clippy::too_many_arguments)]
     pub fn sync_endpoint(
         &self,
         method: &str,
@@ -235,6 +240,10 @@ impl MetricsCollector {
     }
 
     /// Sync with actual min/max from HandlerMetricsRegistry.
+    ///
+    /// This API intentionally mirrors the full external snapshot fields so
+    /// callers can copy counters directly without constructing a temporary DTO.
+    #[allow(clippy::too_many_arguments)]
     pub fn sync_endpoint_full(
         &self,
         method: &str,

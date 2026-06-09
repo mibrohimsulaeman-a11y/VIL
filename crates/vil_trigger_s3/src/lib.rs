@@ -52,7 +52,10 @@ impl TriggerSource for S3Trigger {
         );
         // Poll loop would use vil_storage_s3 list_objects here
         while !self.stopped.load(Ordering::Relaxed) {
-            tokio::time::sleep(std::time::Duration::from_secs(self.config.poll_interval_secs)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                self.config.poll_interval_secs,
+            ))
+            .await;
             // In production: list objects, diff against last seen, fire events for new/changed
         }
         Ok(())

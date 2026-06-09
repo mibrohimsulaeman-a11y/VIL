@@ -36,8 +36,8 @@
 //     -H 'Content-Type: application/json' \
 //     -d '{"origin":"JFK","destination":"LAX","date":"2026-04-15","passengers":2}'
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_server::prelude::*;
 
@@ -112,8 +112,18 @@ fn generate_offers(
 ) -> Vec<FlightOffer> {
     let routes = vec![
         (format!("{code_prefix}101"), "06:00", "09:15", base_price),
-        (format!("{code_prefix}205"), "11:30", "14:45", base_price + 5000),
-        (format!("{code_prefix}310"), "18:00", "21:20", base_price - 2000),
+        (
+            format!("{code_prefix}205"),
+            "11:30",
+            "14:45",
+            base_price + 5000,
+        ),
+        (
+            format!("{code_prefix}310"),
+            "18:00",
+            "21:20",
+            base_price - 2000,
+        ),
     ];
 
     routes
@@ -180,13 +190,14 @@ async fn search_flights(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<SearchResponse>> {
-    let req: FlightSearchRequest = body.json()
-        .map_err(|_| VilError::bad_request(
-            "invalid JSON — expected {origin, destination, date, passengers}"
-        ))?;
+    let req: FlightSearchRequest = body.json().map_err(|_| {
+        VilError::bad_request("invalid JSON — expected {origin, destination, date, passengers}")
+    })?;
 
     if req.origin.is_empty() || req.destination.is_empty() {
-        return Err(VilError::bad_request("origin and destination must not be empty"));
+        return Err(VilError::bad_request(
+            "origin and destination must not be empty",
+        ));
     }
     if req.passengers == 0 || req.passengers > 9 {
         return Err(VilError::bad_request("passengers must be 1-9"));
@@ -207,16 +218,31 @@ async fn search_flights(
     let mut all_offers = Vec::new();
 
     all_offers.extend(generate_offers(
-        "SkyWings", "SW", &req.origin, &req.destination,
-        &req.date, 32_000, req.passengers,
+        "SkyWings",
+        "SW",
+        &req.origin,
+        &req.destination,
+        &req.date,
+        32_000,
+        req.passengers,
     ));
     all_offers.extend(generate_offers(
-        "OceanAir", "OA", &req.origin, &req.destination,
-        &req.date, 28_500, req.passengers,
+        "OceanAir",
+        "OA",
+        &req.origin,
+        &req.destination,
+        &req.date,
+        28_500,
+        req.passengers,
     ));
     all_offers.extend(generate_offers(
-        "MountainJet", "MJ", &req.origin, &req.destination,
-        &req.date, 35_000, req.passengers,
+        "MountainJet",
+        "MJ",
+        &req.origin,
+        &req.destination,
+        &req.date,
+        35_000,
+        req.passengers,
     ));
 
     // ── RANK: Sort by price (cheapest first) ─────────────────────────
@@ -228,7 +254,8 @@ async fn search_flights(
     all_offers.truncate(5);
 
     // Update search counter
-    let state = ctx.state::<Arc<GatewayState>>()
+    let state = ctx
+        .state::<Arc<GatewayState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     let search_id = state.search_count.fetch_add(1, Ordering::Relaxed) + 1;
 

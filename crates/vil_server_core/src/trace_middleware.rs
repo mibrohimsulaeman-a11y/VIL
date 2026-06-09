@@ -43,7 +43,7 @@ pub async fn tracing_middleware(
     // Sampling: skip trace creation if not sampled AND no parent context
     let sample_rate = TRACE_SAMPLE_RATE.load(Ordering::Relaxed);
     let counter = TRACE_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let should_trace = has_parent || sample_rate <= 1 || counter % sample_rate == 0;
+    let should_trace = has_parent || sample_rate <= 1 || counter.is_multiple_of(sample_rate);
 
     if !should_trace {
         return next.run(request).await;

@@ -117,7 +117,7 @@ impl ErrorTracker {
     pub fn top_patterns(&self, limit: usize) -> Vec<ErrorPattern> {
         let mut patterns: Vec<ErrorPattern> =
             self.patterns.iter().map(|e| e.value().clone()).collect();
-        patterns.sort_by(|a, b| b.count.cmp(&a.count));
+        patterns.sort_by_key(|p| std::cmp::Reverse(p.count));
         patterns.truncate(limit);
         patterns
     }

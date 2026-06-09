@@ -18,8 +18,17 @@ pub struct Pagination {
 
 impl Pagination {
     pub fn new(page: i64, per_page: i64, total: i64) -> Self {
-        let pages = if per_page > 0 { (total + per_page - 1) / per_page } else { 0 };
-        Self { page, per_page, total, pages }
+        let pages = if per_page > 0 {
+            (total + per_page - 1) / per_page
+        } else {
+            0
+        };
+        Self {
+            page,
+            per_page,
+            total,
+            pages,
+        }
     }
 }
 

@@ -1,5 +1,5 @@
-use serde_json::Value;
 use regex::Regex;
+use serde_json::Value;
 
 pub fn mask_pii(args: &[Value]) -> Result<Value, String> {
     let data = args
@@ -9,8 +9,7 @@ pub fn mask_pii(args: &[Value]) -> Result<Value, String> {
     let rule = args.get(1).and_then(|v| v.as_str()).unwrap_or("auto");
     let masked = match rule {
         "email" => {
-            let re =
-                Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap();
+            let re = Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap();
             re.replace_all(data, "***@***.***").to_string()
         }
         "phone" => {
@@ -34,11 +33,7 @@ pub fn mask_pii(args: &[Value]) -> Result<Value, String> {
         }
         "cc" | "credit_card" => {
             if data.len() >= 12 {
-                format!(
-                    "{}********{}",
-                    &data[..4],
-                    &data[data.len() - 4..]
-                )
+                format!("{}********{}", &data[..4], &data[data.len() - 4..])
             } else {
                 "****".to_string()
             }

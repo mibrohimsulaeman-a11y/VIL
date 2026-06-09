@@ -76,11 +76,7 @@ impl SidecarMetrics {
             errors: self.errors.load(Ordering::Relaxed),
             timeouts: self.timeouts.load(Ordering::Relaxed),
             in_flight: self.in_flight.load(Ordering::Relaxed),
-            avg_latency_ns: if successful > 0 {
-                total_latency / successful
-            } else {
-                0
-            },
+            avg_latency_ns: total_latency.checked_div(successful).unwrap_or(0),
             health_failures: self.health_failures.load(Ordering::Relaxed),
             uptime_secs: self.started_at.elapsed().as_secs(),
         }

@@ -6,6 +6,10 @@
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/106-pipeline-sse-standard-dialect/vwfd/workflows", 3208)
-        .run().await;
+    vil_vwfd::app(
+        "examples/106-pipeline-sse-standard-dialect/vwfd/workflows",
+        3208,
+    )
+    .run()
+    .await;
 }

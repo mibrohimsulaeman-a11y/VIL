@@ -158,16 +158,14 @@ impl HttpRequest {
 
         if let Some(body) = &self.body {
             req = req.header("Content-Type", "application/json");
-            req = req.body(
-                serde_json::to_string(body)
-                    .map_err(|e| HttpRequestError { message: format!("json serialize: {}", e) })?,
-            );
+            req = req.body(serde_json::to_string(body).map_err(|e| HttpRequestError {
+                message: format!("json serialize: {}", e),
+            })?);
         }
 
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| HttpRequestError { message: format!("HTTP {}: {}", self.method, e) })?;
+        let resp = req.send().await.map_err(|e| HttpRequestError {
+            message: format!("HTTP {}: {}", self.method, e),
+        })?;
 
         let status = resp.status().as_u16();
         let body: Value = resp.json().await.unwrap_or(Value::Null);

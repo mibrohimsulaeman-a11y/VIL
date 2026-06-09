@@ -20,7 +20,8 @@ fn main() {
         Value::String("2024-01-01".into()),
         Value::String("2026-06-30".into()),
         Value::String("months".into()),
-    ]).unwrap();
+    ])
+    .unwrap();
     println!("Loan duration: {:.1} months", dur);
 
     // 5. Transaction statistics
@@ -31,14 +32,23 @@ fn main() {
 
     // 6. Anomaly detection on latest transaction
     let history = json!([150000, 200000, 175000, 180000, 190000]);
-    let check = vil_anomaly::is_anomaly(&[json!(50000000), history, Value::String("zscore".into()), json!(2.0)]).unwrap();
+    let check = vil_anomaly::is_anomaly(&[
+        json!(50000000),
+        history,
+        Value::String("zscore".into()),
+        json!(2.0),
+    ])
+    .unwrap();
     println!("Anomaly: {} (z={})", check["anomaly"], check["score"]);
 
     // 7. Distance between branches
     let dist = vil_geodist::geo_distance(&[
-        json!(-6.2088), json!(106.8456),  // Jakarta
-        json!(-7.7956), json!(110.3695),  // Yogyakarta
+        json!(-6.2088),
+        json!(106.8456), // Jakarta
+        json!(-7.7956),
+        json!(110.3695), // Yogyakarta
         Value::String("km".into()),
-    ]).unwrap();
+    ])
+    .unwrap();
     println!("Jakarta -> Yogya: {} km", dist["distance"]);
 }

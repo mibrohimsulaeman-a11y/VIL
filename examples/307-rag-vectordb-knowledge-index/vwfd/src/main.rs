@@ -21,14 +21,29 @@ fn index_handler(input: &Value) -> Result<Value, String> {
 
 fn query_handler(input: &Value) -> Result<Value, String> {
     let body = input.get("body").cloned().unwrap_or(json!({}));
-    let query = body["query"].as_str().or(body["prompt"].as_str()).unwrap_or("");
+    let query = body["query"]
+        .as_str()
+        .or(body["prompt"].as_str())
+        .unwrap_or("");
     let top_k = body["top_k"].as_u64().unwrap_or(3) as usize;
 
     let docs = vec![
-        ("Security best practices", "authentication, authorization, RBAC, JWT tokens"),
-        ("Performance tuning", "caching, connection pooling, query optimization"),
-        ("Deployment guide", "Docker, Kubernetes, CI/CD pipeline configuration"),
-        ("API reference", "REST endpoints, request format, response codes"),
+        (
+            "Security best practices",
+            "authentication, authorization, RBAC, JWT tokens",
+        ),
+        (
+            "Performance tuning",
+            "caching, connection pooling, query optimization",
+        ),
+        (
+            "Deployment guide",
+            "Docker, Kubernetes, CI/CD pipeline configuration",
+        ),
+        (
+            "API reference",
+            "REST endpoints, request format, response codes",
+        ),
     ];
 
     let mut results: Vec<Value> = docs.iter().enumerate().map(|(i, (title, keywords))| {
@@ -39,7 +54,12 @@ fn query_handler(input: &Value) -> Result<Value, String> {
         json!({"doc_id": format!("doc_{}", i+1), "title": title, "score": (score * 100.0).round() / 100.0, "snippet": keywords})
     }).collect();
 
-    results.sort_by(|a, b| b["score"].as_f64().partial_cmp(&a["score"].as_f64()).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        b["score"]
+            .as_f64()
+            .partial_cmp(&a["score"].as_f64())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     results.truncate(top_k);
 
     Ok(json!({"query": query, "top_k": top_k, "results": results}))
@@ -47,8 +67,12 @@ fn query_handler(input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/307-rag-vectordb-knowledge-index/vwfd/workflows", 3107)
-        .native("index_handler", index_handler)
-        .native("query_handler", query_handler)
-        .run().await;
+    vil_vwfd::app(
+        "examples/307-rag-vectordb-knowledge-index/vwfd/workflows",
+        3107,
+    )
+    .native("index_handler", index_handler)
+    .native("query_handler", query_handler)
+    .run()
+    .await;
 }

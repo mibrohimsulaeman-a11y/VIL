@@ -1,7 +1,7 @@
 //! MCP tool implementations.
 
-use serde_json::Value;
 use crate::cli;
+use serde_json::Value;
 
 /// Dispatch tool call by name.
 pub fn call_tool(name: &str, arguments: &Value) -> Value {
@@ -38,13 +38,18 @@ fn tool_lint(args: &Value) -> Value {
     let all = args.get("all").and_then(|v| v.as_bool()).unwrap_or(false);
 
     if all {
-        let dir = args.get("dir").and_then(|v| v.as_str()).unwrap_or("workflows");
+        let dir = args
+            .get("dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or("workflows");
         let results = cli::lint_dir(dir);
         let mut output = String::new();
         for r in &results {
             output.push_str(&format_lint_result(r));
         }
-        if output.is_empty() { output = "No VWFD files found.".into(); }
+        if output.is_empty() {
+            output = "No VWFD files found.".into();
+        }
         mcp_text(output)
     } else if let Some(f) = file {
         let result = cli::lint_vwfd(f);
@@ -56,9 +61,27 @@ fn tool_lint(args: &Value) -> Value {
 
 fn format_lint_result(r: &cli::LintResult) -> String {
     let mut out = format!("=== {} ===\n", r.file);
-    for e in &r.errors { out.push_str(&format!("  ERROR [{}] {}", e.code, e.message)); if let Some(ref l) = e.location { out.push_str(&format!(" ({})", l)); } out.push('\n'); }
-    for w in &r.warnings { out.push_str(&format!("  WARN  [{}] {}", w.code, w.message)); if let Some(ref l) = w.location { out.push_str(&format!(" ({})", l)); } out.push('\n'); }
-    for i in &r.infos { out.push_str(&format!("  INFO  [{}] {}", i.code, i.message)); if let Some(ref l) = i.location { out.push_str(&format!(" ({})", l)); } out.push('\n'); }
+    for e in &r.errors {
+        out.push_str(&format!("  ERROR [{}] {}", e.code, e.message));
+        if let Some(ref l) = e.location {
+            out.push_str(&format!(" ({})", l));
+        }
+        out.push('\n');
+    }
+    for w in &r.warnings {
+        out.push_str(&format!("  WARN  [{}] {}", w.code, w.message));
+        if let Some(ref l) = w.location {
+            out.push_str(&format!(" ({})", l));
+        }
+        out.push('\n');
+    }
+    for i in &r.infos {
+        out.push_str(&format!("  INFO  [{}] {}", i.code, i.message));
+        if let Some(ref l) = i.location {
+            out.push_str(&format!(" ({})", l));
+        }
+        out.push('\n');
+    }
     if r.errors.is_empty() && r.warnings.is_empty() && r.infos.is_empty() {
         out.push_str("  OK — no issues\n");
     }
@@ -66,17 +89,24 @@ fn format_lint_result(r: &cli::LintResult) -> String {
 }
 
 fn tool_list(args: &Value) -> Value {
-    let dir = args.get("dir").and_then(|v| v.as_str()).unwrap_or("workflows");
+    let dir = args
+        .get("dir")
+        .and_then(|v| v.as_str())
+        .unwrap_or("workflows");
     let result = crate::loader::load_dir(dir);
 
-    let mut workflows: Vec<Value> = result.graphs.iter().map(|g| {
-        serde_json::json!({
-            "id": g.id,
-            "route": g.webhook_route,
-            "trigger": g.trigger_type,
-            "nodes": g.node_count(),
+    let mut workflows: Vec<Value> = result
+        .graphs
+        .iter()
+        .map(|g| {
+            serde_json::json!({
+                "id": g.id,
+                "route": g.webhook_route,
+                "trigger": g.trigger_type,
+                "nodes": g.node_count(),
+            })
         })
-    }).collect();
+        .collect();
 
     for e in &result.errors {
         workflows.push(serde_json::json!({"file": e.file, "error": e.error}));
@@ -102,14 +132,22 @@ fn tool_explain(args: &Value) -> Value {
 }
 
 fn tool_scaffold(args: &Value) -> Value {
-    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("new-workflow");
-    let route = args.get("route").and_then(|v| v.as_str()).unwrap_or("/api/new");
-    let connectors: Vec<&str> = args.get("connectors")
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("new-workflow");
+    let route = args
+        .get("route")
+        .and_then(|v| v.as_str())
+        .unwrap_or("/api/new");
+    let connectors: Vec<&str> = args
+        .get("connectors")
         .and_then(|v| v.as_array())
         .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
 
-    let mut yaml = format!(r#"version: "3.0"
+    let mut yaml = format!(
+        r#"version: "3.0"
 metadata:
   id: {name}
   name: "{name}"
@@ -127,11 +165,13 @@ spec:
         response_mode: buffered
         end_activity: respond
       output_variable: trigger_payload
-"#);
+"#
+    );
 
     for (i, cref) in connectors.iter().enumerate() {
         let step_id = format!("step_{}", i + 1);
-        yaml.push_str(&format!(r#"
+        yaml.push_str(&format!(
+            r#"
     - id: {step_id}
       activity_type: Connector
       connector_config:
@@ -147,10 +187,12 @@ spec:
             language: vil-expr
             source: 'trigger_payload'
       output_variable: {step_id}_result
-"#));
+"#
+        ));
     }
 
-    yaml.push_str(r#"
+    yaml.push_str(
+        r#"
     - id: respond
       activity_type: EndTrigger
       end_trigger_config:
@@ -163,7 +205,8 @@ spec:
       activity_type: End
 
   flows:
-"#);
+"#,
+    );
 
     // Build flow chain
     let mut flow_nodes = vec!["trigger".to_string()];
@@ -174,8 +217,12 @@ spec:
     flow_nodes.push("end".into());
 
     for (i, pair) in flow_nodes.windows(2).enumerate() {
-        yaml.push_str(&format!("    - {{ id: f{}, from: {{ node: {} }}, to: {{ node: {} }} }}\n",
-            i + 1, pair[0], pair[1]));
+        yaml.push_str(&format!(
+            "    - {{ id: f{}, from: {{ node: {} }}, to: {{ node: {} }} }}\n",
+            i + 1,
+            pair[0],
+            pair[1]
+        ));
     }
 
     mcp_text(yaml)
@@ -210,11 +257,14 @@ mod tests {
 
     #[test]
     fn test_tool_scaffold() {
-        let result = call_tool("vil_scaffold_workflow", &json!({
-            "name": "order-api",
-            "route": "/api/orders",
-            "connectors": ["vastar.http", "vastar.db.postgres"]
-        }));
+        let result = call_tool(
+            "vil_scaffold_workflow",
+            &json!({
+                "name": "order-api",
+                "route": "/api/orders",
+                "connectors": ["vastar.http", "vastar.db.postgres"]
+            }),
+        );
         let text = result["content"][0]["text"].as_str().unwrap();
         assert!(text.contains("order-api"));
         assert!(text.contains("/api/orders"));

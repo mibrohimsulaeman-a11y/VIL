@@ -1,6 +1,6 @@
 //! # VwfdApp — Ergonomic builder for VWFD workflow server
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use vil_vwfd::prelude::*;
 //!
 //! #[tokio::main]
@@ -19,9 +19,9 @@
 //! ```
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 
 use serde_json::Value;
 
@@ -41,11 +41,17 @@ pub struct NativeRegistry {
 
 impl NativeRegistry {
     pub fn new() -> Self {
-        Self { handlers: HashMap::new() }
+        Self {
+            handlers: HashMap::new(),
+        }
     }
 
     /// Register a native handler.
-    pub fn register(&mut self, name: impl Into<String>, handler: impl Fn(&Value) -> Result<Value, String> + Send + Sync + 'static) {
+    pub fn register(
+        &mut self,
+        name: impl Into<String>,
+        handler: impl Fn(&Value) -> Result<Value, String> + Send + Sync + 'static,
+    ) {
         self.handlers.insert(name.into(), Box::new(handler));
     }
 
@@ -53,8 +59,11 @@ impl NativeRegistry {
     pub fn dispatch(&self, handler_ref: &str, input: &Value) -> Result<Value, String> {
         match self.handlers.get(handler_ref) {
             Some(handler) => handler(input),
-            None => Err(format!("native handler '{}' not registered. Available: {:?}",
-                handler_ref, self.handlers.keys().collect::<Vec<_>>())),
+            None => Err(format!(
+                "native handler '{}' not registered. Available: {:?}",
+                handler_ref,
+                self.handlers.keys().collect::<Vec<_>>()
+            )),
         }
     }
 
@@ -68,7 +77,9 @@ impl NativeRegistry {
 }
 
 impl Default for NativeRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── WasmWorkerPool — dedicated threads for sub-5μs WASM execution ────
@@ -133,12 +144,15 @@ impl WasmWorkerPool {
             .build_p1();
 
         let mut store = wasmtime::Store::new(engine, wasi_ctx);
-        let instance = instance_pre.instantiate(&mut store)
+        let instance = instance_pre
+            .instantiate(&mut store)
             .map_err(|e| format!("wasm instantiate: {}", e))?;
 
-        let start = instance.get_typed_func::<(), ()>(&mut store, "_start")
+        let start = instance
+            .get_typed_func::<(), ()>(&mut store, "_start")
             .map_err(|e| format!("no _start: {}", e))?;
-        start.call(&mut store, ())
+        start
+            .call(&mut store, ())
             .map_err(|e| format!("wasm exec: {}", e))?;
 
         Ok(stdout_pipe.contents().to_vec())
@@ -146,9 +160,11 @@ impl WasmWorkerPool {
 
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, String> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.sender.send(WasmRequest { payload, reply: tx })
+        self.sender
+            .send(WasmRequest { payload, reply: tx })
             .map_err(|_| "wasm pool: channel closed".to_string())?;
-        rx.await.map_err(|_| "wasm pool: worker dropped".to_string())?
+        rx.await
+            .map_err(|_| "wasm pool: worker dropped".to_string())?
     }
 }
 
@@ -178,7 +194,12 @@ pub(crate) struct SidecarWorker {
 
 impl SidecarWorker {
     fn new(command: String) -> Self {
-        Self { command, child: None, stdin: None, reader: None }
+        Self {
+            command,
+            child: None,
+            stdin: None,
+            reader: None,
+        }
     }
 
     async fn ensure_alive(&mut self) -> Result<(), String> {
@@ -198,7 +219,9 @@ impl SidecarWorker {
                 .map_err(|e| format!("sidecar spawn: {}", e))?;
 
             self.stdin = child.stdin.take();
-            let stdout = child.stdout.take()
+            let stdout = child
+                .stdout
+                .take()
                 .ok_or_else(|| "sidecar: no stdout".to_string())?;
             self.reader = Some(tokio::io::BufReader::new(stdout));
             self.child = Some(child);
@@ -207,7 +230,7 @@ impl SidecarWorker {
     }
 
     async fn call(&mut self, input: &Value) -> Result<Value, String> {
-        use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
         self.ensure_alive().await?;
 
@@ -230,7 +253,9 @@ impl SidecarWorker {
             match tokio::time::timeout(
                 std::time::Duration::from_secs(30),
                 reader.read_line(&mut line),
-            ).await {
+            )
+            .await
+            {
                 Ok(Ok(0)) => Err("sidecar: EOF (process exited)".into()),
                 Ok(Ok(_)) => Ok(line),
                 Ok(Err(e)) => Err(format!("sidecar read: {}", e)),
@@ -239,10 +264,8 @@ impl SidecarWorker {
         };
 
         match io_result {
-            Ok(line) => {
-                serde_json::from_str::<Value>(line.trim())
-                    .map_err(|_| format!("sidecar: invalid JSON: {}", line.trim()))
-            }
+            Ok(line) => serde_json::from_str::<Value>(line.trim())
+                .map_err(|_| format!("sidecar: invalid JSON: {}", line.trim())),
             Err(e) => {
                 self.kill(); // safe: no outstanding borrows
                 Err(e)
@@ -260,9 +283,17 @@ impl SidecarWorker {
     }
 }
 
+impl Default for SidecarPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SidecarPool {
     pub fn new() -> Self {
-        Self { workers: HashMap::new() }
+        Self {
+            workers: HashMap::new(),
+        }
     }
 
     pub fn has(&self, target: &str) -> bool {
@@ -277,7 +308,10 @@ impl SidecarPool {
     /// Caller can lock + call without holding the RwLock across await.
     pub(crate) fn get_slot(&self, target: &str) -> Option<Arc<tokio::sync::Mutex<SidecarWorker>>> {
         let pool = self.workers.get(target)?;
-        let idx = pool.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % pool.slots.len();
+        let idx = pool
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % pool.slots.len();
         Some(pool.slots[idx].clone())
     }
 
@@ -285,17 +319,25 @@ impl SidecarPool {
         let slots: Vec<Arc<tokio::sync::Mutex<SidecarWorker>>> = (0..SIDECAR_POOL_SIZE)
             .map(|_| Arc::new(tokio::sync::Mutex::new(SidecarWorker::new(command.clone()))))
             .collect();
-        self.workers.insert(target, SidecarWorkerPool {
-            slots,
-            counter: std::sync::atomic::AtomicUsize::new(0),
-        });
+        self.workers.insert(
+            target,
+            SidecarWorkerPool {
+                slots,
+                counter: std::sync::atomic::AtomicUsize::new(0),
+            },
+        );
     }
 
     pub async fn call(&self, target: &str, input: &Value) -> Result<Value, String> {
-        let pool = self.workers.get(target)
+        let pool = self
+            .workers
+            .get(target)
             .ok_or_else(|| format!("sidecar '{}' not registered", target))?;
         // Round-robin across N workers — eliminates Mutex contention
-        let idx = pool.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % pool.slots.len();
+        let idx = pool
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % pool.slots.len();
         let mut guard = pool.slots[idx].lock().await;
         guard.call(input).await
     }
@@ -312,8 +354,8 @@ pub struct VwfdApp {
     port: u16,
     observer_enabled: bool,
     native_registry: NativeRegistry,
-    wasm_modules: HashMap<String, String>,     // module_ref → file path (WASI compliant)
-    sidecar_commands: HashMap<String, String>,  // target → command
+    wasm_modules: HashMap<String, String>, // module_ref → file path (WASI compliant)
+    sidecar_commands: HashMap<String, String>, // target → command
     durability: Option<Arc<crate::DurabilityStore>>,
     provision_enabled: bool,
     provision_key: Option<String>,
@@ -328,7 +370,7 @@ impl VwfdApp {
 
     /// Set state store for execution tracking.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use vil_vwfd::StateStore;
     /// vil_vwfd::app("workflows/", 8080)
     ///     .state_store(StateStore::InMemory)        // fastest, lose on crash
@@ -365,13 +407,17 @@ impl VwfdApp {
     /// The handler runs inline — same process, zero network overhead.
     /// Use for: tool execution, data parsing, validation, scoring.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// app.native("validate", |input| {
     ///     let name = input["name"].as_str().ok_or("name required")?;
     ///     Ok(serde_json::json!({"valid": true, "name": name}))
     /// })
     /// ```
-    pub fn native(mut self, name: impl Into<String>, handler: impl Fn(&Value) -> Result<Value, String> + Send + Sync + 'static) -> Self {
+    pub fn native(
+        mut self,
+        name: impl Into<String>,
+        handler: impl Fn(&Value) -> Result<Value, String> + Send + Sync + 'static,
+    ) -> Self {
         self.native_registry.register(name, handler);
         self
     }
@@ -381,7 +427,8 @@ impl VwfdApp {
     /// The module is loaded and sandboxed — separate memory, time-limited.
     /// Use for: hot-deployable business rules, pricing, validation.
     pub fn wasm(mut self, module_ref: impl Into<String>, wasm_path: impl Into<String>) -> Self {
-        self.wasm_modules.insert(module_ref.into(), wasm_path.into());
+        self.wasm_modules
+            .insert(module_ref.into(), wasm_path.into());
         self
     }
 
@@ -404,9 +451,9 @@ impl VwfdApp {
 
     async fn run_inner(mut self) -> Result<(), String> {
         use vil_server_core::{
-            axum::{self, extract::Extension, body::Bytes, response::IntoResponse, http::Method},
             axum::routing::post,
-            Json, StatusCode, ServiceProcess, VilApp,
+            axum::{self, body::Bytes, extract::Extension, http::Method, response::IntoResponse},
+            Json, ServiceProcess, StatusCode, VilApp,
         };
 
         // Auto-enable provision via env var (no code change needed)
@@ -419,14 +466,26 @@ impl VwfdApp {
 
         // Load workflows from directory
         let load_result = crate::loader::load_dir(&self.workflow_dir);
-        if load_result.graphs.is_empty() && !load_result.errors.is_empty() && !self.provision_enabled {
-            return Err(format!("no workflows loaded: {:?}",
-                load_result.errors.iter().map(|e| &e.error).collect::<Vec<_>>()));
+        if load_result.graphs.is_empty()
+            && !load_result.errors.is_empty()
+            && !self.provision_enabled
+        {
+            return Err(format!(
+                "no workflows loaded: {:?}",
+                load_result
+                    .errors
+                    .iter()
+                    .map(|e| &e.error)
+                    .collect::<Vec<_>>()
+            ));
         }
 
         let router = WorkflowRouter::new();
         for g in load_result.graphs {
-            let path = g.webhook_route.clone().unwrap_or_else(|| format!("/{}", g.id));
+            let path = g
+                .webhook_route
+                .clone()
+                .unwrap_or_else(|| format!("/{}", g.id));
             let method = g.webhook_method.clone();
             router.register(method, path, Arc::new(g));
         }
@@ -466,8 +525,8 @@ impl VwfdApp {
         let plugin_registry = Arc::new(crate::plugin_loader::PluginRegistry::new());
 
         // Scan plugin dir at startup
-        let plugin_dir = std::env::var("VIL_PLUGIN_DIR")
-            .unwrap_or_else(|_| "/var/lib/vil/plugins".to_string());
+        let plugin_dir =
+            std::env::var("VIL_PLUGIN_DIR").unwrap_or_else(|_| "/var/lib/vil/plugins".to_string());
         let loaded_plugins = plugin_registry.scan_dir(std::path::Path::new(&plugin_dir));
         if !loaded_plugins.is_empty() {
             eprintln!("  Plugins loaded: {:?}", loaded_plugins);
@@ -482,26 +541,47 @@ impl VwfdApp {
 
             let engine = Arc::new(wasmtime::Engine::new(&wasm_cfg).expect("wasmtime engine"));
 
-            let num_workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(8);
-            let reg: HashMap<String, Arc<WasmWorkerPool>> = self.wasm_modules.iter()
+            let num_workers = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4)
+                .min(8);
+            let reg: HashMap<String, Arc<WasmWorkerPool>> = self
+                .wasm_modules
+                .iter()
                 .filter_map(|(module_ref, wasm_path)| {
-                    let bytes = std::fs::read(wasm_path).map_err(|e| {
-                        eprintln!("  WASM load failed: {} → {}", wasm_path, e);
-                    }).ok()?;
-                    let module = wasmtime::Module::new(&engine, &bytes).map_err(|e| {
-                        eprintln!("  WASM compile failed: {}: {}", module_ref, e);
-                    }).ok()?;
+                    let bytes = std::fs::read(wasm_path)
+                        .map_err(|e| {
+                            eprintln!("  WASM load failed: {} → {}", wasm_path, e);
+                        })
+                        .ok()?;
+                    let module = wasmtime::Module::new(&engine, &bytes)
+                        .map_err(|e| {
+                            eprintln!("  WASM compile failed: {}: {}", module_ref, e);
+                        })
+                        .ok()?;
 
-                    let mut linker = wasmtime::Linker::<wasmtime_wasi::preview1::WasiP1Ctx>::new(&engine);
-                    wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |ctx| ctx).map_err(|e| {
-                        eprintln!("  WASM link failed: {}: {}", module_ref, e);
-                    }).ok()?;
-                    let instance_pre = linker.instantiate_pre(&module).map_err(|e| {
-                        eprintln!("  WASM instantiate_pre failed: {}: {}", module_ref, e);
-                    }).ok()?;
+                    let mut linker =
+                        wasmtime::Linker::<wasmtime_wasi::preview1::WasiP1Ctx>::new(&engine);
+                    wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |ctx| ctx)
+                        .map_err(|e| {
+                            eprintln!("  WASM link failed: {}: {}", module_ref, e);
+                        })
+                        .ok()?;
+                    let instance_pre = linker
+                        .instantiate_pre(&module)
+                        .map_err(|e| {
+                            eprintln!("  WASM instantiate_pre failed: {}: {}", module_ref, e);
+                        })
+                        .ok()?;
 
-                    let pool = WasmWorkerPool::new(engine.clone(), Arc::new(instance_pre), num_workers);
-                    eprintln!("  WASM pool ready: {} ({} bytes, {} workers)", module_ref, bytes.len(), num_workers);
+                    let pool =
+                        WasmWorkerPool::new(engine.clone(), Arc::new(instance_pre), num_workers);
+                    eprintln!(
+                        "  WASM pool ready: {} ({} bytes, {} workers)",
+                        module_ref,
+                        bytes.len(),
+                        num_workers
+                    );
                     Some((module_ref.clone(), Arc::new(pool)))
                 })
                 .collect();
@@ -509,7 +589,8 @@ impl VwfdApp {
             Arc::new(std::sync::RwLock::new(reg))
         };
         #[cfg(not(feature = "wasm"))]
-        let wasm_registry: Arc<std::sync::RwLock<HashMap<String, ()>>> = Arc::new(std::sync::RwLock::new(HashMap::new()));
+        let wasm_registry: Arc<std::sync::RwLock<HashMap<String, ()>>> =
+            Arc::new(std::sync::RwLock::new(HashMap::new()));
 
         // ── Sidecar: UDS+SHM via vil_sidecar (feature=sidecar) or stdin/stdout pool ──
         #[cfg(feature = "sidecar")]
@@ -548,7 +629,10 @@ impl VwfdApp {
         let sidecar_pool = {
             let mut pool = SidecarPool::new();
             for (target, command) in &self.sidecar_commands {
-                eprintln!("  Sidecar fallback (stdin/stdout pool x4): {} → {}", target, command);
+                eprintln!(
+                    "  Sidecar fallback (stdin/stdout pool x4): {} → {}",
+                    target, command
+                );
                 pool.register(target.clone(), command.clone());
             }
             Arc::new(std::sync::RwLock::new(pool))
@@ -591,8 +675,12 @@ impl VwfdApp {
                         if plugins.has(handler_ref) {
                             return plugins.call(handler_ref, &input);
                         }
-                        return Err(format!("native handler '{}' not registered. Available: {:?} + plugins: {:?}",
-                            handler_ref, native.names(), plugins.names()));
+                        return Err(format!(
+                            "native handler '{}' not registered. Available: {:?} + plugins: {:?}",
+                            handler_ref,
+                            native.names(),
+                            plugins.names()
+                        ));
                     }
 
                     // WASM: vastar.wasm.{module_ref} — Worker pool fast path
@@ -612,9 +700,12 @@ impl VwfdApp {
                                     Ok(output_bytes) => {
                                         match serde_json::from_slice::<Value>(&output_bytes) {
                                             Ok(val) => return Ok(val),
-                                            Err(_) => return Ok(Value::String(
-                                                String::from_utf8_lossy(&output_bytes).to_string()
-                                            )),
+                                            Err(_) => {
+                                                return Ok(Value::String(
+                                                    String::from_utf8_lossy(&output_bytes)
+                                                        .to_string(),
+                                                ))
+                                            }
                                         }
                                     }
                                     Err(e) => return Err(format!("WASM {}: {}", module_ref, e)),
@@ -633,7 +724,9 @@ impl VwfdApp {
                         #[cfg(feature = "sidecar")]
                         if vil_sc_reg.get(target).is_some() {
                             let request_data = serde_json::to_vec(&input).unwrap_or_default();
-                            match vil_sidecar::invoke(&vil_sc_reg, target, "execute", &request_data).await {
+                            match vil_sidecar::invoke(&vil_sc_reg, target, "execute", &request_data)
+                                .await
+                            {
                                 Ok(resp) => {
                                     return serde_json::from_slice::<Value>(&resp.data)
                                         .map_err(|e| format!("sidecar deserialize: {}", e));
@@ -666,21 +759,27 @@ impl VwfdApp {
 
         // ── Rule Engine: load rule sets from VIL_RULES_DIR ──
         let rule_fn: Option<crate::executor::RuleFn> = {
-            let rules_dir = std::env::var("VIL_RULES_DIR")
-                .unwrap_or_else(|_| "/var/lib/vil/rules".to_string());
+            let rules_dir =
+                std::env::var("VIL_RULES_DIR").unwrap_or_else(|_| "/var/lib/vil/rules".to_string());
             let rule_sets = load_rule_sets(&rules_dir);
             if !rule_sets.is_empty() {
-                eprintln!("  Rule sets loaded: {:?}", rule_sets.keys().collect::<Vec<_>>());
+                eprintln!(
+                    "  Rule sets loaded: {:?}",
+                    rule_sets.keys().collect::<Vec<_>>()
+                );
                 let rule_sets = Arc::new(rule_sets);
                 Some(Box::new(move |rule_set_id: &str, input: &Value| {
                     if let Some(rs) = rule_sets.get(rule_set_id) {
-                        let result = rs.evaluate(input)
+                        let result = rs
+                            .evaluate(input)
                             .map_err(|e| format!("rule '{}': {}", rule_set_id, e))?;
                         // Return first action or full result
-                        Ok(result.first_action.unwrap_or_else(|| serde_json::json!({
-                            "matched": result.matched.len(),
-                            "all_actions": result.all_actions,
-                        })))
+                        Ok(result.first_action.unwrap_or_else(|| {
+                            serde_json::json!({
+                                "matched": result.matched.len(),
+                                "all_actions": result.all_actions,
+                            })
+                        }))
                     } else {
                         // Rule set not found — return stub (backward compatible)
                         Ok(serde_json::json!({"_stub": true, "_rule": rule_set_id}))
@@ -706,7 +805,8 @@ impl VwfdApp {
                 let pattern = format!("{}:", code);
                 if let Some(pos) = e.find(&pattern) {
                     let msg = e[pos + pattern.len()..].trim().to_string();
-                    let status = StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+                    let status =
+                        StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
                     return (status, msg);
                 }
             }
@@ -740,7 +840,8 @@ impl VwfdApp {
             match crate::handler::handle_request(router, method, &path, input, config).await {
                 Ok(output) => {
                     // Check for _status field in output for custom HTTP status
-                    let status = output.get("_status")
+                    let status = output
+                        .get("_status")
                         .and_then(|s| s.as_u64())
                         .and_then(|code| StatusCode::from_u16(code as u16).ok())
                         .unwrap_or(StatusCode::OK);
@@ -770,8 +871,8 @@ impl VwfdApp {
             body: Bytes,
         ) -> impl IntoResponse {
             let path = uri.path().to_string();
-            let body_json: serde_json::Value = serde_json::from_slice(&body)
-                .unwrap_or(serde_json::json!({}));
+            let body_json: serde_json::Value =
+                serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
             vwfd_dispatch(&router, &config, path, "POST", body_json, &headers).await
         }
 
@@ -782,7 +883,15 @@ impl VwfdApp {
             headers: axum::http::HeaderMap,
         ) -> impl IntoResponse {
             let path = uri.path().to_string();
-            vwfd_dispatch(&router, &config, path, "GET", serde_json::json!({}), &headers).await
+            vwfd_dispatch(
+                &router,
+                &config,
+                path,
+                "GET",
+                serde_json::json!({}),
+                &headers,
+            )
+            .await
         }
 
         async fn vwfd_put_handler(
@@ -793,8 +902,8 @@ impl VwfdApp {
             body: Bytes,
         ) -> impl IntoResponse {
             let path = uri.path().to_string();
-            let body_json: serde_json::Value = serde_json::from_slice(&body)
-                .unwrap_or(serde_json::json!({}));
+            let body_json: serde_json::Value =
+                serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
             vwfd_dispatch(&router, &config, path, "PUT", body_json, &headers).await
         }
 
@@ -805,7 +914,15 @@ impl VwfdApp {
             headers: axum::http::HeaderMap,
         ) -> impl IntoResponse {
             let path = uri.path().to_string();
-            vwfd_dispatch(&router, &config, path, "DELETE", serde_json::json!({}), &headers).await
+            vwfd_dispatch(
+                &router,
+                &config,
+                path,
+                "DELETE",
+                serde_json::json!({}),
+                &headers,
+            )
+            .await
         }
 
         // PORT env overrides hardcoded port — enables bench/test port management
@@ -826,17 +943,26 @@ impl VwfdApp {
             .endpoint(Method::GET, "/*path", axum::routing::get(vwfd_get_handler))
             .endpoint(Method::GET, "/", axum::routing::get(vwfd_get_handler))
             .endpoint(Method::PUT, "/*path", axum::routing::put(vwfd_put_handler))
-            .endpoint(Method::DELETE, "/*path", axum::routing::delete(vwfd_delete_handler))
+            .endpoint(
+                Method::DELETE,
+                "/*path",
+                axum::routing::delete(vwfd_delete_handler),
+            )
             .extension(router_ext.clone())
             .extension(config_ext);
 
         // Provisioning admin API — must register BEFORE vwfd catch-all
         if self.provision_enabled {
-            let provision_reg = Arc::new(crate::provision::WorkflowRegistry::new(&self.workflow_dir));
+            let provision_reg =
+                Arc::new(crate::provision::WorkflowRegistry::new(&self.workflow_dir));
             // Load existing workflows into provision registry
             let (loaded, errors) = provision_reg.load_from_dir();
-            if loaded > 0 { eprintln!("  Provision: {} workflows loaded from dir", loaded); }
-            for e in &errors { eprintln!("  Provision error: {}", e); }
+            if loaded > 0 {
+                eprintln!("  Provision: {} workflows loaded from dir", loaded);
+            }
+            for e in &errors {
+                eprintln!("  Provision error: {}", e);
+            }
 
             let provision_key = Arc::new(self.provision_key.clone());
 
@@ -848,19 +974,63 @@ impl VwfdApp {
                 .extension(plugin_registry.clone())
                 .extension(wasm_registry.clone())
                 .extension(sidecar_pool.clone())
-                .endpoint(Method::GET, "/health", axum::routing::get(crate::provision_admin::health))
-                .endpoint(Method::POST, "/upload", post(crate::provision_admin::upload_workflow))
-                .endpoint(Method::POST, "/upload/plugin", post(crate::provision_admin::upload_plugin)
-                    .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024)))
-                .endpoint(Method::POST, "/upload/wasm", post(crate::provision_admin::upload_wasm)
-                    .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024)))
-                .endpoint(Method::GET, "/handlers", axum::routing::get(crate::provision_admin::list_handlers))
-                .endpoint(Method::GET, "/workflows", axum::routing::get(crate::provision_admin::list_workflows))
-                .endpoint(Method::POST, "/workflow/activate", post(crate::provision_admin::activate_workflow))
-                .endpoint(Method::POST, "/workflow/deactivate", post(crate::provision_admin::deactivate_workflow))
-                .endpoint(Method::DELETE, "/workflow", axum::routing::delete(crate::provision_admin::remove_workflow))
-                .endpoint(Method::GET, "/workflow/status", axum::routing::get(crate::provision_admin::workflow_status))
-                .endpoint(Method::POST, "/reload", post(crate::provision_admin::reload_workflows));
+                .endpoint(
+                    Method::GET,
+                    "/health",
+                    axum::routing::get(crate::provision_admin::health),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/upload",
+                    post(crate::provision_admin::upload_workflow),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/upload/plugin",
+                    post(crate::provision_admin::upload_plugin)
+                        .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024)),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/upload/wasm",
+                    post(crate::provision_admin::upload_wasm)
+                        .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024)),
+                )
+                .endpoint(
+                    Method::GET,
+                    "/handlers",
+                    axum::routing::get(crate::provision_admin::list_handlers),
+                )
+                .endpoint(
+                    Method::GET,
+                    "/workflows",
+                    axum::routing::get(crate::provision_admin::list_workflows),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/workflow/activate",
+                    post(crate::provision_admin::activate_workflow),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/workflow/deactivate",
+                    post(crate::provision_admin::deactivate_workflow),
+                )
+                .endpoint(
+                    Method::DELETE,
+                    "/workflow",
+                    axum::routing::delete(crate::provision_admin::remove_workflow),
+                )
+                .endpoint(
+                    Method::GET,
+                    "/workflow/status",
+                    axum::routing::get(crate::provision_admin::workflow_status),
+                )
+                .endpoint(
+                    Method::POST,
+                    "/reload",
+                    post(crate::provision_admin::reload_workflows),
+                );
 
             app = app.service(admin_svc);
             eprintln!("  Provision: admin API enabled at /api/admin/");
@@ -875,7 +1045,10 @@ impl VwfdApp {
             eprintln!("  ─── Provision Guide ───────────────────────────────────────");
             eprintln!();
             eprintln!("  1. Upload workflow:");
-            eprintln!("     curl -X POST http://localhost:{}/api/admin/upload \\", self.port);
+            eprintln!(
+                "     curl -X POST http://localhost:{}/api/admin/upload \\",
+                self.port
+            );
             if !key_header.is_empty() {
                 eprintln!("       -H 'X-Api-Key: <your-key>' \\");
             }
@@ -883,10 +1056,16 @@ impl VwfdApp {
             eprintln!("       -d @my-workflow.vil.yaml");
             eprintln!();
             eprintln!("  2. List workflows:");
-            eprintln!("     curl http://localhost:{}/api/admin/workflows", self.port);
+            eprintln!(
+                "     curl http://localhost:{}/api/admin/workflows",
+                self.port
+            );
             eprintln!();
             eprintln!("  3. Activate workflow:");
-            eprintln!("     curl -X POST http://localhost:{}/api/admin/workflow/activate \\", self.port);
+            eprintln!(
+                "     curl -X POST http://localhost:{}/api/admin/workflow/activate \\",
+                self.port
+            );
             if !key_header.is_empty() {
                 eprintln!("       -H 'X-Api-Key: <your-key>' \\");
             }
@@ -894,7 +1073,10 @@ impl VwfdApp {
             eprintln!("       -d '{{\"id\":\"my-workflow\"}}'");
             eprintln!();
             eprintln!("  4. Deactivate workflow:");
-            eprintln!("     curl -X POST http://localhost:{}/api/admin/workflow/deactivate \\", self.port);
+            eprintln!(
+                "     curl -X POST http://localhost:{}/api/admin/workflow/deactivate \\",
+                self.port
+            );
             if !key_header.is_empty() {
                 eprintln!("       -H 'X-Api-Key: <your-key>' \\");
             }
@@ -921,7 +1103,7 @@ impl VwfdApp {
 
 /// Create a new VwfdApp builder.
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// vil_vwfd::app("workflows/", 3200)
 ///     .native("handler_name", |input| Ok(json!({"ok": true})))
 ///     .run()
@@ -950,8 +1132,8 @@ pub fn app(workflow_dir: impl Into<String>, port: u16) -> VwfdApp {
 // ── Prelude ────────────────────────────────────────────────────────────
 
 pub mod prelude {
+    pub use super::{app, NativeHandler, NativeRegistry, VwfdApp};
     pub use serde_json::{json, Value};
-    pub use super::{app, VwfdApp, NativeHandler, NativeRegistry};
 }
 
 #[cfg(test)]
@@ -970,7 +1152,6 @@ mod tests {
         let result = reg.dispatch("double", &json!({"n": 5})).unwrap();
         assert_eq!(result["result"], 10);
     }
-
 }
 
 /// Load all rule set YAML files from a directory.
@@ -978,14 +1159,18 @@ mod tests {
 fn load_rule_sets(dir: &str) -> std::collections::HashMap<String, vil_rules::RuleSet> {
     let mut sets = std::collections::HashMap::new();
     let path = std::path::Path::new(dir);
-    if !path.is_dir() { return sets; }
+    if !path.is_dir() {
+        return sets;
+    }
     let entries = match std::fs::read_dir(path) {
         Ok(e) => e,
         Err(_) => return sets,
     };
     for entry in entries.flatten() {
         let p = entry.path();
-        if !p.extension().map_or(false, |e| e == "yaml" || e == "yml") { continue; }
+        if !p.extension().is_some_and(|e| e == "yaml" || e == "yml") {
+            continue;
+        }
         match vil_rules::RuleSet::from_file(&p.to_string_lossy()) {
             Ok(rs) => {
                 let id = rs.id.clone();

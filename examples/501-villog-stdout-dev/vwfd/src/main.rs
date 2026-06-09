@@ -20,5 +20,6 @@ fn villog_stdout_demo(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/501-villog-stdout-dev/vwfd/workflows", 3232)
         .native("villog_stdout_demo", villog_stdout_demo)
-        .run().await;
+        .run()
+        .await;
 }

@@ -83,8 +83,12 @@ pub struct RuleSet {
     pub rules: Vec<RuleDef>,
 }
 
-fn default_hit_policy() -> String { "COLLECT".into() }
-fn default_aggregate_fn() -> String { "LIST".into() }
+fn default_hit_policy() -> String {
+    "COLLECT".into()
+}
+fn default_aggregate_fn() -> String {
+    "LIST".into()
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Metadata {
@@ -153,7 +157,9 @@ pub enum ThenClause {
     Value(Value),
 }
 
-fn deserialize_when<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<WhenClause, D::Error> {
+fn deserialize_when<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<WhenClause, D::Error> {
     let val = Value::deserialize(deserializer)?;
     match val {
         Value::Null => Ok(WhenClause::None),
@@ -162,11 +168,15 @@ fn deserialize_when<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result
             let hm: HashMap<String, Value> = map.into_iter().collect();
             Ok(WhenClause::Table(hm))
         }
-        _ => Err(serde::de::Error::custom("'when' must be a string or object")),
+        _ => Err(serde::de::Error::custom(
+            "'when' must be a string or object",
+        )),
     }
 }
 
-fn deserialize_then<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<ThenClause, D::Error> {
+fn deserialize_then<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<ThenClause, D::Error> {
     let val = Value::deserialize(deserializer)?;
     match &val {
         Value::Null => Ok(ThenClause::None),
@@ -181,8 +191,12 @@ fn deserialize_then<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result
     }
 }
 
-fn default_priority() -> i32 { 100 }
-fn default_enabled() -> bool { true }
+fn default_priority() -> i32 {
+    100
+}
+fn default_enabled() -> bool {
+    true
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Actions (vdicl)
@@ -205,17 +219,11 @@ pub enum Action {
         value: Option<Value>,
     },
     /// Set the decision outcome (APPROVE, REVIEW, REJECT).
-    SET_DECISION {
-        decision: Option<String>,
-    },
+    SET_DECISION { decision: Option<String> },
     /// Add to risk score accumulator.
-    ADD_SCORE {
-        score_delta: Option<i32>,
-    },
+    ADD_SCORE { score_delta: Option<i32> },
     /// Abort rule evaluation (stop processing remaining rules).
-    ABORT {
-        msg: Option<String>,
-    },
+    ABORT { msg: Option<String> },
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -297,8 +305,8 @@ impl FactSchema {
 impl RuleSet {
     /// Load from YAML string.
     pub fn from_yaml(yaml: &str) -> Result<Self, RuleError> {
-        let mut rs: RuleSet = serde_yaml::from_str(yaml)
-            .map_err(|e| RuleError::Parse(e.to_string()))?;
+        let mut rs: RuleSet =
+            serde_yaml::from_str(yaml).map_err(|e| RuleError::Parse(e.to_string()))?;
         // Resolve id from metadata.rulepack_id if top-level id is empty
         if rs.id.is_empty() {
             if let Some(ref meta) = rs.metadata {
@@ -323,16 +331,17 @@ impl RuleSet {
         let is_decision_table = self.rule_type.as_deref() == Some("decision_table");
 
         // Sort rules by priority
-        let mut sorted_rules: Vec<&RuleDef> = self.rules.iter()
-            .filter(|r| r.enabled)
-            .collect();
+        let mut sorted_rules: Vec<&RuleDef> = self.rules.iter().filter(|r| r.enabled).collect();
         sorted_rules.sort_by_key(|r| r.priority);
 
         let mut result = RuleResult::default();
 
         for rule in sorted_rules {
             result.rules_evaluated += 1;
-            let rule_id = rule.id.clone().unwrap_or_else(|| format!("rule_{}", result.rules_evaluated));
+            let rule_id = rule
+                .id
+                .clone()
+                .unwrap_or_else(|| format!("rule_{}", result.rules_evaluated));
 
             // Evaluate condition
             let matches = if is_decision_table {
@@ -341,7 +350,9 @@ impl RuleSet {
                 self.eval_condition(rule, &vars)?
             };
 
-            if !matches { continue; }
+            if !matches {
+                continue;
+            }
             result.rules_matched += 1;
 
             // ── Process actions ──
@@ -349,7 +360,12 @@ impl RuleSet {
                 ThenClause::Actions(actions) => {
                     for action in actions {
                         match action {
-                            Action::EMIT { severity, code, field, msg } => {
+                            Action::EMIT {
+                                severity,
+                                code,
+                                field,
+                                msg,
+                            } => {
                                 result.findings.push(Finding {
                                     rule_id: rule_id.clone(),
                                     severity: severity.clone().unwrap_or_else(|| "ERROR".into()),
@@ -395,9 +411,13 @@ impl RuleSet {
             }
 
             // Hit policy: FIRST = stop after first match
-            if self.hit_policy == "FIRST" { break; }
+            if self.hit_policy == "FIRST" {
+                break;
+            }
             // ABORT action stops evaluation
-            if result.aborted { break; }
+            if result.aborted {
+                break;
+            }
         }
 
         result.first_action = result.matched.first().map(|m| m.action.clone());
@@ -409,13 +429,19 @@ impl RuleSet {
     fn eval_condition(&self, rule: &RuleDef, vars: &vil_expr::Vars) -> Result<bool, RuleError> {
         // Check WhenClause first, fallback to legacy `condition`
         match &rule.when_clause {
-            WhenClause::Expr(expr) => vil_expr::evaluate_bool(expr, vars)
-                .map_err(|e| RuleError::Eval(format!("rule {}: {}", rule.id.as_deref().unwrap_or("?"), e))),
+            WhenClause::Expr(expr) => vil_expr::evaluate_bool(expr, vars).map_err(|e| {
+                RuleError::Eval(format!("rule {}: {}", rule.id.as_deref().unwrap_or("?"), e))
+            }),
             WhenClause::None => {
                 // Fallback to legacy `condition`
                 match &rule.condition {
-                    Some(cond) => vil_expr::evaluate_bool(cond, vars)
-                        .map_err(|e| RuleError::Eval(format!("rule {}: {}", rule.id.as_deref().unwrap_or("?"), e))),
+                    Some(cond) => vil_expr::evaluate_bool(cond, vars).map_err(|e| {
+                        RuleError::Eval(format!(
+                            "rule {}: {}",
+                            rule.id.as_deref().unwrap_or("?"),
+                            e
+                        ))
+                    }),
                     None => Ok(true),
                 }
             }
@@ -433,15 +459,18 @@ impl RuleSet {
             let actual = vars.get(field).cloned().unwrap_or(Value::Null);
 
             let matches = match expected {
-                Value::String(s) if s.starts_with('>') || s.starts_with('<') || s.starts_with('!') => {
+                Value::String(s)
+                    if s.starts_with('>') || s.starts_with('<') || s.starts_with('!') =>
+                {
                     let expr = format!("{} {}", field, s);
-                    vil_expr::evaluate_bool(&expr, vars)
-                        .map_err(|e| RuleError::Eval(e))?
+                    vil_expr::evaluate_bool(&expr, vars).map_err(RuleError::Eval)?
                 }
                 _ => val_eq(&actual, expected),
             };
 
-            if !matches { return Ok(false); }
+            if !matches {
+                return Ok(false);
+            }
         }
 
         Ok(true)

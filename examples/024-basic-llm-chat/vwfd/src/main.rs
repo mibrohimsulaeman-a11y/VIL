@@ -6,7 +6,8 @@
 use serde_json::{json, Value};
 
 fn chat_handler(input: &Value) -> Result<Value, String> {
-    let prompt = input.get("body")
+    let prompt = input
+        .get("body")
         .and_then(|b| b["prompt"].as_str())
         .unwrap_or("Hello");
     Ok(json!({

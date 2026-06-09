@@ -23,12 +23,10 @@
 //   curl http://localhost:8080/api/router/models
 //   curl http://localhost:8080/api/router/stats
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
-use vil_llm::{
-    ChatMessage, LlmProvider, LlmRouter, OpenAiConfig, OpenAiProvider, RouterStrategy,
-};
+use vil_llm::{ChatMessage, LlmProvider, LlmRouter, OpenAiConfig, OpenAiProvider, RouterStrategy};
 use vil_server::prelude::*;
 
 // ── Models ───────────────────────────────────────────────────────────────
@@ -83,10 +81,12 @@ async fn route_handler(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<RouteResponse>> {
-    let req: RouteRequest = body.json()
+    let req: RouteRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
-    let state = ctx.state::<Arc<RouterState>>()
+    let state = ctx
+        .state::<Arc<RouterState>>()
         .map_err(|_| VilError::internal("router state not found"))?;
 
     state.total.fetch_add(1, Ordering::Relaxed);
@@ -103,14 +103,13 @@ async fn route_handler(
     let force_cheap = budget < 0.001;
 
     // ── Route decision ──
-    let (provider, tier, cost_rate): (&dyn LlmProvider, &str, f64) =
-        if is_complex && !force_cheap {
-            state.gpt4_count.fetch_add(1, Ordering::Relaxed);
-            (state.router_gpt4.as_ref(), "premium", 30.0)
-        } else {
-            state.gpt35_count.fetch_add(1, Ordering::Relaxed);
-            (state.router_gpt35.as_ref(), "economy", 0.50)
-        };
+    let (provider, tier, cost_rate): (&dyn LlmProvider, &str, f64) = if is_complex && !force_cheap {
+        state.gpt4_count.fetch_add(1, Ordering::Relaxed);
+        (state.router_gpt4.as_ref(), "premium", 30.0)
+    } else {
+        state.gpt35_count.fetch_add(1, Ordering::Relaxed);
+        (state.router_gpt35.as_ref(), "economy", 0.50)
+    };
 
     // ── Call LLM via vil_llm ──
     let messages = vec![
@@ -118,7 +117,9 @@ async fn route_handler(
         ChatMessage::user(&req.prompt),
     ];
 
-    let response = provider.chat(&messages).await
+    let response = provider
+        .chat(&messages)
+        .await
         .map_err(|e| VilError::internal(format!("LLM call failed: {}", e)))?;
 
     let estimated_cost = (prompt_tokens as f64 / 1_000_000.0) * cost_rate;
@@ -152,7 +153,8 @@ async fn list_models() -> VilResponse<Vec<ModelInfo>> {
 
 /// GET /stats — Routing statistics and cost savings.
 async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<RouterStats>> {
-    let state = ctx.state::<Arc<RouterState>>()
+    let state = ctx
+        .state::<Arc<RouterState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let total = state.total.load(Ordering::Relaxed);
@@ -179,18 +181,15 @@ async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<RouterStats>> {
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     // Two providers — same upstream (simulator), different model params
     let gpt4 = Arc::new(OpenAiProvider::new(
-        OpenAiConfig::new(&api_key, "gpt-4")
-            .base_url(&format!("{}/v1", upstream)),
+        OpenAiConfig::new(&api_key, "gpt-4").base_url(&format!("{}/v1", upstream)),
     ));
     let gpt35 = Arc::new(OpenAiProvider::new(
-        OpenAiConfig::new(&api_key, "gpt-3.5-turbo")
-            .base_url(&format!("{}/v1", upstream)),
+        OpenAiConfig::new(&api_key, "gpt-3.5-turbo").base_url(&format!("{}/v1", upstream)),
     ));
 
     // Fallback router: try GPT-4 first, fallback to GPT-3.5 on error

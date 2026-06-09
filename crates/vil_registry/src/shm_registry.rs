@@ -190,12 +190,9 @@ impl ShmRegistry {
                 // If attach fails (does not exist), create new
                 let id = heap.create_named_region(name, region_size)?;
                 // Initialize layout
-                let ptr = heap.alloc_bytes(id, size, 8).ok_or_else(|| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Failed to alloc registry layout",
-                    )
-                })?;
+                let ptr = heap
+                    .alloc_bytes(id, size, 8)
+                    .ok_or_else(|| std::io::Error::other("Failed to alloc registry layout"))?;
 
                 // Write magic & initial metadata
                 let layout = SharedRegistryLayout {
@@ -347,6 +344,11 @@ impl ShmRegistry {
 
     // --- Sample operations ---
 
+    /// Register a sample in the shared-memory table.
+    ///
+    /// The argument list intentionally matches `SampleSlot` fields and avoids
+    /// allocating a temporary metadata struct in the cross-process hot path.
+    #[allow(clippy::too_many_arguments)]
     pub fn register_sample(
         &self,
         sample_id: SampleId,

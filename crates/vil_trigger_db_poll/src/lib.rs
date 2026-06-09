@@ -55,7 +55,10 @@ impl TriggerSource for DbPollTrigger {
         );
         // Poll loop would use vil_db_sqlx to query for rows > last_seen_id
         while !self.stopped.load(Ordering::Relaxed) {
-            tokio::time::sleep(std::time::Duration::from_secs(self.config.poll_interval_secs)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                self.config.poll_interval_secs,
+            ))
+            .await;
             // In production: SELECT * FROM table WHERE id_column > last_id ORDER BY id_column ASC
             // fire event per new row, update last_id
         }

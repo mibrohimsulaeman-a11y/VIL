@@ -97,7 +97,11 @@ fn generate_entity_struct(table: &TableMeta, struct_name: &str) -> String {
             if let Some(ref fk) = col.references {
                 out.push_str(&format!("    // FK → {}.{}\n", fk.table, fk.column));
             }
-            out.push_str(&format!("    pub {}: {},\n", col.name, col.rust_type_full()));
+            out.push_str(&format!(
+                "    pub {}: {},\n",
+                col.name,
+                col.rust_type_full()
+            ));
         }
     }
 
@@ -131,9 +135,17 @@ fn generate_list_item_struct(
                 "    #[sqlx(rename = \"{}\")]\n    #[serde(rename = \"{}\")]\n",
                 col.name, col.name
             ));
-            out.push_str(&format!("    pub {}_: {},\n", col.name, col.rust_type_full()));
+            out.push_str(&format!(
+                "    pub {}_: {},\n",
+                col.name,
+                col.rust_type_full()
+            ));
         } else {
-            out.push_str(&format!("    pub {}: {},\n", col.name, col.rust_type_full()));
+            out.push_str(&format!(
+                "    pub {}: {},\n",
+                col.name,
+                col.rust_type_full()
+            ));
         }
     }
 
@@ -268,12 +280,51 @@ pub fn to_pascal_case(name: &str) -> String {
 pub fn is_reserved_word(name: &str) -> bool {
     matches!(
         name,
-        "type" | "match" | "ref" | "self" | "super" | "crate" | "mod" | "fn" | "pub"
-            | "use" | "let" | "mut" | "const" | "static" | "extern" | "as" | "break"
-            | "continue" | "else" | "for" | "if" | "impl" | "in" | "loop" | "move"
-            | "return" | "struct" | "trait" | "where" | "while" | "async" | "await"
-            | "dyn" | "abstract" | "become" | "box" | "do" | "final" | "macro"
-            | "override" | "priv" | "typeof" | "unsized" | "virtual" | "yield"
+        "type"
+            | "match"
+            | "ref"
+            | "self"
+            | "super"
+            | "crate"
+            | "mod"
+            | "fn"
+            | "pub"
+            | "use"
+            | "let"
+            | "mut"
+            | "const"
+            | "static"
+            | "extern"
+            | "as"
+            | "break"
+            | "continue"
+            | "else"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "loop"
+            | "move"
+            | "return"
+            | "struct"
+            | "trait"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
     )
 }
 
@@ -297,7 +348,10 @@ mod tests {
         assert_eq!(to_pascal_case("friends"), "Friend");
         assert_eq!(to_pascal_case("app_logs"), "AppLog");
         assert_eq!(to_pascal_case("blog_posts"), "BlogPost");
-        assert_eq!(to_pascal_case("peer_review_submissions"), "PeerReviewSubmission");
+        assert_eq!(
+            to_pascal_case("peer_review_submissions"),
+            "PeerReviewSubmission"
+        );
     }
 
     #[test]
@@ -317,7 +371,9 @@ CREATE TABLE profiles (
         let output = generate_model_file(&tables[0]);
 
         // Entity struct
-        assert!(output.contains("#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, VilModel, VilEntity)]"));
+        assert!(output.contains(
+            "#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, VilModel, VilEntity)]"
+        ));
         assert!(output.contains("#[vil_entity(table = \"profiles\")]"));
         assert!(output.contains("pub struct Profile {"));
         assert!(output.contains("#[vil_entity(pk)]"));
@@ -372,14 +428,26 @@ CREATE TABLE notifications (
             let struct_name = to_pascal_case(&table.name);
 
             // Verify basic structure
-            assert!(output.contains(&format!("pub struct {} {{", struct_name)),
-                "Missing struct for {}", table.name);
-            assert!(output.contains(&format!("#[vil_entity(table = \"{}\")]", table.name)),
-                "Missing vil_entity for {}", table.name);
-            assert!(output.contains(&format!("pub struct Create{}Request", struct_name)),
-                "Missing CreateRequest for {}", table.name);
-            assert!(output.contains(&format!("pub struct Update{}Request", struct_name)),
-                "Missing UpdateRequest for {}", table.name);
+            assert!(
+                output.contains(&format!("pub struct {} {{", struct_name)),
+                "Missing struct for {}",
+                table.name
+            );
+            assert!(
+                output.contains(&format!("#[vil_entity(table = \"{}\")]", table.name)),
+                "Missing vil_entity for {}",
+                table.name
+            );
+            assert!(
+                output.contains(&format!("pub struct Create{}Request", struct_name)),
+                "Missing CreateRequest for {}",
+                table.name
+            );
+            assert!(
+                output.contains(&format!("pub struct Update{}Request", struct_name)),
+                "Missing UpdateRequest for {}",
+                table.name
+            );
 
             // Count lines as rough size check
             let lines = output.lines().count();

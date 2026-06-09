@@ -103,7 +103,9 @@ struct AppState {
 /// POST /events -- log event and increment daily aggregate
 async fn log_event(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Event>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: LogEvent = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: LogEvent = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
     let pool = state.pool.inner();
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -266,9 +268,12 @@ fn chrono_today() -> String {
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlxPool::connect("analytics", vil_db_sqlx::SqlxConfig::sqlite("sqlite:analytics.db?mode=rwc"))
-        .await
-        .expect("SQLite connect failed");
+    let pool = SqlxPool::connect(
+        "analytics",
+        vil_db_sqlx::SqlxConfig::sqlite("sqlite:analytics.db?mode=rwc"),
+    )
+    .await
+    .expect("SQLite connect failed");
 
     pool.execute_raw(
         "CREATE TABLE IF NOT EXISTS events (
@@ -284,12 +289,14 @@ async fn main() {
             event_type TEXT NOT NULL,
             count INTEGER DEFAULT 0,
             UNIQUE(date, event_type)
-        );"
+        );",
     )
     .await
     .expect("Migration failed");
 
-    let state = AppState { pool: Arc::new(pool) };
+    let state = AppState {
+        pool: Arc::new(pool),
+    };
 
     let analytics_svc = ServiceProcess::new("analytics")
         .endpoint(Method::POST, "/events", post(log_event))

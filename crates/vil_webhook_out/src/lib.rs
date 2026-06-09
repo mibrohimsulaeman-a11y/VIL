@@ -21,10 +21,7 @@ pub fn send_webhook(args: &[Value]) -> Result<Value, String> {
             .map_err(|e| format!("send_webhook: hmac: {}", e))?;
         mac.update(body.as_bytes());
         let signature = hex::encode(mac.finalize().into_bytes());
-        req = req.set(
-            "X-Webhook-Signature",
-            &format!("sha256={}", signature),
-        );
+        req = req.set("X-Webhook-Signature", &format!("sha256={}", signature));
     }
 
     let resp = req

@@ -22,10 +22,12 @@ fn list_models(_input: &Value) -> Result<Value, String> {
 
 fn route_inference(input: &Value) -> Result<Value, String> {
     TOTAL_REQUESTS.fetch_add(1, Ordering::Relaxed);
-    let prompt = input.get("body")
+    let prompt = input
+        .get("body")
         .and_then(|b| b["prompt"].as_str())
         .unwrap_or("Hello");
-    let max_cost = input.get("body")
+    let max_cost = input
+        .get("body")
         .and_then(|b| b["max_cost_usd"].as_f64())
         .unwrap_or(0.01);
     // Simple routing: use cheaper model if max_cost is low
@@ -55,10 +57,13 @@ fn router_stats(_input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/018-basic-ai-multi-model-router/vwfd/workflows", 8080)
-        .native("list_models", list_models)
-        .native("route_inference", route_inference)
-        .native("router_stats", router_stats)
-        .run()
-        .await;
+    vil_vwfd::app(
+        "examples/018-basic-ai-multi-model-router/vwfd/workflows",
+        8080,
+    )
+    .native("list_models", list_models)
+    .native("route_inference", route_inference)
+    .native("router_stats", router_stats)
+    .run()
+    .await;
 }

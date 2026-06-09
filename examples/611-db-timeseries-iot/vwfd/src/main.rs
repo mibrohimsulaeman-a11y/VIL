@@ -59,5 +59,6 @@ async fn main() {
         .native("sensor_write", sensor_write)
         .native("sensor_query", sensor_query)
         .native("sensor_aggregate", sensor_aggregate)
-        .run().await;
+        .run()
+        .await;
 }

@@ -18,7 +18,7 @@
 //     -H 'Content-Type: application/json' -d '{"value":42}'
 
 use vil_server::prelude::*;
-use vil_server_macros::{vil_handler, vil_endpoint};
+use vil_server_macros::{vil_endpoint, vil_handler};
 
 // ── Typed fault ──────────────────────────────────────────────
 #[vil_fault]
@@ -86,7 +86,9 @@ async fn endpoint_handler(body: ShmSlice) -> Result<VilResponse<ComputeOutput>, 
     let input: ComputeInput = body
         .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected {\"value\": N}"))?;
-    let result = input.value.checked_mul(input.value)
+    let result = input
+        .value
+        .checked_mul(input.value)
         .ok_or_else(|| VilError::bad_request("overflow"))?;
     Ok(VilResponse::ok(ComputeOutput {
         input: input.value,

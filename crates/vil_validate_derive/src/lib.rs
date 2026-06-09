@@ -18,7 +18,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, Fields};
+use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
 /// Derive macro for request validation.
 ///
@@ -31,15 +31,19 @@ pub fn derive_vil_validate(input: TokenStream) -> TokenStream {
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => &fields.named,
-            _ => return TokenStream::from(
-                syn::Error::new_spanned(name, "VilValidate only supports named fields")
-                    .to_compile_error(),
-            ),
+            _ => {
+                return TokenStream::from(
+                    syn::Error::new_spanned(name, "VilValidate only supports named fields")
+                        .to_compile_error(),
+                )
+            }
         },
-        _ => return TokenStream::from(
-            syn::Error::new_spanned(name, "VilValidate only supports structs")
-                .to_compile_error(),
-        ),
+        _ => {
+            return TokenStream::from(
+                syn::Error::new_spanned(name, "VilValidate only supports structs")
+                    .to_compile_error(),
+            )
+        }
     };
 
     let mut checks = Vec::new();

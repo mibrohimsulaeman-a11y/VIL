@@ -34,10 +34,10 @@ pub mod grpc;
 pub mod http_client;
 pub mod profiler;
 pub mod response;
-pub mod upload;
 pub mod sse;
 pub mod sse_collect;
 pub mod sync_handler;
+pub mod upload;
 pub mod websocket;
 
 // ─── SHM Bridge ─────────────────────────────────────────────────────────────
@@ -105,9 +105,9 @@ pub mod vx;
 pub use error::VilError;
 pub use extractors::RequestId;
 pub use model::VilModel;
-pub use upload::{VilUpload, SavedFile};
 pub use server::VilServer;
 pub use state::AppState;
+pub use upload::{SavedFile, VilUpload};
 
 // Re-export Axum essentials so users don't need to depend on axum directly
 pub use axum;

@@ -63,7 +63,10 @@ impl TriggerSource for SftpTrigger {
         );
         // Poll loop would connect via SFTP, list directory, diff against last seen
         while !self.stopped.load(Ordering::Relaxed) {
-            tokio::time::sleep(std::time::Duration::from_secs(self.config.poll_interval_secs)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                self.config.poll_interval_secs,
+            ))
+            .await;
             // In production: SFTP ls, diff, fire events for new/changed files
         }
         Ok(())

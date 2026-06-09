@@ -18,10 +18,10 @@
 // =============================================================================
 
 use crate::codegen;
-use vil_cli_core::manifest::WorkflowManifest;
 use colored::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use vil_cli_core::manifest::WorkflowManifest;
 
 /// Supported source languages for `--from`.
 const SUPPORTED_LANGS: &[&str] = &[

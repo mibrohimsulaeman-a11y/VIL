@@ -11,12 +11,12 @@
 //   - Activate/Deactivate per workflow
 //   - Persist YAML to disk for restart recovery
 
+use crate::compiler::compile;
+use crate::graph::VilwGraph;
+use crate::handler::WorkflowRouter;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::Serialize;
-use crate::graph::VilwGraph;
-use crate::compiler::compile;
-use crate::handler::WorkflowRouter;
 
 /// Workflow version entry.
 #[derive(Debug, Clone, Serialize)]
@@ -39,7 +39,7 @@ struct WorkflowSlot {
 
 /// Versioned workflow registry with multi-tenancy.
 pub struct WorkflowRegistry {
-    slots: RwLock<HashMap<String, WorkflowSlot>>,  // key = "{tenant}/{id}"
+    slots: RwLock<HashMap<String, WorkflowSlot>>, // key = "{tenant}/{id}"
     workflow_dir: String,
 }
 
@@ -79,7 +79,10 @@ impl WorkflowRegistry {
             uploaded_at: now_ms(),
         };
 
-        slot.versions.insert(revision, (Arc::new(graph), entry.clone(), yaml.as_bytes().to_vec()));
+        slot.versions.insert(
+            revision,
+            (Arc::new(graph), entry.clone(), yaml.as_bytes().to_vec()),
+        );
         slot.webhook_path = webhook_path;
 
         if is_first {
@@ -95,11 +98,20 @@ impl WorkflowRegistry {
     }
 
     /// Activate a specific revision (blue-green).
-    pub fn activate(&self, tenant: &str, workflow_id: &str, revision: u32) -> Result<WorkflowVersion, String> {
+    pub fn activate(
+        &self,
+        tenant: &str,
+        workflow_id: &str,
+        revision: u32,
+    ) -> Result<WorkflowVersion, String> {
         let ns = ns_key(tenant, workflow_id);
         let mut slots = self.slots.write().unwrap();
-        let slot = slots.get_mut(&ns)
-            .ok_or_else(|| format!("workflow '{}' not found for tenant '{}'", workflow_id, tenant))?;
+        let slot = slots.get_mut(&ns).ok_or_else(|| {
+            format!(
+                "workflow '{}' not found for tenant '{}'",
+                workflow_id, tenant
+            )
+        })?;
 
         if !slot.versions.contains_key(&revision) {
             return Err(format!("revision {} not found", revision));
@@ -118,7 +130,8 @@ impl WorkflowRegistry {
     pub fn deactivate(&self, tenant: &str, workflow_id: &str) -> Result<(), String> {
         let ns = ns_key(tenant, workflow_id);
         let mut slots = self.slots.write().unwrap();
-        let slot = slots.get_mut(&ns)
+        let slot = slots
+            .get_mut(&ns)
             .ok_or_else(|| format!("workflow '{}' not found", workflow_id))?;
 
         for (_, (_, entry, _)) in slot.versions.iter_mut() {
@@ -153,19 +166,26 @@ impl WorkflowRegistry {
         let ns = ns_key(tenant, workflow_id);
         let slots = self.slots.read().unwrap();
         let slot = slots.get(&ns)?;
-        slot.versions.get(&slot.active_revision).map(|(g, _, _)| g.clone())
+        slot.versions
+            .get(&slot.active_revision)
+            .map(|(g, _, _)| g.clone())
     }
 
     /// Get active graph by webhook path (for HTTP routing).
     pub fn get_by_path(&self, tenant: &str, path: &str) -> Option<Arc<VilwGraph>> {
         let slots = self.slots.read().unwrap();
         for (ns, slot) in slots.iter() {
-            if !ns.starts_with(&format!("{}/", tenant)) { continue; }
+            if !ns.starts_with(&format!("{}/", tenant)) {
+                continue;
+            }
             if let Some(ref wp) = slot.webhook_path {
                 if wp == path {
                     let (_, entry, _) = slot.versions.get(&slot.active_revision)?;
                     if entry.active {
-                        return slot.versions.get(&slot.active_revision).map(|(g, _, _)| g.clone());
+                        return slot
+                            .versions
+                            .get(&slot.active_revision)
+                            .map(|(g, _, _)| g.clone());
                     }
                 }
             }
@@ -179,9 +199,11 @@ impl WorkflowRegistry {
         let mut result = Vec::new();
         for (ns, slot) in slots.iter() {
             if let Some(t) = tenant {
-                if !ns.starts_with(&format!("{}/", t)) { continue; }
+                if !ns.starts_with(&format!("{}/", t)) {
+                    continue;
+                }
             }
-            for (_, (_, entry, _)) in &slot.versions {
+            for (_, entry, _) in slot.versions.values() {
                 result.push(entry.clone());
             }
         }
@@ -194,13 +216,17 @@ impl WorkflowRegistry {
         let slots = self.slots.read().unwrap();
         let slot = slots.get(&ns)?;
 
-        let versions: Vec<serde_json::Value> = slot.versions.iter()
-            .map(|(v, (g, entry, _))| serde_json::json!({
-                "revision": v,
-                "active": entry.active,
-                "node_count": g.nodes.len(),
-                "uploaded_at": entry.uploaded_at,
-            }))
+        let versions: Vec<serde_json::Value> = slot
+            .versions
+            .iter()
+            .map(|(v, (g, entry, _))| {
+                serde_json::json!({
+                    "revision": v,
+                    "active": entry.active,
+                    "node_count": g.nodes.len(),
+                    "uploaded_at": entry.uploaded_at,
+                })
+            })
             .collect();
 
         Some(serde_json::json!({
@@ -218,7 +244,9 @@ impl WorkflowRegistry {
         let slots = self.slots.read().unwrap();
         for (_, slot) in slots.iter() {
             if let Some((graph, entry, _)) = slot.versions.get(&slot.active_revision) {
-                if !entry.active { continue; }
+                if !entry.active {
+                    continue;
+                }
                 if let Some(ref path) = slot.webhook_path {
                     let method = graph.webhook_method.clone();
                     router.register(method, path.clone(), graph.clone());
@@ -244,9 +272,13 @@ impl WorkflowRegistry {
                         match std::fs::read_to_string(tenant_entry.path()) {
                             Ok(yaml) => match self.upload("_default", &yaml) {
                                 Ok(_) => loaded += 1,
-                                Err(e) => errors.push(format!("{}: {}", tenant_entry.path().display(), e)),
+                                Err(e) => {
+                                    errors.push(format!("{}: {}", tenant_entry.path().display(), e))
+                                }
                             },
-                            Err(e) => errors.push(format!("{}: {}", tenant_entry.path().display(), e)),
+                            Err(e) => {
+                                errors.push(format!("{}: {}", tenant_entry.path().display(), e))
+                            }
                         }
                     }
                 }
@@ -254,16 +286,20 @@ impl WorkflowRegistry {
             }
 
             let tenant = tenant_entry.file_name().to_string_lossy().to_string();
-            let Ok(files) = std::fs::read_dir(tenant_entry.path()) else { continue };
+            let Ok(files) = std::fs::read_dir(tenant_entry.path()) else {
+                continue;
+            };
 
             // Find latest version per workflow ID
             let mut latest: HashMap<String, (u32, String)> = HashMap::new();
             for file in files.flatten() {
                 let name = file.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".yaml") && !name.ends_with(".yml") { continue; }
+                if !name.ends_with(".yaml") && !name.ends_with(".yml") {
+                    continue;
+                }
                 // Parse: {id}.v{N}.yaml or {id}.yaml
                 let (wf_id, ver) = if let Some(pos) = name.rfind(".v") {
-                    let ver_str = &name[pos+2..name.rfind('.').unwrap_or(name.len())];
+                    let ver_str = &name[pos + 2..name.rfind('.').unwrap_or(name.len())];
                     let id = &name[..pos];
                     (id.to_string(), ver_str.parse::<u32>().unwrap_or(1))
                 } else {
@@ -303,7 +339,12 @@ impl WorkflowRegistry {
     }
 
     /// Get a compiled VilwGraph for a specific workflow version.
-    pub fn get_graph(&self, tenant: &str, workflow_id: &str, revision: u32) -> Option<Arc<crate::graph::VilwGraph>> {
+    pub fn get_graph(
+        &self,
+        tenant: &str,
+        workflow_id: &str,
+        revision: u32,
+    ) -> Option<Arc<crate::graph::VilwGraph>> {
         let key = ns_key(tenant, workflow_id);
         let slots = self.slots.read().unwrap();
         let slot = slots.get(&key)?;

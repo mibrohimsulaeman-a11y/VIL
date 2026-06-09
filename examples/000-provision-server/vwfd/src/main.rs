@@ -13,9 +13,11 @@ use vil_vwfd::StateStore;
 #[tokio::main]
 async fn main() {
     let port: u16 = std::env::var("PORT")
-        .ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
-    let workflows_dir = std::env::var("WORKFLOWS_DIR")
-        .unwrap_or_else(|_| "/tmp/vil-provision".into());
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+    let workflows_dir =
+        std::env::var("WORKFLOWS_DIR").unwrap_or_else(|_| "/tmp/vil-provision".into());
     let _ = std::fs::create_dir_all(&workflows_dir);
 
     let mut app = vil_vwfd::app(&workflows_dir, port)

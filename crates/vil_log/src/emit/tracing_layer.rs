@@ -57,17 +57,19 @@ impl<S: Subscriber> Layer<S> for VilTracingLayer {
         let service_hash = register_str(target);
         let handler_hash = register_str(event.metadata().name());
 
-        let mut slot = LogSlot::default();
-        slot.header = VilLogHeader {
-            timestamp_ns: ts,
-            level: level as u8,
-            category: LogCategory::App as u8,
-            version: 1,
-            service_hash,
-            handler_hash,
-            node_hash: 0,
-            process_id: std::process::id() as u64,
-            ..VilLogHeader::default()
+        let mut slot = LogSlot {
+            header: VilLogHeader {
+                timestamp_ns: ts,
+                level: level as u8,
+                category: LogCategory::App as u8,
+                version: 1,
+                service_hash,
+                handler_hash,
+                node_hash: 0,
+                process_id: std::process::id() as u64,
+                ..VilLogHeader::default()
+            },
+            ..LogSlot::default()
         };
 
         // Collect event fields into the payload as msgpack KV map.

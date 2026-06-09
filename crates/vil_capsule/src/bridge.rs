@@ -8,8 +8,8 @@
 // the bridge returns a sentinel value indicating native fallback should be used.
 // The macro-generated code calls the preserved __vil_wasm_body_{fn} in that case.
 
-use std::sync::{Arc, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use crate::{WasmFaaSConfig, WasmFaaSRegistry, WasmPool};
 

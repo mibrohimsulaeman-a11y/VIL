@@ -58,7 +58,10 @@ async fn main() {
 
     println!();
     println!("  example-805-trigger-email");
-    println!("  HR Employee Notification System — Email trigger (collects {} events then exits)", EVENT_COUNT);
+    println!(
+        "  HR Employee Notification System — Email trigger (collects {} events then exits)",
+        EVENT_COUNT
+    );
     println!();
 
     // ── Build EmailConfig from env ──
@@ -102,10 +105,7 @@ async fn main() {
         }
     });
 
-    println!(
-        "  Waiting for {} email events (IMAP IDLE)...",
-        EVENT_COUNT
-    );
+    println!("  Waiting for {} email events (IMAP IDLE)...", EVENT_COUNT);
     println!();
 
     // ── Drain the mpsc receiver — process HR notifications ──

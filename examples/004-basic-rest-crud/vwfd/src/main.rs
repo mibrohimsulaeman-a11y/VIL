@@ -19,15 +19,18 @@ async fn main() {
     {
         let url = std::env::var("VIL_DATABASE_URL").unwrap();
         let pool = vil_db_sqlx::SqlxPool::connect("init", vil_db_sqlx::SqlxConfig::sqlite(&url))
-            .await.expect("SQLite connect");
+            .await
+            .expect("SQLite connect");
         pool.execute_raw(
             "CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT DEFAULT '',
                 done INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
                 updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-            )"
-        ).await.expect("init table");
+            )",
+        )
+        .await
+        .expect("init table");
     }
     // VilQuery inline workflows — all DB logic in YAML, zero Rust handlers
     vil_vwfd::app("examples/004-basic-rest-crud/vwfd/workflows", 8080)

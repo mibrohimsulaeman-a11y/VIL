@@ -2,7 +2,7 @@
 
 use crate::parser::*;
 use proc_macro2::TokenStream;
-use quote::{quote, format_ident};
+use quote::{format_ident, quote};
 
 pub fn generate(def: &VwfdMacroDef) -> TokenStream {
     let yaml = generate_yaml(def);
@@ -69,7 +69,10 @@ fn generate_yaml(def: &VwfdMacroDef) -> String {
     yaml.push_str("    - id: trigger\n");
     yaml.push_str("      activity_type: Trigger\n");
     yaml.push_str("      trigger_config:\n");
-    yaml.push_str(&format!("        trigger_type: {}\n", def.trigger.trigger_type));
+    yaml.push_str(&format!(
+        "        trigger_type: {}\n",
+        def.trigger.trigger_type
+    ));
     if !def.trigger.route.is_empty() {
         yaml.push_str(&format!("        route: {}\n", def.trigger.route));
         yaml.push_str("        webhook_config:\n");
@@ -110,7 +113,10 @@ fn generate_yaml(def: &VwfdMacroDef) -> String {
                         yaml.push_str(&format!("        - target: {}\n", m.target));
                         yaml.push_str("          source:\n");
                         yaml.push_str(&format!("            language: \"{}\"\n", m.language));
-                        yaml.push_str(&format!("            source: '{}'\n", escape_yaml_single(&m.source)));
+                        yaml.push_str(&format!(
+                            "            source: '{}'\n",
+                            escape_yaml_single(&m.source)
+                        ));
                     }
                 }
             }
@@ -123,7 +129,10 @@ fn generate_yaml(def: &VwfdMacroDef) -> String {
                 if let Some((ref lang, ref src)) = act.response_expr {
                     yaml.push_str("        final_response:\n");
                     yaml.push_str(&format!("          language: {}\n", lang));
-                    yaml.push_str(&format!("          source: '{}'\n", escape_yaml_single(src)));
+                    yaml.push_str(&format!(
+                        "          source: '{}'\n",
+                        escape_yaml_single(src)
+                    ));
                 }
             }
             ActivityKind::Transform => {
@@ -134,7 +143,10 @@ fn generate_yaml(def: &VwfdMacroDef) -> String {
                         yaml.push_str(&format!("        - target: {}\n", m.target));
                         yaml.push_str("          source:\n");
                         yaml.push_str(&format!("            language: \"{}\"\n", m.language));
-                        yaml.push_str(&format!("            source: '{}'\n", escape_yaml_single(&m.source)));
+                        yaml.push_str(&format!(
+                            "            source: '{}'\n",
+                            escape_yaml_single(&m.source)
+                        ));
                     }
                 }
             }
@@ -210,8 +222,16 @@ mod tests {
                     connector_ref: Some("vastar.http".into()),
                     operation: Some("post".into()),
                     mappings: vec![
-                        MappingDef { target: "url".into(), language: "literal".into(), source: "http://example.com".into() },
-                        MappingDef { target: "body".into(), language: "vil-expr".into(), source: "trigger_payload".into() },
+                        MappingDef {
+                            target: "url".into(),
+                            language: "literal".into(),
+                            source: "http://example.com".into(),
+                        },
+                        MappingDef {
+                            target: "body".into(),
+                            language: "vil-expr".into(),
+                            source: "trigger_payload".into(),
+                        },
                     ],
                     output: Some("result".into()),
                     durability: None,
@@ -232,7 +252,12 @@ mod tests {
                     trigger_ref: Some("trigger".into()),
                 },
             ],
-            flow: vec!["trigger".into(), "step1".into(), "respond".into(), "end".into()],
+            flow: vec![
+                "trigger".into(),
+                "step1".into(),
+                "respond".into(),
+                "end".into(),
+            ],
             durability: Some("eventual".into()),
         }
     }
@@ -241,7 +266,7 @@ mod tests {
     fn test_yaml_generation() {
         let def = sample_def();
         let yaml = generate_yaml(&def);
-        
+
         assert!(yaml.contains("id: test-wf"));
         assert!(yaml.contains("name: \"Test Workflow\""));
         assert!(yaml.contains("trigger_type: webhook"));
@@ -260,7 +285,7 @@ mod tests {
     fn test_yaml_contains_flows() {
         let def = sample_def();
         let yaml = generate_yaml(&def);
-        
+
         assert!(yaml.contains("from: { node: trigger }"));
         assert!(yaml.contains("to: { node: step1 }"));
         assert!(yaml.contains("from: { node: step1 }"));
@@ -273,7 +298,7 @@ mod tests {
     fn test_yaml_contains_variables() {
         let def = sample_def();
         let yaml = generate_yaml(&def);
-        
+
         assert!(yaml.contains("name: trigger_payload"));
         assert!(yaml.contains("name: result"));
     }

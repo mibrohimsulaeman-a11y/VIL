@@ -15,58 +15,76 @@ static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/017-basic-production-fullstack/vwfd/workflows", 8080)
-        .native("platform_config", |_| {
-            Ok(json!({
-                "server_name": "vil-sprint-tracker",
-                "version": "1.0.0",
-                "observer_enabled": true,
-                "max_sprints": 1000,
-            }))
-        })
-        .native("sprint_list", |_| {
-            let store = sprints().lock().unwrap();
-            Ok(json!(store.clone()))
-        })
-        .native("sprint_stats", |_| {
-            let store = sprints().lock().unwrap();
-            let total = store.len();
-            let done = store.iter().filter(|s| s["status"] == "done").count();
-            let total_sp: i64 = store.iter().filter_map(|s| s["story_points"].as_i64()).sum();
-            let done_sp: i64 = store.iter().filter(|s| s["status"] == "done")
-                .filter_map(|s| s["story_points"].as_i64()).sum();
-            let velocity_pct = if total_sp > 0 { (done_sp as f64 / total_sp as f64 * 100.0).round() } else { 0.0 };
-            Ok(json!({
-                "total": total, "done": done, "in_progress": total - done,
-                "total_story_points": total_sp,
-                "completed_story_points": done_sp,
-                "velocity_pct": velocity_pct,
-            }))
-        })
-        .native("sprint_create", |input| {
-            let body = &input["body"];
-            let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let sprint = json!({
-                "id": id,
-                "title": body["title"].as_str().unwrap_or("Untitled"),
-                "status": body["status"].as_str().unwrap_or("planned"),
-                "assignee": body["assignee"].as_str().unwrap_or("unassigned"),
-                "story_points": body["story_points"].as_i64().unwrap_or(0),
-            });
-            sprints().lock().unwrap().push(sprint.clone());
-            Ok(sprint)
-        })
-        .native("sprint_update", |input| {
-            let body = &input["body"];
-            let id = body["id"].as_i64().unwrap_or(0);
-            let mut store = sprints().lock().unwrap();
-            if let Some(sprint) = store.iter_mut().find(|s| s["id"] == id) {
-                if let Some(st) = body["status"].as_str() { sprint["status"] = json!(st); }
-                if let Some(a) = body["assignee"].as_str() { sprint["assignee"] = json!(a); }
-                Ok(sprint.clone())
-            } else {
-                Err(format!("404:Sprint {} not found", id))
+    vil_vwfd::app(
+        "examples/017-basic-production-fullstack/vwfd/workflows",
+        8080,
+    )
+    .native("platform_config", |_| {
+        Ok(json!({
+            "server_name": "vil-sprint-tracker",
+            "version": "1.0.0",
+            "observer_enabled": true,
+            "max_sprints": 1000,
+        }))
+    })
+    .native("sprint_list", |_| {
+        let store = sprints().lock().unwrap();
+        Ok(json!(store.clone()))
+    })
+    .native("sprint_stats", |_| {
+        let store = sprints().lock().unwrap();
+        let total = store.len();
+        let done = store.iter().filter(|s| s["status"] == "done").count();
+        let total_sp: i64 = store
+            .iter()
+            .filter_map(|s| s["story_points"].as_i64())
+            .sum();
+        let done_sp: i64 = store
+            .iter()
+            .filter(|s| s["status"] == "done")
+            .filter_map(|s| s["story_points"].as_i64())
+            .sum();
+        let velocity_pct = if total_sp > 0 {
+            (done_sp as f64 / total_sp as f64 * 100.0).round()
+        } else {
+            0.0
+        };
+        Ok(json!({
+            "total": total, "done": done, "in_progress": total - done,
+            "total_story_points": total_sp,
+            "completed_story_points": done_sp,
+            "velocity_pct": velocity_pct,
+        }))
+    })
+    .native("sprint_create", |input| {
+        let body = &input["body"];
+        let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let sprint = json!({
+            "id": id,
+            "title": body["title"].as_str().unwrap_or("Untitled"),
+            "status": body["status"].as_str().unwrap_or("planned"),
+            "assignee": body["assignee"].as_str().unwrap_or("unassigned"),
+            "story_points": body["story_points"].as_i64().unwrap_or(0),
+        });
+        sprints().lock().unwrap().push(sprint.clone());
+        Ok(sprint)
+    })
+    .native("sprint_update", |input| {
+        let body = &input["body"];
+        let id = body["id"].as_i64().unwrap_or(0);
+        let mut store = sprints().lock().unwrap();
+        if let Some(sprint) = store.iter_mut().find(|s| s["id"] == id) {
+            if let Some(st) = body["status"].as_str() {
+                sprint["status"] = json!(st);
             }
-        })
-        .run().await;
+            if let Some(a) = body["assignee"].as_str() {
+                sprint["assignee"] = json!(a);
+            }
+            Ok(sprint.clone())
+        } else {
+            Err(format!("404:Sprint {} not found", id))
+        }
+    })
+    .run()
+    .await;
 }

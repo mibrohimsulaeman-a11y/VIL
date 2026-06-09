@@ -134,7 +134,7 @@ impl LatencyTracker {
             0
         };
         let max_ns = self.max_ns.load(Ordering::Relaxed);
-        let mean_ns = if count > 0 { sum_ns / count } else { 0 };
+        let mean_ns = sum_ns.checked_div(count).unwrap_or(0);
 
         let mut bucket_counts = [0u64; NUM_BUCKETS];
         for (i, b) in self.buckets.iter().enumerate() {

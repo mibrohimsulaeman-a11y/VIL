@@ -312,7 +312,7 @@ impl ShmSpscQueue {
     pub fn create_eventfd() -> std::io::Result<RawFd> {
         eventfd(0, EfdFlags::EFD_CLOEXEC | EfdFlags::EFD_NONBLOCK)
             .map(|fd| fd.into_raw_fd())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 
     /// Create an ShmSpscQueue from raw pointers already allocated in SHM.

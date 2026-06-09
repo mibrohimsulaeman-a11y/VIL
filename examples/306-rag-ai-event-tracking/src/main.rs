@@ -20,8 +20,8 @@
 //     -d '{"question":"How do I return a product?"}'
 //   curl http://localhost:8080/api/support/quality
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use vil_llm::{ChatMessage, LlmProvider, OpenAiConfig, OpenAiProvider};
@@ -55,12 +55,16 @@ fn search_support_kb(query: &str) -> Vec<(f64, &'static SupportArticle)> {
     let query_lower = query.to_lowercase();
     let words: Vec<&str> = query_lower.split_whitespace().collect();
 
-    let mut scored: Vec<(f64, &SupportArticle)> = SUPPORT_KB.iter()
+    let mut scored: Vec<(f64, &SupportArticle)> = SUPPORT_KB
+        .iter()
         .map(|article| {
-            let kw_hits = article.keywords.iter()
+            let kw_hits = article
+                .keywords
+                .iter()
                 .filter(|kw| words.iter().any(|w| w.contains(*kw) || kw.contains(w)))
                 .count();
-            let title_hits = words.iter()
+            let title_hits = words
+                .iter()
                 .filter(|w| article.title.to_lowercase().contains(*w))
                 .count();
             let score = kw_hits as f64 * 3.0 + title_hits as f64 * 2.0;
@@ -121,14 +125,13 @@ struct SupportState {
 
 // ── Handlers ─────────────────────────────────────────────────────────────
 
-async fn ask(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<SupportResponse>> {
-    let req: SupportRequest = body.json()
+async fn ask(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<SupportResponse>> {
+    let req: SupportRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
-    let state = ctx.state::<Arc<SupportState>>()
+    let state = ctx
+        .state::<Arc<SupportState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let total_start = Instant::now();
@@ -139,11 +142,17 @@ async fn ask(
     let retrieval_ms = ret_start.elapsed().as_secs_f64() * 1000.0;
 
     let top_score = results.first().map(|(s, _)| *s).unwrap_or(0.0);
-    let sources: Vec<SourceRef> = results.iter()
-        .map(|(score, a)| SourceRef { id: a.id.into(), title: a.title.into(), relevance: *score })
+    let sources: Vec<SourceRef> = results
+        .iter()
+        .map(|(score, a)| SourceRef {
+            id: a.id.into(),
+            title: a.title.into(),
+            relevance: *score,
+        })
         .collect();
 
-    let context = results.iter()
+    let context = results
+        .iter()
         .map(|(_, a)| format!("[{}] {}: {}", a.id, a.title, a.content))
         .collect::<Vec<_>>()
         .join("\n\n");
@@ -157,7 +166,10 @@ async fn ask(
         ChatMessage::user(&req.question),
     ];
 
-    let response = state.llm.chat(&messages).await
+    let response = state
+        .llm
+        .chat(&messages)
+        .await
         .map_err(|e| VilError::internal(format!("LLM failed: {}", e)))?;
     let generation_ms = gen_start.elapsed().as_secs_f64() * 1000.0;
 
@@ -165,8 +177,12 @@ async fn ask(
 
     // ── Track quality metrics (REAL events, not dead code) ──
     let _query_num = state.total.fetch_add(1, Ordering::Relaxed) + 1;
-    state.retrieval_ms_sum.fetch_add((retrieval_ms * 1000.0) as u64, Ordering::Relaxed);
-    state.generation_ms_sum.fetch_add((generation_ms * 1000.0) as u64, Ordering::Relaxed);
+    state
+        .retrieval_ms_sum
+        .fetch_add((retrieval_ms * 1000.0) as u64, Ordering::Relaxed);
+    state
+        .generation_ms_sum
+        .fetch_add((generation_ms * 1000.0) as u64, Ordering::Relaxed);
     if top_score < 3.0 {
         state.low_confidence.fetch_add(1, Ordering::Relaxed);
     }
@@ -189,7 +205,8 @@ async fn ask(
 
 /// GET /quality — Real-time quality dashboard.
 async fn quality(ctx: ServiceCtx) -> HandlerResult<VilResponse<QualityDashboard>> {
-    let state = ctx.state::<Arc<SupportState>>()
+    let state = ctx
+        .state::<Arc<SupportState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let total = state.total.load(Ordering::Relaxed);
@@ -198,8 +215,16 @@ async fn quality(ctx: ServiceCtx) -> HandlerResult<VilResponse<QualityDashboard>
 
     Ok(VilResponse::ok(QualityDashboard {
         total_queries: total,
-        avg_retrieval_ms: if total > 0 { ret_sum / total as f64 } else { 0.0 },
-        avg_generation_ms: if total > 0 { gen_sum / total as f64 } else { 0.0 },
+        avg_retrieval_ms: if total > 0 {
+            ret_sum / total as f64
+        } else {
+            0.0
+        },
+        avg_generation_ms: if total > 0 {
+            gen_sum / total as f64
+        } else {
+            0.0
+        },
         low_confidence_count: state.low_confidence.load(Ordering::Relaxed),
     }))
 }
@@ -208,8 +233,7 @@ async fn quality(ctx: ServiceCtx) -> HandlerResult<VilResponse<QualityDashboard>
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     let llm = Arc::new(OpenAiProvider::new(

@@ -32,8 +32,8 @@
 //   curl http://localhost:8080/api/events/stats
 
 use std::collections::VecDeque;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use tokio::sync::RwLock;
 use vil_server::prelude::*;
@@ -131,9 +131,15 @@ impl EventBus {
 
     async fn publish(&self, event: TransactionEvent) -> usize {
         match event.event_type.as_str() {
-            "payment" => { self.payment_count.fetch_add(1, Ordering::Relaxed); }
-            "refund" => { self.refund_count.fetch_add(1, Ordering::Relaxed); }
-            "transfer" => { self.transfer_count.fetch_add(1, Ordering::Relaxed); }
+            "payment" => {
+                self.payment_count.fetch_add(1, Ordering::Relaxed);
+            }
+            "refund" => {
+                self.refund_count.fetch_add(1, Ordering::Relaxed);
+            }
+            "transfer" => {
+                self.transfer_count.fetch_add(1, Ordering::Relaxed);
+            }
             _ => {}
         }
         self.total_published.fetch_add(1, Ordering::Relaxed);
@@ -177,11 +183,12 @@ async fn publish_event(
     // Validate event type
     if !["payment", "refund", "transfer"].contains(&req.event_type.as_str()) {
         return Err(VilError::bad_request(
-            "event_type must be one of: payment, refund, transfer"
+            "event_type must be one of: payment, refund, transfer",
         ));
     }
 
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let seq = state.event_counter.fetch_add(1, Ordering::Relaxed);
@@ -211,10 +218,9 @@ async fn publish_event(
 }
 
 /// GET /api/events/consume — consume next event from queue (like Pulsar shared subscription).
-async fn consume_event(
-    ctx: ServiceCtx,
-) -> HandlerResult<VilResponse<ConsumeResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+async fn consume_event(ctx: ServiceCtx) -> HandlerResult<VilResponse<ConsumeResponse>> {
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let (event, remaining) = state.bus.consume().await;
@@ -230,10 +236,9 @@ async fn consume_event(
 }
 
 /// GET /api/events/stats — event bus statistics.
-async fn event_stats(
-    ctx: ServiceCtx,
-) -> HandlerResult<VilResponse<StatsResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+async fn event_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<StatsResponse>> {
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let depth = state.bus.queue_depth().await;

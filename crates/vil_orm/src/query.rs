@@ -238,7 +238,8 @@ impl VilQuery {
 
     /// SET column = ? with a typed bind value.
     pub fn set<V: VilBind + 'static>(mut self, col: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.set_clauses.push(format!("{} = {}", col, ph));
+        let ph = self.next_placeholder();
+        self.set_clauses.push(format!("{} = {}", col, ph));
         self.binds.push(Box::new(val));
         self
     }
@@ -246,7 +247,8 @@ impl VilQuery {
     /// SET column = ? only if Some, SKIP if None. No COALESCE needed.
     pub fn set_optional(mut self, col: &str, val: Option<&str>) -> Self {
         if let Some(v) = val {
-            let ph = self.next_placeholder(); self.set_clauses.push(format!("{} = {}", col, ph));
+            let ph = self.next_placeholder();
+            self.set_clauses.push(format!("{} = {}", col, ph));
             self.binds.push(Box::new(v.to_string()));
         }
         self
@@ -255,7 +257,8 @@ impl VilQuery {
     /// SET column = ? with Option<i64>.
     pub fn set_optional_i64(mut self, col: &str, val: Option<i64>) -> Self {
         if let Some(v) = val {
-            let ph = self.next_placeholder(); self.set_clauses.push(format!("{} = {}", col, ph));
+            let ph = self.next_placeholder();
+            self.set_clauses.push(format!("{} = {}", col, ph));
             self.binds.push(Box::new(v));
         }
         self
@@ -264,7 +267,8 @@ impl VilQuery {
     /// SET column = ? with Option<f64>.
     pub fn set_optional_f64(mut self, col: &str, val: Option<f64>) -> Self {
         if let Some(v) = val {
-            let ph = self.next_placeholder(); self.set_clauses.push(format!("{} = {}", col, ph));
+            let ph = self.next_placeholder();
+            self.set_clauses.push(format!("{} = {}", col, ph));
             self.binds.push(Box::new(v));
         }
         self
@@ -278,7 +282,9 @@ impl VilQuery {
 
     /// SET with raw expression + bind. Example: `set_expr("xp", "xp + ?", 25_i64)`
     pub fn set_expr<V: VilBind + 'static>(mut self, col: &str, expr: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); let fixed_expr = expr.replace("?", &ph); self.set_clauses.push(format!("{} = {}", col, fixed_expr));
+        let ph = self.next_placeholder();
+        let fixed_expr = expr.replace("?", &ph);
+        self.set_clauses.push(format!("{} = {}", col, fixed_expr));
         self.binds.push(Box::new(val));
         self
     }
@@ -287,42 +293,48 @@ impl VilQuery {
 
     /// WHERE column = ? (string bind).
     pub fn where_eq(mut self, col: &str, val: &str) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} = {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} = {}", col, ph));
         self.binds.push(Box::new(val.to_string()));
         self
     }
 
     /// WHERE column = ? (typed bind).
     pub fn where_eq_val<V: VilBind + 'static>(mut self, col: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} = {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} = {}", col, ph));
         self.binds.push(Box::new(val));
         self
     }
 
     /// WHERE column != ?
     pub fn where_ne(mut self, col: &str, val: &str) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} != {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} != {}", col, ph));
         self.binds.push(Box::new(val.to_string()));
         self
     }
 
     /// WHERE column > ? (typed).
     pub fn where_gt<V: VilBind + 'static>(mut self, col: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} > {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} > {}", col, ph));
         self.binds.push(Box::new(val));
         self
     }
 
     /// WHERE column < ? (typed).
     pub fn where_lt<V: VilBind + 'static>(mut self, col: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} < {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} < {}", col, ph));
         self.binds.push(Box::new(val));
         self
     }
 
     /// WHERE column >= ? (typed).
     pub fn where_gte<V: VilBind + 'static>(mut self, col: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(format!("{} >= {}", col, ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(format!("{} >= {}", col, ph));
         self.binds.push(Box::new(val));
         self
     }
@@ -348,7 +360,8 @@ impl VilQuery {
 
     /// WHERE raw SQL with a typed bind.
     pub fn where_raw_bind<V: VilBind + 'static>(mut self, sql: &str, val: V) -> Self {
-        let ph = self.next_placeholder(); self.conditions.push(sql.replace("?", &ph));
+        let ph = self.next_placeholder();
+        self.conditions.push(sql.replace("?", &ph));
         self.binds.push(Box::new(val));
         self
     }
@@ -368,7 +381,8 @@ impl VilQuery {
 
     /// LEFT JOIN table ON condition.
     pub fn left_join(mut self, table_alias: &str, on: &str) -> Self {
-        self.joins.push(format!("LEFT JOIN {} ON {}", table_alias, on));
+        self.joins
+            .push(format!("LEFT JOIN {} ON {}", table_alias, on));
         self
     }
 
@@ -564,20 +578,23 @@ impl VilQuery {
     fn emit_db_log(&self, sql: &str, duration_ns: u64, rows: u32, error_code: u8) {
         let table_hash = vil_log::dict::register_str(&self.table);
         let query_hash = vil_log::dict::register_str(sql);
-        vil_log::db_log!(Info, vil_log::DbPayload {
-            db_hash: 0,
-            table_hash,
-            query_hash,
-            rows_affected: rows,
-            duration_ns,
-            op_type: self.op_type_code(),
-            prepared: 1,
-            tx_state: 0,
-            error_code,
-            pool_id: 0,
-            shard_id: 0,
-            meta_bytes: [0; 160],
-        });
+        vil_log::db_log!(
+            Info,
+            vil_log::DbPayload {
+                db_hash: 0,
+                table_hash,
+                query_hash,
+                rows_affected: rows,
+                duration_ns,
+                op_type: self.op_type_code(),
+                prepared: 1,
+                tx_state: 0,
+                error_code,
+                pool_id: 0,
+                shard_id: 0,
+                meta_bytes: [0; 160],
+            }
+        );
     }
 
     // ── Terminal operations (execute against pool) ──
@@ -613,7 +630,12 @@ impl VilQuery {
             .fetch_one(pool)
             .await;
         let dur = start.elapsed().as_nanos() as u64;
-        self.emit_db_log(&sql, dur, if result.is_ok() { 1 } else { 0 }, result.is_err() as u8);
+        self.emit_db_log(
+            &sql,
+            dur,
+            if result.is_ok() { 1 } else { 0 },
+            result.is_err() as u8,
+        );
         result
     }
 
@@ -638,7 +660,9 @@ impl VilQuery {
     }
 
     /// Fetch a single scalar value.
-    pub async fn scalar<T: sqlx::Type<sqlx::Any> + for<'r> sqlx::Decode<'r, sqlx::Any> + Send + Unpin>(
+    pub async fn scalar<
+        T: sqlx::Type<sqlx::Any> + for<'r> sqlx::Decode<'r, sqlx::Any> + Send + Unpin,
+    >(
         self,
         pool: &sqlx::Pool<sqlx::Any>,
     ) -> Result<T, sqlx::Error> {
@@ -654,7 +678,9 @@ impl VilQuery {
     }
 
     /// Fetch an optional scalar value.
-    pub async fn scalar_optional<T: sqlx::Type<sqlx::Any> + for<'r> sqlx::Decode<'r, sqlx::Any> + Send + Unpin>(
+    pub async fn scalar_optional<
+        T: sqlx::Type<sqlx::Any> + for<'r> sqlx::Decode<'r, sqlx::Any> + Send + Unpin,
+    >(
         self,
         pool: &sqlx::Pool<sqlx::Any>,
     ) -> Result<Option<T>, sqlx::Error> {
@@ -675,10 +701,7 @@ impl VilQuery {
 
     /// Execute (INSERT/UPDATE/DELETE). Returns rows affected.
     /// UPDATE with no SET clauses returns 0 (no-op) instead of invalid SQL.
-    pub async fn execute(
-        self,
-        pool: &sqlx::Pool<sqlx::Any>,
-    ) -> Result<u64, sqlx::Error> {
+    pub async fn execute(self, pool: &sqlx::Pool<sqlx::Any>) -> Result<u64, sqlx::Error> {
         // Guard: UPDATE with empty SET → no-op
         if self.mode == Mode::Update && self.set_clauses.is_empty() {
             return Ok(0);
@@ -686,9 +709,7 @@ impl VilQuery {
         let sql = self.to_sql();
         let args = self.build_args();
         let start = Instant::now();
-        let result = sqlx::query_with(&sql, args)
-            .execute(pool)
-            .await;
+        let result = sqlx::query_with(&sql, args).execute(pool).await;
         let dur = start.elapsed().as_nanos() as u64;
         match &result {
             Ok(r) => self.emit_db_log(&sql, dur, r.rows_affected() as u32, 0),

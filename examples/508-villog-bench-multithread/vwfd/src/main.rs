@@ -23,5 +23,6 @@ fn villog_bench_multithread(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/508-villog-bench-multithread/vwfd/workflows", 3239)
         .native("villog_bench_multithread", villog_bench_multithread)
-        .run().await;
+        .run()
+        .await;
 }

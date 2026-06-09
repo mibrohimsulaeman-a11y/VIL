@@ -19,22 +19,17 @@ use std::time::Instant;
 use crate::state::AppState;
 
 /// Logging verbosity level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LogLevel {
     /// method + path + status + duration_ms
     Minimal,
     /// + request_id + content_length + user_agent
+    #[default]
     Standard,
     /// + selected headers + body preview (first 256 bytes)
     Verbose,
     /// + all headers + full body (development only)
     Debug,
-}
-
-impl Default for LogLevel {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Request logging middleware with configurable verbosity.

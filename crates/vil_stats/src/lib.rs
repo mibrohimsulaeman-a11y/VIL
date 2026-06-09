@@ -64,8 +64,7 @@ pub fn variance(args: &[Value]) -> Result<Value, String> {
         return Ok(json!(0.0));
     }
     let mean_val: f64 = v.iter().sum::<f64>() / v.len() as f64;
-    let var: f64 =
-        v.iter().map(|x| (x - mean_val).powi(2)).sum::<f64>() / (v.len() - 1) as f64;
+    let var: f64 = v.iter().map(|x| (x - mean_val).powi(2)).sum::<f64>() / (v.len() - 1) as f64;
     Ok(json!(var))
 }
 

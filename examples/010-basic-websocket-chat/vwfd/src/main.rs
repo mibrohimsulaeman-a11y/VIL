@@ -9,7 +9,10 @@ static TOTAL_MESSAGES: AtomicU64 = AtomicU64::new(0);
 #[tokio::main]
 async fn main() {
     vil_vwfd::app("examples/010-basic-websocket-chat/vwfd/workflows", 8080)
-        .sidecar("process_chat_message", "node examples/010-basic-websocket-chat/vwfd/sidecar/nodejs/chat_processor.js")
+        .sidecar(
+            "process_chat_message",
+            "node examples/010-basic-websocket-chat/vwfd/sidecar/nodejs/chat_processor.js",
+        )
         .native("chat_stats", |_input| {
             let total = TOTAL_MESSAGES.load(Ordering::Relaxed);
             Ok(serde_json::json!({

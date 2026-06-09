@@ -402,8 +402,7 @@ async fn bridge_status(ctx: ServiceCtx) -> VilResponse<BridgeStatusResponse> {
 #[tokio::main]
 async fn main() {
     // Producer config (reads KAFKA_BROKERS env var, default localhost:9092)
-    let brokers = std::env::var("KAFKA_BROKERS")
-        .unwrap_or_else(|_| "localhost:9092".to_string());
+    let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
     let producer_config = KafkaConfig::new(&brokers);
     let producer = KafkaProducer::new(producer_config.clone())
         .await

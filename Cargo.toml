@@ -479,6 +479,7 @@ members = [
     # --- VWFD Runtime (VIL workflow definition) ---
     "crates/vil_expr",
     "crates/vil_rules",
+    "crates/vil_starlark",
     "crates/vil_vwfd",
     "crates/vil_vwfd_macros",
 
@@ -707,6 +708,7 @@ default-members = [
     # --- VWFD Runtime ---
     "crates/vil_expr",
     "crates/vil_rules",
+    "crates/vil_starlark",
     "crates/vil_vwfd",
     "crates/vil_vwfd_macros",
 

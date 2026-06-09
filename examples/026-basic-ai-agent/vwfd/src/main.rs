@@ -33,12 +33,14 @@ const KB_ARTICLES: &[(&str, &str, &str)] = &[
 
 fn tool_system_status(service: &str) -> String {
     if service == "all" || service.is_empty() {
-        SERVICES.iter()
+        SERVICES
+            .iter()
             .map(|(n, s, u)| format!("{}: {} (uptime {})", n, s, u))
             .collect::<Vec<_>>()
             .join("\n")
     } else {
-        SERVICES.iter()
+        SERVICES
+            .iter()
             .find(|(n, _, _)| *n == service)
             .map(|(n, s, u)| format!("{}: {} (uptime {})", n, s, u))
             .unwrap_or_else(|| format!("{}: unknown service", service))
@@ -49,7 +51,8 @@ fn tool_knowledge_base(query: &str) -> String {
     let q = query.to_lowercase();
     let words: Vec<&str> = q.split_whitespace().collect();
 
-    let mut scored: Vec<(usize, &str, &str, &str)> = KB_ARTICLES.iter()
+    let mut scored: Vec<(usize, &str, &str, &str)> = KB_ARTICLES
+        .iter()
         .map(|(id, title, content)| {
             let text = format!("{} {}", title.to_lowercase(), content.to_lowercase());
             let score = words.iter().filter(|w| text.contains(*w)).count();
@@ -65,7 +68,9 @@ fn tool_knowledge_base(query: &str) -> String {
         "No matching KB articles found.".into()
     } else {
         top3.iter()
-            .map(|(score, id, title, content)| format!("[{}] {} (score={})\n{}", id, title, score, content))
+            .map(|(score, id, title, content)| {
+                format!("[{}] {} (score={})\n{}", id, title, score, content)
+            })
             .collect::<Vec<_>>()
             .join("\n\n")
     }
@@ -73,7 +78,8 @@ fn tool_knowledge_base(query: &str) -> String {
 
 fn react_agent(input: &Value) -> Result<Value, String> {
     let body = input.get("body").cloned().unwrap_or(json!({}));
-    let query = body["query"].as_str()
+    let query = body["query"]
+        .as_str()
         .or_else(|| body["prompt"].as_str())
         .unwrap_or("");
 
@@ -94,7 +100,11 @@ fn react_agent(input: &Value) -> Result<Value, String> {
     let answer = format!(
         "Based on analysis of '{}': {}\n\nRelevant documentation:\n{}",
         query,
-        if status.contains("degraded") { "Some services are degraded." } else { "All systems operational." },
+        if status.contains("degraded") {
+            "Some services are degraded."
+        } else {
+            "All systems operational."
+        },
         kb_result
     );
 
@@ -109,5 +119,6 @@ fn react_agent(input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/026-basic-ai-agent/vwfd/workflows", 8080)
         .native("react_agent_loop", react_agent)
-        .run().await;
+        .run()
+        .await;
 }

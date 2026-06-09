@@ -102,11 +102,9 @@ struct AppState {
 
 // ── Handler: RAG query — retrieve context + generate answer ─────────
 
-async fn rag_handler(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<RagResponse>> {
-    let req: RagRequest = body.json()
+async fn rag_handler(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<RagResponse>> {
+    let req: RagRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     if req.prompt.trim().is_empty() {
@@ -166,7 +164,8 @@ async fn rag_handler(
     };
 
     // ── Update query tracking state ──
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     {
         *state.total_queries.lock().unwrap() += 1;
@@ -194,7 +193,8 @@ async fn rag_handler(
 // Exposes RagIndexState and query metrics for monitoring dashboards.
 
 async fn usage_handler(ctx: ServiceCtx) -> HandlerResult<VilResponse<UsageResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     let total_queries = *state.total_queries.lock().unwrap();

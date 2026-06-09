@@ -53,7 +53,7 @@ impl PluginManager {
     /// Load all installed plugins from disk.
     fn load_installed_plugins(&self) {
         let registry = self.registry.read().unwrap();
-        for (name, _entry) in &registry.plugins {
+        for name in registry.plugins.keys() {
             let plugin_dir = self.plugins_dir.join(name);
 
             // Load manifest
@@ -253,10 +253,8 @@ impl PluginManager {
         let mut masked = config.clone();
         if let Some(obj) = masked.as_object_mut() {
             for (key, field) in &manifest.config_schema {
-                if field.secret {
-                    if obj.contains_key(key) {
-                        obj.insert(key.clone(), serde_json::json!("********"));
-                    }
+                if field.secret && obj.contains_key(key) {
+                    obj.insert(key.clone(), serde_json::json!("********"));
                 }
             }
         }
@@ -379,7 +377,7 @@ impl PluginManager {
 
     fn persist_state(&self, name: &str, state: &PluginRuntimeState) -> Result<(), String> {
         let plugin_dir = self.plugins_dir.join(name);
-        let state_json = serde_json::to_string_pretty(&*state)
+        let state_json = serde_json::to_string_pretty(state)
             .map_err(|e| format!("Failed to serialize state: {}", e))?;
         std::fs::write(plugin_dir.join("state.json"), &state_json)
             .map_err(|e| format!("Failed to write state: {}", e))?;

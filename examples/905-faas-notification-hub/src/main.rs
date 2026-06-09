@@ -15,8 +15,16 @@ fn main() {
     println!("Email body:\n{}", body);
 
     // 3. Mask PII before logging
-    let masked_email = vil_mask::mask_pii(&[Value::String("alice@example.com".into()), Value::String("email".into())]).unwrap();
-    let masked_phone = vil_mask::mask_pii(&[Value::String("081234567890".into()), Value::String("phone".into())]).unwrap();
+    let masked_email = vil_mask::mask_pii(&[
+        Value::String("alice@example.com".into()),
+        Value::String("email".into()),
+    ])
+    .unwrap();
+    let masked_phone = vil_mask::mask_pii(&[
+        Value::String("081234567890".into()),
+        Value::String("phone".into()),
+    ])
+    .unwrap();
     println!("Masked: email={}, phone={}", masked_email, masked_phone);
 
     // 4. Send email (requires VIL_SMTP_HOST env)

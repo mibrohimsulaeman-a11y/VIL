@@ -1,7 +1,7 @@
 //! Parser — parse vil_vwfd! macro syntax into intermediate representation.
 
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, LitStr, Token, Result};
+use syn::{Ident, LitStr, Result, Token};
 
 /// Top-level macro definition.
 pub struct VwfdMacroDef {
@@ -9,8 +9,8 @@ pub struct VwfdMacroDef {
     pub name: Option<String>,
     pub trigger: TriggerDef,
     pub activities: Vec<ActivityDef>,
-    pub flow: Vec<String>,             // ordered node IDs: trigger -> a -> b -> end
-    pub durability: Option<String>,    // "eventual", "immediate", "non_durable"
+    pub flow: Vec<String>, // ordered node IDs: trigger -> a -> b -> end
+    pub durability: Option<String>, // "eventual", "immediate", "non_durable"
 }
 
 pub struct TriggerDef {
@@ -123,11 +123,15 @@ impl Parse for VwfdMacroDef {
                 input.parse::<Token![:]>()?;
                 flow = parse_flow(input)?;
             } else {
-                return Err(input.error("expected: id, name, trigger, activities, flow, or durability"));
+                return Err(
+                    input.error("expected: id, name, trigger, activities, flow, or durability")
+                );
             }
 
             // Optional trailing comma
-            if input.peek(Token![,]) { input.parse::<Token![,]>()?; }
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
         }
 
         Ok(VwfdMacroDef {
@@ -160,18 +164,32 @@ fn parse_trigger(input: ParseStream) -> Result<TriggerDef> {
                 let key = content.parse::<Ident>()?;
                 content.parse::<Token![:]>()?;
                 match key.to_string().as_str() {
-                    "method" => { method = Some(content.parse::<Ident>()?.to_string()); }
-                    "response_mode" => { response_mode = Some(content.parse::<Ident>()?.to_string()); }
-                    "end_activity" => { end_activity = Some(content.parse::<LitStr>()?.value()); }
-                    _ => { let _: Ident = content.parse()?; }
+                    "method" => {
+                        method = Some(content.parse::<Ident>()?.to_string());
+                    }
+                    "response_mode" => {
+                        response_mode = Some(content.parse::<Ident>()?.to_string());
+                    }
+                    "end_activity" => {
+                        end_activity = Some(content.parse::<LitStr>()?.value());
+                    }
+                    _ => {
+                        let _: Ident = content.parse()?;
+                    }
                 }
-                if content.peek(Token![,]) { content.parse::<Token![,]>()?; }
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
             }
         }
 
         Ok(TriggerDef {
-            trigger_type: "webhook".into(), route, method,
-            response_mode, end_activity, cron_expr: None,
+            trigger_type: "webhook".into(),
+            route,
+            method,
+            response_mode,
+            end_activity,
+            cron_expr: None,
         })
     } else if lookahead.peek(kw::cron) {
         input.parse::<kw::cron>()?;
@@ -179,8 +197,11 @@ fn parse_trigger(input: ParseStream) -> Result<TriggerDef> {
         syn::parenthesized!(content in input);
         let expr = content.parse::<LitStr>()?.value();
         Ok(TriggerDef {
-            trigger_type: "cron".into(), route: String::new(),
-            method: None, response_mode: None, end_activity: None,
+            trigger_type: "cron".into(),
+            route: String::new(),
+            method: None,
+            response_mode: None,
+            end_activity: None,
             cron_expr: Some(expr),
         })
     } else {
@@ -195,7 +216,9 @@ fn parse_activities(input: ParseStream) -> Result<Vec<ActivityDef>> {
         input.parse::<Token![=>]>()?;
         let activity = parse_activity(id, input)?;
         activities.push(activity);
-        if input.peek(Token![,]) { input.parse::<Token![,]>()?; }
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+        }
     }
     Ok(activities)
 }
@@ -222,9 +245,15 @@ fn parse_activity(id: String, input: ParseStream) -> Result<ActivityDef> {
                 let key = content.parse::<Ident>()?;
                 content.parse::<Token![:]>()?;
                 match key.to_string().as_str() {
-                    "operation" => { operation = Some(content.parse::<Ident>()?.to_string()); }
-                    "output" => { output = Some(content.parse::<LitStr>()?.value()); }
-                    "durability" => { durability = Some(content.parse::<Ident>()?.to_string()); }
+                    "operation" => {
+                        operation = Some(content.parse::<Ident>()?.to_string());
+                    }
+                    "output" => {
+                        output = Some(content.parse::<LitStr>()?.value());
+                    }
+                    "durability" => {
+                        durability = Some(content.parse::<Ident>()?.to_string());
+                    }
                     "input" => {
                         let map_content;
                         syn::braced!(map_content in content);
@@ -233,17 +262,27 @@ fn parse_activity(id: String, input: ParseStream) -> Result<ActivityDef> {
                     "compensation" => {
                         compensation = Some(parse_compensation(&content)?);
                     }
-                    _ => { let _: LitStr = content.parse()?; }
+                    _ => {
+                        let _: LitStr = content.parse()?;
+                    }
                 }
-                if content.peek(Token![,]) { content.parse::<Token![,]>()?; }
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
             }
         }
 
         Ok(ActivityDef {
-            id, kind: ActivityKind::Connector,
-            connector_ref: Some(connector_ref), operation, mappings,
-            output, durability, compensation,
-            response_expr: None, trigger_ref: None,
+            id,
+            kind: ActivityKind::Connector,
+            connector_ref: Some(connector_ref),
+            operation,
+            mappings,
+            output,
+            durability,
+            compensation,
+            response_expr: None,
+            trigger_ref: None,
         })
     } else if lookahead.peek(kw::end_trigger) {
         input.parse::<kw::end_trigger>()?;
@@ -263,17 +302,27 @@ fn parse_activity(id: String, input: ParseStream) -> Result<ActivityDef> {
                         let (lang, src) = parse_expr_value(&content)?;
                         response_expr = Some((lang, src));
                     }
-                    _ => { let _: LitStr = content.parse()?; }
+                    _ => {
+                        let _: LitStr = content.parse()?;
+                    }
                 }
-                if content.peek(Token![,]) { content.parse::<Token![,]>()?; }
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
             }
         }
 
         Ok(ActivityDef {
-            id, kind: ActivityKind::EndTrigger,
-            connector_ref: None, operation: None, mappings: Vec::new(),
-            output: None, durability: None, compensation: None,
-            response_expr, trigger_ref: Some(trigger_ref),
+            id,
+            kind: ActivityKind::EndTrigger,
+            connector_ref: None,
+            operation: None,
+            mappings: Vec::new(),
+            output: None,
+            durability: None,
+            compensation: None,
+            response_expr,
+            trigger_ref: Some(trigger_ref),
         })
     } else if lookahead.peek(kw::transform) {
         input.parse::<kw::transform>()?;
@@ -291,17 +340,29 @@ fn parse_activity(id: String, input: ParseStream) -> Result<ActivityDef> {
                         syn::braced!(mc in content);
                         mappings = parse_mappings(&mc)?;
                     }
-                    "output" => { output = Some(content.parse::<LitStr>()?.value()); }
-                    _ => { let _: LitStr = content.parse()?; }
+                    "output" => {
+                        output = Some(content.parse::<LitStr>()?.value());
+                    }
+                    _ => {
+                        let _: LitStr = content.parse()?;
+                    }
                 }
-                if content.peek(Token![,]) { content.parse::<Token![,]>()?; }
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
             }
         }
         Ok(ActivityDef {
-            id, kind: ActivityKind::Transform,
-            connector_ref: None, operation: None, mappings,
-            output, durability: None, compensation: None,
-            response_expr: None, trigger_ref: None,
+            id,
+            kind: ActivityKind::Transform,
+            connector_ref: None,
+            operation: None,
+            mappings,
+            output,
+            durability: None,
+            compensation: None,
+            response_expr: None,
+            trigger_ref: None,
         })
     } else {
         Err(input.error("expected connector(...), end_trigger(...), or transform"))
@@ -314,8 +375,14 @@ fn parse_mappings(input: ParseStream) -> Result<Vec<MappingDef>> {
         let target = input.parse::<Ident>()?.to_string();
         input.parse::<Token![:]>()?;
         let (language, source) = parse_expr_value(input)?;
-        mappings.push(MappingDef { target, language, source });
-        if input.peek(Token![,]) { input.parse::<Token![,]>()?; }
+        mappings.push(MappingDef {
+            target,
+            language,
+            source,
+        });
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+        }
     }
     Ok(mappings)
 }
@@ -372,19 +439,29 @@ fn parse_compensation(input: ParseStream) -> Result<CompensationDef> {
             let key = content.parse::<Ident>()?;
             content.parse::<Token![:]>()?;
             match key.to_string().as_str() {
-                "operation" => { operation = content.parse::<Ident>()?.to_string(); }
+                "operation" => {
+                    operation = content.parse::<Ident>()?.to_string();
+                }
                 "input" => {
                     let mc;
                     syn::braced!(mc in content);
                     mappings = parse_mappings(&mc)?;
                 }
-                _ => { let _: LitStr = content.parse()?; }
+                _ => {
+                    let _: LitStr = content.parse()?;
+                }
             }
-            if content.peek(Token![,]) { content.parse::<Token![,]>()?; }
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
         }
     }
 
-    Ok(CompensationDef { connector_ref, operation, mappings })
+    Ok(CompensationDef {
+        connector_ref,
+        operation,
+        mappings,
+    })
 }
 
 fn parse_flow(input: ParseStream) -> Result<Vec<String>> {

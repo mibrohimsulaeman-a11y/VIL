@@ -1,6 +1,6 @@
-use serde_json::{json, Value};
-use lettre::{Message, SmtpTransport, Transport};
 use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+use serde_json::{json, Value};
 
 pub fn send_email(args: &[Value]) -> Result<Value, String> {
     let to = args
@@ -16,16 +16,14 @@ pub fn send_email(args: &[Value]) -> Result<Value, String> {
         .and_then(|v| v.as_str())
         .ok_or("send_email: 'body' required")?;
 
-    let smtp_host =
-        std::env::var("VIL_SMTP_HOST").unwrap_or_else(|_| "localhost".to_string());
+    let smtp_host = std::env::var("VIL_SMTP_HOST").unwrap_or_else(|_| "localhost".to_string());
     let smtp_port = std::env::var("VIL_SMTP_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(587u16);
     let smtp_user = std::env::var("VIL_SMTP_USER").unwrap_or_default();
     let smtp_pass = std::env::var("VIL_SMTP_PASS").unwrap_or_default();
-    let from = std::env::var("VIL_SMTP_FROM")
-        .unwrap_or_else(|_| format!("noreply@{}", smtp_host));
+    let from = std::env::var("VIL_SMTP_FROM").unwrap_or_else(|_| format!("noreply@{}", smtp_host));
 
     let email = Message::builder()
         .from(

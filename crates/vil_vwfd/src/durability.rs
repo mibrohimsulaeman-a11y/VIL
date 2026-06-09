@@ -75,8 +75,7 @@ impl ExecStatus {
 }
 
 // redb table definition
-const EXEC_TABLE: redb::TableDefinition<&str, &[u8]> =
-    redb::TableDefinition::new("executions");
+const EXEC_TABLE: redb::TableDefinition<&str, &[u8]> = redb::TableDefinition::new("executions");
 
 /// Durability store — redb-backed (persistent) or in-memory (testing).
 pub struct DurabilityStore {
@@ -88,8 +87,7 @@ pub struct DurabilityStore {
 impl DurabilityStore {
     /// Create persistent store backed by redb at given path.
     pub fn persistent(path: impl AsRef<Path>) -> Result<Self, String> {
-        let db = redb::Database::create(path.as_ref())
-            .map_err(|e| format!("redb open: {}", e))?;
+        let db = redb::Database::create(path.as_ref()).map_err(|e| format!("redb open: {}", e))?;
         Ok(Self {
             db: Some(db),
             mem: std::sync::RwLock::new(HashMap::new()),
@@ -114,7 +112,10 @@ impl DurabilityStore {
                 let _ = txn.commit();
             }
         }
-        self.mem.write().unwrap().insert(state.exec_id.clone(), state.clone());
+        self.mem
+            .write()
+            .unwrap()
+            .insert(state.exec_id.clone(), state.clone());
     }
 
     fn read_state(&self, exec_id: &str) -> Option<ExecutionState> {
@@ -204,7 +205,10 @@ impl DurabilityStore {
     }
 
     pub fn list_incomplete(&self) -> Vec<ExecutionState> {
-        self.mem.read().unwrap().values()
+        self.mem
+            .read()
+            .unwrap()
+            .values()
             .filter(|s| !s.status.is_terminal())
             .cloned()
             .collect()
@@ -216,7 +220,8 @@ impl DurabilityStore {
 
     pub fn purge_completed(&self) -> usize {
         let mut states = self.mem.write().unwrap();
-        let to_remove: Vec<String> = states.iter()
+        let to_remove: Vec<String> = states
+            .iter()
             .filter(|(_, s)| s.status.is_terminal())
             .map(|(k, _)| k.clone())
             .collect();
@@ -243,19 +248,19 @@ impl DurabilityStore {
     pub fn recover(&self) -> usize {
         let Some(ref db) = self.db else { return 0 };
         let Ok(txn) = db.begin_read() else { return 0 };
-        let Ok(table) = txn.open_table(EXEC_TABLE) else { return 0 };
+        let Ok(table) = txn.open_table(EXEC_TABLE) else {
+            return 0;
+        };
 
         let mut states = self.mem.write().unwrap();
         let mut count = 0;
         if let Ok(iter) = table.range::<&str>(..) {
-            for entry in iter {
-                if let Ok(guard) = entry {
-                    let key: &str = guard.0.value();
-                    let val: &[u8] = guard.1.value();
-                    if let Ok(state) = serde_json::from_slice::<ExecutionState>(val) {
-                        states.insert(key.to_string(), state);
-                        count += 1;
-                    }
+            for guard in iter.flatten() {
+                let key: &str = guard.0.value();
+                let val: &[u8] = guard.1.value();
+                if let Ok(state) = serde_json::from_slice::<ExecutionState>(val) {
+                    states.insert(key.to_string(), state);
+                    count += 1;
                 }
             }
         }
@@ -333,7 +338,15 @@ mod tests {
 
     #[test]
     fn test_redb_persistent() {
-        let dir = std::env::temp_dir().join("vil_vwfd_test_redb");
+        let unique = format!(
+            "vil_vwfd_test_redb_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        let dir = std::env::temp_dir().join(unique);
         let _ = std::fs::remove_file(&dir);
 
         let store = DurabilityStore::persistent(&dir).unwrap();

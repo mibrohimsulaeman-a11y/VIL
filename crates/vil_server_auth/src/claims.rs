@@ -31,10 +31,7 @@ where
 {
     type Rejection = VilError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         // Get Authorization header
         let auth_header = parts
             .headers
@@ -47,14 +44,9 @@ where
             .ok_or_else(|| VilError::unauthorized("Invalid Authorization format"))?;
 
         // Get VilJwt from Extension
-        let jwt = parts
-            .extensions
-            .get::<Arc<VilJwt>>()
-            .ok_or_else(|| {
-                VilError::internal(
-                    "VilJwt not configured. Add .jwt(VilJwt::new(secret)) to VilApp"
-                )
-            })?;
+        let jwt = parts.extensions.get::<Arc<VilJwt>>().ok_or_else(|| {
+            VilError::internal("VilJwt not configured. Add .jwt(VilJwt::new(secret)) to VilApp")
+        })?;
 
         let claims: T = jwt.verify(token)?;
         Ok(VilClaims(claims))

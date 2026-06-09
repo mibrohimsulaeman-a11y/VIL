@@ -278,7 +278,7 @@ fn resolve_app_detail_v1(payload: &[u8; 192]) -> String {
             }
         }
     }
-    format!("{}", code)
+    code.to_string()
 }
 
 #[cfg(test)]

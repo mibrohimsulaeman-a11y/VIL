@@ -58,15 +58,14 @@ struct CreditScoreResult {
 /// combined weighted score → risk classification.
 #[vil_sidecar(target = "credit-scorer")]
 async fn score_credit(data: &[u8]) -> CreditScoreResult {
-    let req: CreditScoreRequest = serde_json::from_slice(data).unwrap_or_else(|_| {
-        CreditScoreRequest {
+    let req: CreditScoreRequest =
+        serde_json::from_slice(data).unwrap_or_else(|_| CreditScoreRequest {
             nik: String::new(),
             income: 0,
             loan_amount: 0,
             employment_years: 0,
             existing_debt: 0,
-        }
-    });
+        });
 
     let mut factors = Vec::new();
 

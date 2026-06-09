@@ -58,7 +58,7 @@ impl PoolMetrics {
         MetricsSnapshot {
             queries_total: queries,
             query_errors: self.query_errors.load(Ordering::Relaxed),
-            avg_query_ns: if queries > 0 { dur_sum / queries } else { 0 },
+            avg_query_ns: dur_sum.checked_div(queries).unwrap_or(0),
             acquires_total: self.acquires_total.load(Ordering::Relaxed),
             health_checks_ok: self.health_checks_ok.load(Ordering::Relaxed),
             health_checks_fail: self.health_checks_fail.load(Ordering::Relaxed),

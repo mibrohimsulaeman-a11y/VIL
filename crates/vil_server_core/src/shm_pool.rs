@@ -148,7 +148,7 @@ impl ShmPool {
         let count = self.alloc_count.fetch_add(1, Ordering::Relaxed);
 
         // Amortized reset check — not every alloc
-        if count % self.config.check_interval == 0 {
+        if count.is_multiple_of(self.config.check_interval) {
             self.maybe_reset();
         }
 
@@ -164,11 +164,7 @@ impl ShmPool {
 
     fn maybe_reset(&self) {
         if let Some(stats) = self.heap.region_stats(self.region_id) {
-            let utilization = if stats.capacity > 0 {
-                stats.used * 100 / stats.capacity
-            } else {
-                0
-            };
+            let utilization = (stats.used * 100).checked_div(stats.capacity).unwrap_or(0);
             if utilization >= self.config.reset_threshold_pct {
                 self.do_reset(utilization);
             }
@@ -211,11 +207,7 @@ impl ShmPool {
             capacity: self.config.capacity,
             used,
             remaining,
-            utilization_pct: if self.config.capacity > 0 {
-                used * 100 / self.config.capacity
-            } else {
-                0
-            },
+            utilization_pct: (used * 100).checked_div(self.config.capacity).unwrap_or(0),
             total_allocs: self.alloc_count.load(Ordering::Relaxed),
             total_resets: self.reset_count.load(Ordering::Relaxed),
             total_retries: self.retry_count.load(Ordering::Relaxed),

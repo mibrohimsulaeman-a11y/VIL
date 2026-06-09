@@ -332,10 +332,10 @@ impl VxKernel {
         for entry in self.tokens.iter() {
             let token = entry.value();
             match token.state {
-                TokenState::Completed | TokenState::Failed | TokenState::Cancelled => {
-                    if now - token.created_at > max_age_nanos {
-                        to_remove.push(*entry.key());
-                    }
+                TokenState::Completed | TokenState::Failed | TokenState::Cancelled
+                    if now - token.created_at > max_age_nanos =>
+                {
+                    to_remove.push(*entry.key());
                 }
                 _ => {}
             }

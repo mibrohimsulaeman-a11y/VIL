@@ -9,8 +9,8 @@
 //!
 //! Also collects/compiles WASM modules from the project's wasm/ directory.
 
-use std::path::{Path, PathBuf};
 use colored::*;
+use std::path::{Path, PathBuf};
 
 /// Extracted handler from Rust source.
 #[derive(Debug)]
@@ -37,7 +37,9 @@ pub fn run_prepare(
     jobs: Option<usize>,
 ) -> Result<(), String> {
     let source_path = resolve_source_path(path)?;
-    let project_dir = source_path.parent().and_then(|p| p.parent())
+    let project_dir = source_path
+        .parent()
+        .and_then(|p| p.parent())
         .unwrap_or_else(|| Path::new(path));
 
     println!("  {} {}", "Source:".cyan().bold(), source_path.display());
@@ -68,14 +70,21 @@ pub fn run_prepare(
             println!("    Workspace: {}", build_dir);
 
             // ── Phase 3: Compile ──
-            println!("\n  {} Compiling {} handler(s)...", "→".cyan(), handlers.len());
+            println!(
+                "\n  {} Compiling {} handler(s)...",
+                "→".cyan(),
+                handlers.len()
+            );
             compile_workspace(build_dir, jobs)?;
 
             // ── Phase 4: Collect .so files (only for extracted handlers) ──
             let handler_names: Vec<&str> = handlers.iter().map(|h| h.name.as_str()).collect();
             println!("\n  {} Collecting .so files → {}", "→".cyan(), plugin_dir);
             let collected = collect_so_files(build_dir, plugin_dir, &handler_names)?;
-            println!("    {} .so file(s) ready", collected.to_string().green().bold());
+            println!(
+                "    {} .so file(s) ready",
+                collected.to_string().green().bold()
+            );
         }
     }
 
@@ -89,7 +98,11 @@ pub fn run_prepare(
             if !sidecar_cmds.is_empty() {
                 let workflows_dir = find_workflows_dir(project_dir);
                 if let Some(wf_dir) = &workflows_dir {
-                    println!("\n  {} Patching {} sidecar command(s) into workflow YAML", "→".cyan(), sidecar_cmds.len());
+                    println!(
+                        "\n  {} Patching {} sidecar command(s) into workflow YAML",
+                        "→".cyan(),
+                        sidecar_cmds.len()
+                    );
                     patch_sidecar_commands(wf_dir, &sidecar_cmds);
                 }
             }
@@ -99,7 +112,11 @@ pub fn run_prepare(
             if !python_wasm.is_empty() {
                 let workflows_dir = find_workflows_dir(project_dir);
                 if let Some(wf_dir) = &workflows_dir {
-                    println!("\n  {} Converting {} Python .wasm() → Sidecar in workflow YAML", "→".cyan(), python_wasm.len());
+                    println!(
+                        "\n  {} Converting {} Python .wasm() → Sidecar in workflow YAML",
+                        "→".cyan(),
+                        python_wasm.len()
+                    );
                     for (module_ref, py_path) in &python_wasm {
                         println!("    {} {} → python3 {}", "⚠".yellow(), module_ref, py_path);
                     }
@@ -118,7 +135,10 @@ pub fn run_prepare(
         // ── Phase 5: Collect/compile WASM ──
         println!("\n  {} Collecting WASM modules → {}", "→".cyan(), wasm_dir);
         let wasm_count = collect_wasm(project_dir, wasm_dir, dry_run)?;
-        println!("    {} .wasm file(s) ready", wasm_count.to_string().green().bold());
+        println!(
+            "    {} .wasm file(s) ready",
+            wasm_count.to_string().green().bold()
+        );
     }
 
     println!("\n  {}", "Prepare complete.".green().bold());
@@ -137,13 +157,11 @@ fn resolve_source_path(path: &str) -> Result<PathBuf, String> {
     }
     // Project dir → try common locations
     if p.is_dir() {
-        for candidate in &[
-            "src/main.rs",
-            "vwfd/src/main.rs",
-            "src/lib.rs",
-        ] {
+        for candidate in &["src/main.rs", "vwfd/src/main.rs", "src/lib.rs"] {
             let c = p.join(candidate);
-            if c.exists() { return Ok(c); }
+            if c.exists() {
+                return Ok(c);
+            }
         }
         return Err(format!(
             "No Rust source found in '{}'. Expected src/main.rs or vwfd/src/main.rs",
@@ -183,9 +201,15 @@ fn extract_toplevel_declarations(preamble: &str) -> String {
             let mut j = i + 1;
             while j < lines.len() {
                 let next = lines[j].trim();
-                if next.starts_with("#[") || next.is_empty() { j += 1; continue; }
-                if next.starts_with("struct ") || next.starts_with("pub struct ")
-                    || next.starts_with("enum ") || next.starts_with("pub enum ") {
+                if next.starts_with("#[") || next.is_empty() {
+                    j += 1;
+                    continue;
+                }
+                if next.starts_with("struct ")
+                    || next.starts_with("pub struct ")
+                    || next.starts_with("enum ")
+                    || next.starts_with("pub enum ")
+                {
                     // Collect from attribute through end of struct/enum
                     let start = i;
                     // Find closing brace or semicolon
@@ -194,10 +218,16 @@ fn extract_toplevel_declarations(preamble: &str) -> String {
                         let mut depth = 0;
                         while k < lines.len() {
                             for ch in lines[k].chars() {
-                                if ch == '{' { depth += 1; }
-                                if ch == '}' { depth -= 1; }
+                                if ch == '{' {
+                                    depth += 1;
+                                }
+                                if ch == '}' {
+                                    depth -= 1;
+                                }
                             }
-                            if depth == 0 { break; }
+                            if depth == 0 {
+                                break;
+                            }
                             k += 1;
                         }
                     }
@@ -209,10 +239,15 @@ fn extract_toplevel_declarations(preamble: &str) -> String {
                 }
                 break;
             }
-            if i > j { continue; } // already advanced
+            if i > j {
+                continue;
+            } // already advanced
         }
 
-        if !is_decl { i += 1; continue; }
+        if !is_decl {
+            i += 1;
+            continue;
+        }
 
         // Single-line declaration (ends with ;)
         if trimmed.ends_with(';') {
@@ -230,7 +265,11 @@ fn extract_toplevel_declarations(preamble: &str) -> String {
         let mut depth_bracket = 0i32;
         let start = i;
         loop {
-            let line = if i < lines.len() { lines[i] } else { break; };
+            let line = if i < lines.len() {
+                lines[i]
+            } else {
+                break;
+            };
             for ch in line.chars() {
                 match ch {
                     '{' => depth_brace += 1,
@@ -240,10 +279,15 @@ fn extract_toplevel_declarations(preamble: &str) -> String {
                     _ => {}
                 }
             }
-            let at_end = line.trim().ends_with(';') || (depth_brace <= 0 && depth_bracket <= 0 && line.contains('}'));
+            let at_end = line.trim().ends_with(';')
+                || (depth_brace <= 0 && depth_bracket <= 0 && line.contains('}'));
             i += 1;
-            if at_end && depth_brace <= 0 && depth_bracket <= 0 { break; }
-            if i >= lines.len() { break; }
+            if at_end && depth_brace <= 0 && depth_bracket <= 0 {
+                break;
+            }
+            if i >= lines.len() {
+                break;
+            }
         }
         for line_idx in start..i.min(lines.len()) {
             result.push_str(lines[line_idx]);
@@ -266,10 +310,12 @@ fn extract_handlers(source: &str) -> Result<Vec<ExtractedHandler>, String> {
     let helper_functions = preamble.to_string();
 
     // Collect use statements from preamble (skip vil_vwfd, tokio, serde_json — already provided)
-    let use_statements: String = source.lines()
+    let use_statements: String = source
+        .lines()
         .filter(|l| {
             let trimmed = l.trim();
-            trimmed.starts_with("use ") && !trimmed.contains("vil_vwfd")
+            trimmed.starts_with("use ")
+                && !trimmed.contains("vil_vwfd")
                 && !trimmed.contains("tokio")
                 && !trimmed.contains("serde_json")
         })
@@ -292,14 +338,20 @@ fn extract_handlers(source: &str) -> Result<Vec<ExtractedHandler>, String> {
         // Extract handler name (first string argument)
         let name = match extract_string_literal(after_native) {
             Some(n) => n,
-            None => { search_pos = abs_pos + 8; continue; }
+            None => {
+                search_pos = abs_pos + 8;
+                continue;
+            }
         };
 
         // Find the comma after the name, then extract the handler expression
         let after_name = &after_native[name.len() + 2..]; // skip "name"
         let comma_pos = match after_name.find(',') {
             Some(p) => p,
-            None => { search_pos = abs_pos + 8; continue; }
+            None => {
+                search_pos = abs_pos + 8;
+                continue;
+            }
         };
         let after_comma = after_name[comma_pos + 1..].trim_start();
 
@@ -308,7 +360,10 @@ fn extract_handlers(source: &str) -> Result<Vec<ExtractedHandler>, String> {
             // Inline closure: extract the full closure body
             let closure = match extract_closure(after_comma) {
                 Some(c) => c,
-                None => { search_pos = abs_pos + 8; continue; }
+                None => {
+                    search_pos = abs_pos + 8;
+                    continue;
+                }
             };
             format!(
                 "#![allow(unused_imports, unused_variables, dead_code)]\n\
@@ -326,9 +381,16 @@ fn extract_handlers(source: &str) -> Result<Vec<ExtractedHandler>, String> {
             )
         } else {
             // Function reference: extract the function name
-            let func_name = after_comma.split(|c: char| c == ')' || c == '\n')
-                .next().unwrap_or("").trim().trim_end_matches(')');
-            if func_name.is_empty() { search_pos = abs_pos + 8; continue; }
+            let func_name = after_comma
+                .split(|c: char| c == ')' || c == '\n')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_end_matches(')');
+            if func_name.is_empty() {
+                search_pos = abs_pos + 8;
+                continue;
+            }
 
             // Include the referenced function and any helpers it calls
             let func_body = extract_function_def(func_name, &helper_functions);
@@ -375,7 +437,9 @@ fn find_vil_workspace_root(path: &str) -> Option<String> {
                 }
             }
         }
-        if !dir.pop() { break; }
+        if !dir.pop() {
+            break;
+        }
     }
     None
 }
@@ -408,7 +472,9 @@ fn extract_sidecar_commands(source: &str, vil_root: Option<&str>) -> Vec<(String
 /// e.g. "python3 examples/foo/bar.py" → "python3 /home/.../vil/examples/foo/bar.py"
 fn resolve_command_paths(command: &str, vil_root: Option<&str>) -> String {
     let parts: Vec<&str> = command.splitn(2, ' ').collect();
-    if parts.len() < 2 { return command.to_string(); }
+    if parts.len() < 2 {
+        return command.to_string();
+    }
     let (program, rest) = (parts[0], parts[1]);
 
     // Force unbuffered output for Python sidecars
@@ -490,7 +556,12 @@ fn patch_python_wasm_to_sidecar(wf_dir: &Path, python_wasm: &[(String, String)])
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.extension().map_or(false, |e| e == "yaml" || e == "yml") { continue; }
+        if !path
+            .extension()
+            .map_or(false, |e| e == "yaml" || e == "yml")
+        {
+            continue;
+        }
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
             Err(_) => continue,
@@ -500,7 +571,9 @@ fn patch_python_wasm_to_sidecar(wf_dir: &Path, python_wasm: &[(String, String)])
         let mut new_content = content.clone();
 
         for (module_ref, py_path) in python_wasm {
-            if !new_content.contains(&format!("module_ref: {}", module_ref)) { continue; }
+            if !new_content.contains(&format!("module_ref: {}", module_ref)) {
+                continue;
+            }
 
             // Replace activity_type: Function → Sidecar (line by line)
             let lines: Vec<&str> = new_content.lines().collect();
@@ -514,12 +587,17 @@ fn patch_python_wasm_to_sidecar(wf_dir: &Path, python_wasm: &[(String, String)])
                 if trimmed.starts_with("activity_type: Function") {
                     // Look ahead to confirm it's our module
                     let mut is_match = false;
-                    for j in (i+1)..lines.len().min(i+15) {
-                        if lines[j].trim().contains(&format!("module_ref: {}", module_ref)) {
+                    for j in (i + 1)..lines.len().min(i + 15) {
+                        if lines[j]
+                            .trim()
+                            .contains(&format!("module_ref: {}", module_ref))
+                        {
                             is_match = true;
                             break;
                         }
-                        if lines[j].trim().starts_with("- id:") { break; }
+                        if lines[j].trim().starts_with("- id:") {
+                            break;
+                        }
                     }
 
                     if is_match {
@@ -540,8 +618,11 @@ fn patch_python_wasm_to_sidecar(wf_dir: &Path, python_wasm: &[(String, String)])
                                 // Skip remaining wasm_config sub-fields
                                 while i < lines.len() {
                                     let next = lines[i].trim();
-                                    if next.starts_with("module_ref:") || next.starts_with("function_name:")
-                                        || next.starts_with("timeout_ms:") || next.starts_with("description:") {
+                                    if next.starts_with("module_ref:")
+                                        || next.starts_with("function_name:")
+                                        || next.starts_with("timeout_ms:")
+                                        || next.starts_with("description:")
+                                    {
                                         i += 1;
                                         continue;
                                     }
@@ -585,7 +666,12 @@ fn patch_sidecar_commands(wf_dir: &Path, sidecar_cmds: &[(String, String)]) {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.extension().map_or(false, |e| e == "yaml" || e == "yml") { continue; }
+        if !path
+            .extension()
+            .map_or(false, |e| e == "yaml" || e == "yml")
+        {
+            continue;
+        }
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
             Err(_) => continue,
@@ -600,7 +686,9 @@ fn patch_sidecar_commands(wf_dir: &Path, sidecar_cmds: &[(String, String)]) {
             let trimmed = line.trim();
             if trimmed.starts_with("sidecar_config:") {
                 for (name, command) in sidecar_cmds {
-                    if trimmed.contains(&format!("target: {}", name)) && !trimmed.contains("command:") {
+                    if trimmed.contains(&format!("target: {}", name))
+                        && !trimmed.contains("command:")
+                    {
                         // Inline format: sidecar_config: { target: X }
                         // Replace last line to add command
                         let last = new_lines.last_mut().unwrap();
@@ -620,7 +708,11 @@ fn patch_sidecar_commands(wf_dir: &Path, sidecar_cmds: &[(String, String)]) {
             if let Err(e) = std::fs::write(&path, &joined) {
                 println!("    {} patch {}: {}", "✗".red(), filename, e);
             } else {
-                println!("    {} patched sidecar command in {}", "✓".green(), filename);
+                println!(
+                    "    {} patched sidecar command in {}",
+                    "✓".green(),
+                    filename
+                );
             }
         }
     }
@@ -645,7 +737,9 @@ fn split_at_main(source: &str) -> (&str, &str) {
 /// Extract a string literal starting at position: "name" → name
 fn extract_string_literal(s: &str) -> Option<String> {
     let s = s.trim_start();
-    if !s.starts_with('"') { return None; }
+    if !s.starts_with('"') {
+        return None;
+    }
     let end = s[1..].find('"')?;
     Some(s[1..=end].to_string())
 }
@@ -680,11 +774,19 @@ fn find_matching_brace(s: &str, start: usize) -> Option<usize> {
     while i < bytes.len() {
         let b = bytes[i];
         if in_string {
-            if b == b'\\' { i += 1; } // skip escaped char
-            else if b == b'"' { in_string = false; }
+            if b == b'\\' {
+                i += 1;
+            }
+            // skip escaped char
+            else if b == b'"' {
+                in_string = false;
+            }
         } else if in_char {
-            if b == b'\\' { i += 1; }
-            else if b == b'\'' { in_char = false; }
+            if b == b'\\' {
+                i += 1;
+            } else if b == b'\'' {
+                in_char = false;
+            }
         } else {
             match b {
                 b'"' => in_string = true,
@@ -692,7 +794,9 @@ fn find_matching_brace(s: &str, start: usize) -> Option<usize> {
                 b'{' => depth += 1,
                 b'}' => {
                     depth -= 1;
-                    if depth == 0 { return Some(i); }
+                    if depth == 0 {
+                        return Some(i);
+                    }
                 }
                 _ => {}
             }
@@ -713,8 +817,11 @@ fn find_native_close(s: &str) -> Option<usize> {
     while i < bytes.len() {
         let b = bytes[i];
         if in_string {
-            if b == b'\\' { i += 1; }
-            else if b == b'"' { in_string = false; }
+            if b == b'\\' {
+                i += 1;
+            } else if b == b'"' {
+                in_string = false;
+            }
         } else {
             match b {
                 b'"' => in_string = true,
@@ -750,7 +857,9 @@ fn collect_function_and_deps(
     result: &mut String,
     included: &mut std::collections::HashSet<String>,
 ) {
-    if included.contains(func_name) { return; }
+    if included.contains(func_name) {
+        return;
+    }
     included.insert(func_name.to_string());
 
     // Find `fn func_name(` or `fn func_name<` (generic) in source
@@ -813,7 +922,8 @@ fn find_called_functions(code: &str, source: &str) -> Vec<String> {
     }
 
     // Check which of these are called in code
-    all_fns.into_iter()
+    all_fns
+        .into_iter()
         .filter(|name| {
             // Look for `name(` pattern in code, but not as part of `fn name(`
             let call_pattern = format!("{}(", name);
@@ -848,7 +958,9 @@ fn find_vil_plugin_sdk(project_path: &str) -> Result<String, String> {
         if sdk_path.is_dir() {
             return Ok(sdk_path.to_string_lossy().to_string());
         }
-        if !dir.pop() { break; }
+        if !dir.pop() {
+            break;
+        }
     }
 
     // Fallback: check common locations
@@ -870,8 +982,7 @@ fn generate_workspace(
     let build = Path::new(build_dir);
 
     if clean && build.exists() {
-        std::fs::remove_dir_all(build)
-            .map_err(|e| format!("clean {}: {}", build_dir, e))?;
+        std::fs::remove_dir_all(build).map_err(|e| format!("clean {}: {}", build_dir, e))?;
     }
 
     let crates_dir = build.join("crates");
@@ -896,21 +1007,22 @@ fn generate_workspace(
 
         // VIL crates (path deps — sibling of vil_plugin_sdk)
         let vil_dep_map = [
-            ("vil_orm::",        "vil_orm"),
-            ("vil_db_sqlx::",    "vil_db_sqlx"),
-            ("vil_db_redis::",   "vil_db_redis"),
-            ("vil_expr::",       "vil_expr"),
-            ("vil_trigger::",    "vil_trigger"),
+            ("vil_orm::", "vil_orm"),
+            ("vil_db_sqlx::", "vil_db_sqlx"),
+            ("vil_db_redis::", "vil_db_redis"),
+            ("vil_expr::", "vil_expr"),
+            ("vil_trigger::", "vil_trigger"),
             ("vil_server_core::", "vil_server_core"),
-            ("vil_server_db::",  "vil_server_db"),
-            ("vil_new_http::",   "vil_new_http"),
-            ("vil_capsule::",    "vil_capsule"),
+            ("vil_server_db::", "vil_server_db"),
+            ("vil_new_http::", "vil_new_http"),
+            ("vil_capsule::", "vil_capsule"),
         ];
         for (pattern, crate_name) in &vil_dep_map {
             if code.contains(pattern) {
                 let dep_path = vil_crates_dir.join(crate_name);
                 if dep_path.is_dir() {
-                    extra_deps += &format!("{} = {{ path = \"{}\" }}\n", crate_name, dep_path.display());
+                    extra_deps +=
+                        &format!("{} = {{ path = \"{}\" }}\n", crate_name, dep_path.display());
                 }
             }
         }
@@ -932,10 +1044,17 @@ fn generate_workspace(
             }
         }
         // Also detect derive macros: sqlx::FromRow, serde::Serialize/Deserialize
-        if !extra_deps.contains("sqlx =") && (code.contains("sqlx::FromRow") || code.contains("sqlx::Type")) {
+        if !extra_deps.contains("sqlx =")
+            && (code.contains("sqlx::FromRow") || code.contains("sqlx::Type"))
+        {
             extra_deps += "sqlx = { version = \"0.8\", features = [\"runtime-tokio\", \"postgres\", \"sqlite\"] }\n";
         }
-        if !extra_deps.contains("serde =") && (code.contains("serde::Serialize") || code.contains("serde::Deserialize") || code.contains("Serialize, Deserialize") || code.contains("Serialize,")) {
+        if !extra_deps.contains("serde =")
+            && (code.contains("serde::Serialize")
+                || code.contains("serde::Deserialize")
+                || code.contains("Serialize, Deserialize")
+                || code.contains("Serialize,"))
+        {
             extra_deps += "serde = { version = \"1\", features = [\"derive\"] }\n";
         }
 
@@ -985,22 +1104,25 @@ fn compile_workspace(build_dir: &str, jobs: Option<usize>) -> Result<(), String>
     }
     cmd.current_dir(build_dir);
 
-    let status = cmd.status()
-        .map_err(|e| format!("cargo build: {}", e))?;
+    let status = cmd.status().map_err(|e| format!("cargo build: {}", e))?;
     if !status.success() {
         return Err(format!(
             "cargo build failed (exit {}). Check {}/crates/ for errors.",
-            status.code().unwrap_or(-1), build_dir
+            status.code().unwrap_or(-1),
+            build_dir
         ));
     }
     Ok(())
 }
 
-fn collect_so_files(build_dir: &str, plugin_dir: &str, handler_names: &[&str]) -> Result<u32, String> {
+fn collect_so_files(
+    build_dir: &str,
+    plugin_dir: &str,
+    handler_names: &[&str],
+) -> Result<u32, String> {
     let release_dir = Path::new(build_dir).join("target").join("release");
     let out_dir = Path::new(plugin_dir);
-    std::fs::create_dir_all(out_dir)
-        .map_err(|e| format!("mkdir {}: {}", plugin_dir, e))?;
+    std::fs::create_dir_all(out_dir).map_err(|e| format!("mkdir {}: {}", plugin_dir, e))?;
 
     let mut count = 0u32;
     for name in handler_names {
@@ -1012,10 +1134,12 @@ fn collect_so_files(build_dir: &str, plugin_dir: &str, handler_names: &[&str]) -
             std::fs::copy(&so_path, &dest)
                 .map_err(|e| format!("copy {} → {}: {}", so_path.display(), dest.display(), e))?;
             let size = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
-            println!("    {} {}.so ({})",
+            println!(
+                "    {} {}.so ({})",
                 "✓".green(),
                 name,
-                format_size(size).dimmed());
+                format_size(size).dimmed()
+            );
             count += 1;
         } else {
             println!("    {} {}.so (not found in build output)", "✗".red(), name);
@@ -1031,8 +1155,7 @@ fn collect_so_files(build_dir: &str, plugin_dir: &str, handler_names: &[&str]) -
 fn collect_wasm(project_dir: &Path, wasm_dir: &str, dry_run: bool) -> Result<u32, String> {
     let out_dir = Path::new(wasm_dir);
     if !dry_run {
-        std::fs::create_dir_all(out_dir)
-            .map_err(|e| format!("mkdir {}: {}", wasm_dir, e))?;
+        std::fs::create_dir_all(out_dir).map_err(|e| format!("mkdir {}: {}", wasm_dir, e))?;
     }
 
     let mut count = 0u32;
@@ -1043,8 +1166,12 @@ fn collect_wasm(project_dir: &Path, wasm_dir: &str, dry_run: bool) -> Result<u32
     let wasm_mappings: Vec<(String, String)> = if let Ok(sp) = &source_path {
         if let Ok(source) = std::fs::read_to_string(sp) {
             extract_wasm_mappings(&source)
-        } else { Vec::new() }
-    } else { Vec::new() };
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
 
     // Look for wasm/ subdirectory in project
     let wasm_src_dirs = [
@@ -1053,7 +1180,9 @@ fn collect_wasm(project_dir: &Path, wasm_dir: &str, dry_run: bool) -> Result<u32
     ];
 
     for wasm_src in &wasm_src_dirs {
-        if !wasm_src.is_dir() { continue; }
+        if !wasm_src.is_dir() {
+            continue;
+        }
         collect_wasm_recursive(wasm_src, out_dir, dry_run, &mut count, &wasm_mappings)?;
     }
 
@@ -1096,8 +1225,7 @@ fn collect_wasm_recursive(
     count: &mut u32,
     wasm_mappings: &[(String, String)],
 ) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir)
-        .map_err(|e| format!("read {}: {}", dir.display(), e))?;
+    let entries = std::fs::read_dir(dir).map_err(|e| format!("read {}: {}", dir.display(), e))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -1107,23 +1235,38 @@ fn collect_wasm_recursive(
         }
 
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+        let stem = path
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         match ext {
             "wasm" => {
                 // Pre-compiled — use module_ref name from mapping if available
-                let output_name = wasm_mappings.iter()
+                let output_name = wasm_mappings
+                    .iter()
                     .find(|(_, filename)| filename == &stem)
                     .map(|(module_ref, _)| module_ref.clone())
                     .unwrap_or_else(|| stem.clone());
                 if dry_run {
-                    println!("    {} {} → {}.wasm (pre-compiled)", "•".dimmed(), stem, output_name);
+                    println!(
+                        "    {} {} → {}.wasm (pre-compiled)",
+                        "•".dimmed(),
+                        stem,
+                        output_name
+                    );
                 } else {
                     let dest = out_dir.join(format!("{}.wasm", output_name));
                     std::fs::copy(&path, &dest)
                         .map_err(|e| format!("copy {}: {}", path.display(), e))?;
                     if output_name != stem {
-                        println!("    {} {}.wasm → {}.wasm (renamed)", "✓".green(), stem, output_name);
+                        println!(
+                            "    {} {}.wasm → {}.wasm (renamed)",
+                            "✓".green(),
+                            stem,
+                            output_name
+                        );
                     } else {
                         println!("    {} {}.wasm (copied)", "✓".green(), stem);
                     }
@@ -1132,13 +1275,21 @@ fn collect_wasm_recursive(
             }
             "rs" => {
                 // Rust WASM source — skip if pre-compiled .wasm already collected
-                let output_name = wasm_mappings.iter()
+                let output_name = wasm_mappings
+                    .iter()
                     .find(|(_, filename)| filename == &stem)
                     .map(|(module_ref, _)| module_ref.clone())
                     .unwrap_or_else(|| stem.clone());
-                if out_dir.join(format!("{}.wasm", output_name)).exists() { continue; }
+                if out_dir.join(format!("{}.wasm", output_name)).exists() {
+                    continue;
+                }
                 if dry_run {
-                    println!("    {} {} (Rust → compile to {}.wasm)", "•".dimmed(), stem, output_name);
+                    println!(
+                        "    {} {} (Rust → compile to {}.wasm)",
+                        "•".dimmed(),
+                        stem,
+                        output_name
+                    );
                     *count += 1;
                 } else {
                     let dest = out_dir.join(format!("{}.wasm", output_name));
@@ -1148,13 +1299,19 @@ fn collect_wasm_recursive(
                     for target in &targets {
                         let status = std::process::Command::new("rustc")
                             .args(["--target", target, "--edition", "2021", "-C", "opt-level=2"])
-                            .arg("-o").arg(&dest)
+                            .arg("-o")
+                            .arg(&dest)
                             .arg(&path)
                             .stderr(std::process::Stdio::null())
                             .status();
                         if let Ok(s) = status {
                             if s.success() {
-                                println!("    {} {}.wasm (Rust → {})", "✓".green(), output_name, target);
+                                println!(
+                                    "    {} {}.wasm (Rust → {})",
+                                    "✓".green(),
+                                    output_name,
+                                    target
+                                );
                                 *count += 1;
                                 compiled = true;
                                 break;
@@ -1167,13 +1324,21 @@ fn collect_wasm_recursive(
                 }
             }
             "go" => {
-                let output_name = wasm_mappings.iter()
+                let output_name = wasm_mappings
+                    .iter()
                     .find(|(_, filename)| filename == &stem)
                     .map(|(module_ref, _)| module_ref.clone())
                     .unwrap_or_else(|| stem.clone());
-                if out_dir.join(format!("{}.wasm", output_name)).exists() { continue; }
+                if out_dir.join(format!("{}.wasm", output_name)).exists() {
+                    continue;
+                }
                 if dry_run {
-                    println!("    {} {} (Go → compile to {}.wasm)", "•".dimmed(), stem, output_name);
+                    println!(
+                        "    {} {} (Go → compile to {}.wasm)",
+                        "•".dimmed(),
+                        stem,
+                        output_name
+                    );
                     *count += 1;
                 } else {
                     let dest = out_dir.join(format!("{}.wasm", output_name));
@@ -1190,18 +1355,28 @@ fn collect_wasm_recursive(
                             *count += 1;
                         }
                         Ok(_) => println!("    {} {}.go (go build failed)", "✗".red(), stem),
-                        Err(_) => println!("    {} {}.go (go not found — install Go)", "✗".red(), stem),
+                        Err(_) => {
+                            println!("    {} {}.go (go not found — install Go)", "✗".red(), stem)
+                        }
                     }
                 }
             }
             "c" => {
-                let output_name = wasm_mappings.iter()
+                let output_name = wasm_mappings
+                    .iter()
                     .find(|(_, filename)| filename == &stem)
                     .map(|(module_ref, _)| module_ref.clone())
                     .unwrap_or_else(|| stem.clone());
-                if out_dir.join(format!("{}.wasm", output_name)).exists() { continue; }
+                if out_dir.join(format!("{}.wasm", output_name)).exists() {
+                    continue;
+                }
                 if dry_run {
-                    println!("    {} {} (C → compile to {}.wasm)", "•".dimmed(), stem, output_name);
+                    println!(
+                        "    {} {} (C → compile to {}.wasm)",
+                        "•".dimmed(),
+                        stem,
+                        output_name
+                    );
                     *count += 1;
                 } else {
                     let dest = out_dir.join(format!("{}.wasm", output_name));
@@ -1213,15 +1388,29 @@ fn collect_wasm_recursive(
                     let status = if wasi_clang.exists() {
                         // wasi-sdk — full WASI libc support
                         std::process::Command::new(&wasi_clang)
-                            .args(["--target=wasm32-wasi", "-O2", "-Wl,--no-entry", "-Wl,--export-all", "-o"])
-                            .arg(&dest).arg(&path)
+                            .args([
+                                "--target=wasm32-wasi",
+                                "-O2",
+                                "-Wl,--no-entry",
+                                "-Wl,--export-all",
+                                "-o",
+                            ])
+                            .arg(&dest)
+                            .arg(&path)
                             .status()
                     } else {
                         // Regular clang — no stdlib (nostdlib)
                         std::process::Command::new("clang")
-                            .args(["--target=wasm32-unknown-unknown", "-nostdlib", "-O2",
-                                   "-Wl,--no-entry", "-Wl,--export-all", "-o"])
-                            .arg(&dest).arg(&path)
+                            .args([
+                                "--target=wasm32-unknown-unknown",
+                                "-nostdlib",
+                                "-O2",
+                                "-Wl,--no-entry",
+                                "-Wl,--export-all",
+                                "-o",
+                            ])
+                            .arg(&dest)
+                            .arg(&path)
                             .stderr(std::process::Stdio::null())
                             .status()
                     };
@@ -1230,59 +1419,98 @@ fn collect_wasm_recursive(
                             println!("    {} {}.wasm (C → clang)", "✓".green(), output_name);
                             *count += 1;
                         }
-                        Ok(_) => println!("    {} {}.c (clang failed — needs wasi-sdk for stdlib)", "✗".red(), stem),
+                        Ok(_) => println!(
+                            "    {} {}.c (clang failed — needs wasi-sdk for stdlib)",
+                            "✗".red(),
+                            stem
+                        ),
                         Err(_) => println!("    {} {}.c (clang not found)", "✗".red(), stem),
                     }
                 }
             }
             "ts" => {
-                let output_name = wasm_mappings.iter()
+                let output_name = wasm_mappings
+                    .iter()
                     .find(|(_, filename)| filename == &stem)
                     .map(|(module_ref, _)| module_ref.clone())
                     .unwrap_or_else(|| stem.clone());
-                if out_dir.join(format!("{}.wasm", output_name)).exists() { continue; }
+                if out_dir.join(format!("{}.wasm", output_name)).exists() {
+                    continue;
+                }
                 if dry_run {
-                    println!("    {} {} (TypeScript → compile to {}.wasm)", "•".dimmed(), stem, output_name);
+                    println!(
+                        "    {} {} (TypeScript → compile to {}.wasm)",
+                        "•".dimmed(),
+                        stem,
+                        output_name
+                    );
                     *count += 1;
                 } else {
                     let dest = out_dir.join(format!("{}.wasm", output_name));
                     // Try `asc` directly, fallback to `npx asc`
                     let status = std::process::Command::new("asc")
                         .arg(&path)
-                        .arg("--outFile").arg(&dest)
+                        .arg("--outFile")
+                        .arg(&dest)
                         .arg("--optimize")
                         .status()
                         .or_else(|_| {
                             std::process::Command::new("npx")
-                                .args(["asc"]).arg(&path)
-                                .arg("--outFile").arg(&dest)
+                                .args(["asc"])
+                                .arg(&path)
+                                .arg("--outFile")
+                                .arg(&dest)
                                 .arg("--optimize")
                                 .status()
                         });
                     match status {
                         Ok(s) if s.success() => {
-                            println!("    {} {}.wasm (TypeScript → asc)", "✓".green(), output_name);
+                            println!(
+                                "    {} {}.wasm (TypeScript → asc)",
+                                "✓".green(),
+                                output_name
+                            );
                             *count += 1;
                         }
                         Ok(_) => println!("    {} {}.ts (asc build failed)", "✗".red(), stem),
-                        Err(_) => println!("    {} {}.ts (asc not found — npm i -g assemblyscript)", "✗".red(), stem),
+                        Err(_) => println!(
+                            "    {} {}.ts (asc not found — npm i -g assemblyscript)",
+                            "✗".red(),
+                            stem
+                        ),
                     }
                 }
             }
             "py" => {
                 // Python — cannot compile to WASM, suggest sidecar
                 if dry_run {
-                    println!("    {} {} (Python — use as sidecar, not WASM)", "⊘".yellow(), stem);
+                    println!(
+                        "    {} {} (Python — use as sidecar, not WASM)",
+                        "⊘".yellow(),
+                        stem
+                    );
                 } else {
-                    println!("    {} {}.py (Python cannot compile to WASM — use .sidecar() instead)", "⊘".yellow(), stem);
+                    println!(
+                        "    {} {}.py (Python cannot compile to WASM — use .sidecar() instead)",
+                        "⊘".yellow(),
+                        stem
+                    );
                 }
             }
             "java" => {
                 // Java — only pre-compiled .wasm supported
                 if dry_run {
-                    println!("    {} {} (Java — pre-compiled .wasm only)", "⊘".yellow(), stem);
+                    println!(
+                        "    {} {} (Java — pre-compiled .wasm only)",
+                        "⊘".yellow(),
+                        stem
+                    );
                 } else {
-                    println!("    {} {}.java (needs pre-compiled .wasm — use TeaVM or JWebAssembly)", "⊘".yellow(), stem);
+                    println!(
+                        "    {} {}.java (needs pre-compiled .wasm — use TeaVM or JWebAssembly)",
+                        "⊘".yellow(),
+                        stem
+                    );
                 }
             }
             _ => {}
@@ -1302,7 +1530,9 @@ fn collect_wasm_recursive(
 /// If sidecar command is `java -cp <dir> <ClassName>`, compile .java → .class
 fn compile_java_in_command(command: &str) {
     let parts: Vec<&str> = command.split_whitespace().collect();
-    if parts.first() != Some(&"java") { return; }
+    if parts.first() != Some(&"java") {
+        return;
+    }
     if let Some(cp_idx) = parts.iter().position(|&p| p == "-cp") {
         if cp_idx + 2 < parts.len() {
             let classpath = parts[cp_idx + 1];
@@ -1311,9 +1541,7 @@ fn compile_java_in_command(command: &str) {
             let class_file = Path::new(classpath).join(format!("{}.class", classname));
             if java_file.exists() && !class_file.exists() {
                 println!("    {} Compiling {}.java", "→".cyan(), classname);
-                let status = std::process::Command::new("javac")
-                    .arg(&java_file)
-                    .status();
+                let status = std::process::Command::new("javac").arg(&java_file).status();
                 match status {
                     Ok(s) if s.success() => println!("    {} {}.class", "✓".green(), classname),
                     _ => println!("    {} {}.java (javac failed)", "✗".red(), classname),
@@ -1326,7 +1554,9 @@ fn compile_java_in_command(command: &str) {
 fn find_workflows_dir(project_dir: &Path) -> Option<PathBuf> {
     for candidate in &["workflows", "vwfd/workflows"] {
         let p = project_dir.join(candidate);
-        if p.is_dir() { return Some(p); }
+        if p.is_dir() {
+            return Some(p);
+        }
     }
     None
 }

@@ -28,11 +28,7 @@ const LATENCY_BUCKETS: [u64; 40] = [
     100_000, 125_000, 150_000, 200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000,
     5_000_000,
 ];
-static INBOUND_BUCKETS: [AtomicU64; 41] = {
-    // const init workaround
-    const ZERO: AtomicU64 = AtomicU64::new(0);
-    [ZERO; 41]
-};
+static INBOUND_BUCKETS: [AtomicU64; 41] = [const { AtomicU64::new(0) }; 41];
 
 fn record_inbound_latency(duration_ns: u64) {
     INBOUND_COMPLETED.fetch_add(1, Ordering::Relaxed);
@@ -109,7 +105,7 @@ pub fn inbound_snapshot() -> InboundSnapshot {
         completed,
         in_flight: reqs.saturating_sub(completed),
         errors: errs,
-        avg_latency_ns: if completed > 0 { sum / completed } else { 0 },
+        avg_latency_ns: sum.checked_div(completed).unwrap_or(0),
         min_latency_ns: if min == u64::MAX { 0 } else { min },
         max_latency_ns: max,
         p95_ns: percentile_from_buckets(0.95),

@@ -30,8 +30,12 @@ fn stats(_input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/308-rag-full-pipeline-ingest-query/vwfd/workflows", 8080)
-        .native("ingest_handler", ingest)
-        .native("stats_handler", stats)
-        .run().await;
+    vil_vwfd::app(
+        "examples/308-rag-full-pipeline-ingest-query/vwfd/workflows",
+        8080,
+    )
+    .native("ingest_handler", ingest)
+    .native("stats_handler", stats)
+    .run()
+    .await;
 }

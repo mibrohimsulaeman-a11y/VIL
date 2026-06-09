@@ -40,7 +40,7 @@ pub async fn connect_sidecar(registry: &SidecarRegistry, name: &str) -> Result<(
     // Listen for incoming sidecar connection
     let listener = SidecarListener::bind(&socket_path)
         .await
-        .map_err(|e| LifecycleError::Transport(e))?;
+        .map_err(LifecycleError::Transport)?;
 
     // If auto-spawn is configured, spawn the sidecar process
     let pid = if let Some(ref cmd) = config.command {

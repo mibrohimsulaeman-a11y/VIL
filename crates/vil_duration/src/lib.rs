@@ -1,5 +1,5 @@
+use chrono::{Datelike, NaiveDate, Utc};
 use serde_json::{json, Value};
-use chrono::{NaiveDate, Utc, Datelike};
 
 pub fn age(args: &[Value]) -> Result<Value, String> {
     let birth = args

@@ -38,8 +38,8 @@ impl VilJwt {
     pub fn new(secret: impl Into<String>) -> Self {
         Self {
             secret: secret.into(),
-            access_expiry: Duration::from_secs(900),      // 15 min default
-            refresh_expiry: Duration::from_secs(604800),   // 7 days default
+            access_expiry: Duration::from_secs(900), // 15 min default
+            refresh_expiry: Duration::from_secs(604800), // 7 days default
         }
     }
 
@@ -61,7 +61,10 @@ impl VilJwt {
     pub fn sign_pair<T: Serialize + Clone>(&self, claims: &T) -> Result<TokenPair, VilError> {
         let access = self.sign_with_expiry(claims, self.access_expiry, "access")?;
         let refresh = self.sign_with_expiry(claims, self.refresh_expiry, "refresh")?;
-        Ok(TokenPair { access_token: access, refresh_token: refresh })
+        Ok(TokenPair {
+            access_token: access,
+            refresh_token: refresh,
+        })
     }
 
     /// Sign a single access token.
@@ -81,7 +84,10 @@ impl VilJwt {
     }
 
     /// Refresh — verify refresh token, issue new access token.
-    pub fn refresh<T: Serialize + DeserializeOwned>(&self, refresh_token: &str) -> Result<String, VilError> {
+    pub fn refresh<T: Serialize + DeserializeOwned>(
+        &self,
+        refresh_token: &str,
+    ) -> Result<String, VilError> {
         let claims: T = self.verify(refresh_token)?;
         self.sign_with_expiry(&claims, self.access_expiry, "access")
     }

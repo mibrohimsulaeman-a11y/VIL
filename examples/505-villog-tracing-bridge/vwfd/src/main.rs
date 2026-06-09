@@ -21,5 +21,6 @@ fn villog_tracing_bridge(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/505-villog-tracing-bridge/vwfd/workflows", 3236)
         .native("villog_tracing_bridge", villog_tracing_bridge)
-        .run().await;
+        .run()
+        .await;
 }

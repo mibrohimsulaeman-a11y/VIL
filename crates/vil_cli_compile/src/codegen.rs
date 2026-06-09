@@ -1,7 +1,7 @@
 //! Rust code generator — transforms WorkflowManifest into compilable Rust source.
 
-use vil_cli_core::manifest::*;
 use regex::Regex;
+use vil_cli_core::manifest::*;
 
 pub fn generate_rust(manifest: &WorkflowManifest) -> String {
     let mut code = String::new();

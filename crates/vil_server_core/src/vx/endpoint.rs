@@ -14,9 +14,10 @@ use crate::state::AppState;
 /// Execution class for an endpoint handler.
 ///
 /// Determines how the VIL runtime schedules the handler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecClass {
     /// Runs on the Tokio async executor (default, best for I/O-bound).
+    #[default]
     AsyncTask,
     /// Runs on `spawn_blocking` (for CPU-bound or legacy sync code).
     BlockingTask,
@@ -30,12 +31,6 @@ pub enum ExecClass {
     SidecarProcess,
     /// Enhanced WASM FaaS with pooling, memory limits, and timeout.
     WasmFaaS,
-}
-
-impl Default for ExecClass {
-    fn default() -> Self {
-        ExecClass::AsyncTask
-    }
 }
 
 impl std::fmt::Display for ExecClass {

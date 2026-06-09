@@ -67,7 +67,11 @@ pub enum HandlerImpl {
     /// WASM module. Loaded at runtime. For non-Rust languages compiled to WASM.
     Wasm { module: String, function: String },
     /// Sidecar process. Communicates via SHM or HTTP. For heavy ML, Python, etc.
-    Sidecar { command: String, protocol: String, timeout_ms: u64 },
+    Sidecar {
+        command: String,
+        protocol: String,
+        timeout_ms: u64,
+    },
     /// Auto-generated stub. Returns static response. For scaffolding.
     Stub { response: String },
 }
@@ -90,7 +94,12 @@ pub fn parse_rust_source(path: &Path) -> Result<ParsedApp, String> {
     for svc in &mut services {
         for ep in &mut svc.endpoints {
             // Handler name might be "module::func" — use last part
-            let fn_name = ep.handler.split("::").last().unwrap_or(&ep.handler).to_string();
+            let fn_name = ep
+                .handler
+                .split("::")
+                .last()
+                .unwrap_or(&ep.handler)
+                .to_string();
             if let Some(body) = handler_bodies.get(&fn_name) {
                 ep.implementation = HandlerImpl::Inline { code: body.clone() };
             }
@@ -98,7 +107,11 @@ pub fn parse_rust_source(path: &Path) -> Result<ParsedApp, String> {
     }
 
     let is_pipeline = !nodes.is_empty() || source.contains("vil_workflow!");
-    let mode = if is_pipeline { AppMode::Pipeline } else { AppMode::Server };
+    let mode = if is_pipeline {
+        AppMode::Pipeline
+    } else {
+        AppMode::Server
+    };
 
     let name = if is_pipeline {
         extract_workflow_name(&resolved)
@@ -112,7 +125,14 @@ pub fn parse_rust_source(path: &Path) -> Result<ParsedApp, String> {
         .or_else(|| nodes.iter().find(|n| n.port.is_some()).and_then(|n| n.port))
         .unwrap_or(8080);
 
-    Ok(ParsedApp { name, port, mode, services, nodes, routes })
+    Ok(ParsedApp {
+        name,
+        port,
+        mode,
+        services,
+        nodes,
+        routes,
+    })
 }
 
 /// Generate YAML manifest from parsed app.
@@ -132,12 +152,24 @@ pub fn to_manifest_yaml(app: &ParsedApp) -> String {
                 for node in &app.nodes {
                     lines.push(format!("  {}:", node.name));
                     lines.push(format!("    type: {}", node.node_type));
-                    if let Some(p) = node.port { lines.push(format!("    port: {}", p)); }
-                    if let Some(ref p) = node.path { lines.push(format!("    path: \"{}\"", p)); }
-                    if let Some(ref u) = node.url { lines.push(format!("    url: \"{}\"", u)); }
-                    if let Some(ref f) = node.format { lines.push(format!("    format: {}", f)); }
-                    if let Some(ref j) = node.json_tap { lines.push(format!("    json_tap: \"{}\"", j)); }
-                    if let Some(ref d) = node.dialect { lines.push(format!("    dialect: {}", d)); }
+                    if let Some(p) = node.port {
+                        lines.push(format!("    port: {}", p));
+                    }
+                    if let Some(ref p) = node.path {
+                        lines.push(format!("    path: \"{}\"", p));
+                    }
+                    if let Some(ref u) = node.url {
+                        lines.push(format!("    url: \"{}\"", u));
+                    }
+                    if let Some(ref f) = node.format {
+                        lines.push(format!("    format: {}", f));
+                    }
+                    if let Some(ref j) = node.json_tap {
+                        lines.push(format!("    json_tap: \"{}\"", j));
+                    }
+                    if let Some(ref d) = node.dialect {
+                        lines.push(format!("    dialect: {}", d));
+                    }
                 }
             }
             // Routes
@@ -198,7 +230,11 @@ fn emit_impl(lines: &mut Vec<String>, imp: &HandlerImpl, indent: usize) {
             lines.push(format!("{}  module: {}", pad, module));
             lines.push(format!("{}  function: {}", pad, function));
         }
-        HandlerImpl::Sidecar { command, protocol, timeout_ms } => {
+        HandlerImpl::Sidecar {
+            command,
+            protocol,
+            timeout_ms,
+        } => {
             lines.push(format!("{}impl:", pad));
             lines.push(format!("{}  mode: sidecar", pad));
             lines.push(format!("{}  command: {}", pad, command));
@@ -324,7 +360,9 @@ fn parse_endpoint_line(line: &str) -> Option<ParsedEndpoint> {
         method: method.to_string(),
         path,
         handler,
-        implementation: HandlerImpl::Stub { response: r#"{"ok": true}"#.into() },
+        implementation: HandlerImpl::Stub {
+            response: r#"{"ok": true}"#.into(),
+        },
     })
 }
 
@@ -361,8 +399,14 @@ fn extract_constants(source: &str) -> std::collections::HashMap<String, String> 
             let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
             if parts.len() == 2 {
                 let name_part = parts[0].trim();
-                let name = name_part.split(':').next().unwrap_or("").trim()
-                    .strip_prefix("const ").unwrap_or("").trim();
+                let name = name_part
+                    .split(':')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .strip_prefix("const ")
+                    .unwrap_or("")
+                    .trim();
                 let val = parts[1].trim().trim_end_matches(';').trim();
                 // Store quoted and numeric values
                 if let Some(q) = extract_quoted(val) {
@@ -377,7 +421,10 @@ fn extract_constants(source: &str) -> std::collections::HashMap<String, String> 
 }
 
 /// Resolve constant references in source text.
-fn resolve_constants(source: &str, constants: &std::collections::HashMap<String, String>) -> String {
+fn resolve_constants(
+    source: &str,
+    constants: &std::collections::HashMap<String, String>,
+) -> String {
     let mut result = source.to_string();
     for (name, value) in constants {
         // Replace uses like .port(WEBHOOK_PORT) → .port(3080)
@@ -407,23 +454,37 @@ fn extract_pipeline_nodes(source: &str) -> Vec<ParsedNode> {
 
         // HttpSinkBuilder::new("Name")
         if trimmed.contains("HttpSinkBuilder::new(") {
-            if let Some(node) = current_node.take() { nodes.push(node); }
+            if let Some(node) = current_node.take() {
+                nodes.push(node);
+            }
             let name = extract_quoted(trimmed).unwrap_or_else(|| "http_sink".to_string());
             current_node = Some(ParsedNode {
                 name: to_snake(&name),
                 node_type: "http_sink".to_string(),
-                port: None, path: None, url: None, format: None, json_tap: None, dialect: None,
+                port: None,
+                path: None,
+                url: None,
+                format: None,
+                json_tap: None,
+                dialect: None,
             });
         }
 
         // HttpSourceBuilder::new("Name")
         if trimmed.contains("HttpSourceBuilder::new(") {
-            if let Some(node) = current_node.take() { nodes.push(node); }
+            if let Some(node) = current_node.take() {
+                nodes.push(node);
+            }
             let name = extract_quoted(trimmed).unwrap_or_else(|| "http_source".to_string());
             current_node = Some(ParsedNode {
                 name: to_snake(&name),
                 node_type: "http_source".to_string(),
-                port: None, path: None, url: None, format: None, json_tap: None, dialect: None,
+                port: None,
+                path: None,
+                url: None,
+                format: None,
+                json_tap: None,
+                dialect: None,
             });
         }
 
@@ -441,22 +502,32 @@ fn extract_pipeline_nodes(source: &str) -> Vec<ParsedNode> {
                 node.url = extract_quoted(trimmed);
             }
             if trimmed.starts_with(".format(") {
-                if trimmed.contains("SSE") { node.format = Some("sse".to_string()); }
-                else if trimmed.contains("JSON") { node.format = Some("json".to_string()); }
-                else if trimmed.contains("NDJSON") { node.format = Some("ndjson".to_string()); }
+                if trimmed.contains("SSE") {
+                    node.format = Some("sse".to_string());
+                } else if trimmed.contains("JSON") {
+                    node.format = Some("json".to_string());
+                } else if trimmed.contains("NDJSON") {
+                    node.format = Some("ndjson".to_string());
+                }
             }
             if trimmed.starts_with(".json_tap(") {
                 node.json_tap = extract_quoted(trimmed);
             }
             if trimmed.starts_with(".dialect(") {
-                if trimmed.contains("OpenAi") { node.dialect = Some("openai".to_string()); }
-                else if trimmed.contains("Anthropic") { node.dialect = Some("anthropic".to_string()); }
-                else if trimmed.contains("Ollama") { node.dialect = Some("ollama".to_string()); }
+                if trimmed.contains("OpenAi") {
+                    node.dialect = Some("openai".to_string());
+                } else if trimmed.contains("Anthropic") {
+                    node.dialect = Some("anthropic".to_string());
+                } else if trimmed.contains("Ollama") {
+                    node.dialect = Some("ollama".to_string());
+                }
             }
         }
     }
 
-    if let Some(node) = current_node { nodes.push(node); }
+    if let Some(node) = current_node {
+        nodes.push(node);
+    }
     nodes
 }
 
@@ -474,7 +545,10 @@ fn extract_pipeline_routes(source: &str) -> Vec<ParsedRoute> {
         }
 
         if in_routes {
-            if trimmed.contains(']') { in_routes = false; continue; }
+            if trimmed.contains(']') {
+                in_routes = false;
+                continue;
+            }
 
             // Pattern: sink_builder.trigger_out -> source_builder.trigger_in (LoanWrite),
             if trimmed.contains("->") && trimmed.contains('(') {
@@ -554,8 +628,12 @@ fn extract_handler_bodies(source: &str) -> std::collections::HashMap<String, Str
             while j < lines.len() {
                 let line = lines[j];
                 for ch in line.chars() {
-                    if ch == '{' { depth += 1; }
-                    if ch == '}' { depth -= 1; }
+                    if ch == '{' {
+                        depth += 1;
+                    }
+                    if ch == '}' {
+                        depth -= 1;
+                    }
                 }
 
                 if j == brace_line {
@@ -602,7 +680,9 @@ fn extract_fn_name(line: &str) -> String {
     for pat in patterns {
         if let Some(pos) = line.find(pat) {
             let after = &line[pos + pat.len()..];
-            let end = after.find(|c: char| c == '(' || c == '<' || c == ' ').unwrap_or(after.len());
+            let end = after
+                .find(|c: char| c == '(' || c == '<' || c == ' ')
+                .unwrap_or(after.len());
             let name = after[..end].trim();
             if !name.is_empty() {
                 return name.to_string();
@@ -614,16 +694,20 @@ fn extract_fn_name(line: &str) -> String {
 
 /// Dedent body lines to remove common leading whitespace.
 fn dedent_body(lines: &[String]) -> String {
-    if lines.is_empty() { return String::new(); }
+    if lines.is_empty() {
+        return String::new();
+    }
 
     // Find minimum indentation (ignoring empty lines)
-    let min_indent = lines.iter()
+    let min_indent = lines
+        .iter()
         .filter(|l| !l.trim().is_empty())
         .map(|l| l.len() - l.trim_start().len())
         .min()
         .unwrap_or(0);
 
-    lines.iter()
+    lines
+        .iter()
         .map(|l| {
             if l.trim().is_empty() {
                 String::new()
@@ -723,8 +807,22 @@ VilApp::new("my-server")
             services: vec![ParsedService {
                 name: "tasks".to_string(),
                 endpoints: vec![
-                    ParsedEndpoint { method: "GET".into(), path: "/list".into(), handler: "list".into(), implementation: HandlerImpl::Stub { response: "{\"ok\": true}".into() } },
-                    ParsedEndpoint { method: "POST".into(), path: "/create".into(), handler: "create".into(), implementation: HandlerImpl::Stub { response: "{\"ok\": true}".into() } },
+                    ParsedEndpoint {
+                        method: "GET".into(),
+                        path: "/list".into(),
+                        handler: "list".into(),
+                        implementation: HandlerImpl::Stub {
+                            response: "{\"ok\": true}".into(),
+                        },
+                    },
+                    ParsedEndpoint {
+                        method: "POST".into(),
+                        path: "/create".into(),
+                        handler: "create".into(),
+                        implementation: HandlerImpl::Stub {
+                            response: "{\"ok\": true}".into(),
+                        },
+                    },
                 ],
             }],
         };
@@ -741,7 +839,7 @@ VilApp::new("my-server")
     #[test]
     fn test_parse_real_example() {
         let path = std::path::Path::new(
-            "/home/abraham/Prdmid/vil-project/vil/examples/004-basic-rest-crud/src/main.rs"
+            "/home/abraham/Prdmid/vil-project/vil/examples/004-basic-rest-crud/src/main.rs",
         );
         if path.exists() {
             let app = parse_rust_source(path).expect("parse 004");
@@ -749,8 +847,11 @@ VilApp::new("my-server")
             assert_eq!(app.port, 8080);
             assert!(app.services.len() >= 1);
             assert!(app.services[0].endpoints.len() >= 5);
-            println!("004 parsed: {} services, {} endpoints",
-                app.services.len(), app.services[0].endpoints.len());
+            println!(
+                "004 parsed: {} services, {} endpoints",
+                app.services.len(),
+                app.services[0].endpoints.len()
+            );
             println!("{}", to_manifest_yaml(&app));
         }
     }

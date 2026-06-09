@@ -11,10 +11,13 @@ fn filter_npl_records(input: &Value) -> Result<Value, String> {
     let records = input.get("records").and_then(|v| v.as_array());
 
     let npl: Vec<&Value> = match records {
-        Some(arr) => arr.iter().filter(|rec| {
-            let kol = rec["kolektabilitas"].as_u64().unwrap_or(0);
-            kol >= 3
-        }).collect(),
+        Some(arr) => arr
+            .iter()
+            .filter(|rec| {
+                let kol = rec["kolektabilitas"].as_u64().unwrap_or(0);
+                kol >= 3
+            })
+            .collect(),
         None => vec![],
     };
 
@@ -28,5 +31,6 @@ fn filter_npl_records(input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/007-basic-credit-npl-filter/vwfd/workflows", 3081)
         .native("filter_npl_records", filter_npl_records)
-        .run().await;
+        .run()
+        .await;
 }

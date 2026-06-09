@@ -18,8 +18,8 @@
 //     -H 'Content-Type: application/json' \
 //     -d '{"text":"Hello, how are you?","target_lang":"Indonesian"}'
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_llm::{ChatMessage, LlmProvider, LlmRouter, OpenAiConfig, OpenAiProvider, RouterStrategy};
 use vil_server::prelude::*;
@@ -47,10 +47,12 @@ async fn translate(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<TranslateResponse>> {
-    let req: TranslateRequest = body.json()
+    let req: TranslateRequest = body
+        .json()
         .map_err(|e| VilError::bad_request(format!("invalid JSON: {}", e)))?;
 
-    let state = ctx.state::<Arc<TranslateState>>()
+    let state = ctx
+        .state::<Arc<TranslateState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     state.total.fetch_add(1, Ordering::Relaxed);
@@ -64,7 +66,10 @@ async fn translate(
     ];
 
     // RoundRobin router — distributes load across both models
-    let response = state.router.chat(&messages).await
+    let response = state
+        .router
+        .chat(&messages)
+        .await
         .map_err(|e| VilError::internal(format!("translation failed: {}", e)))?;
 
     Ok(VilResponse::ok(TranslateResponse {
@@ -77,8 +82,7 @@ async fn translate(
 
 #[tokio::main]
 async fn main() {
-    let upstream = std::env::var("LLM_UPSTREAM")
-        .unwrap_or_else(|_| "http://127.0.0.1:4545".into());
+    let upstream = std::env::var("LLM_UPSTREAM").unwrap_or_else(|_| "http://127.0.0.1:4545".into());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     let model_a = Arc::new(OpenAiProvider::new(

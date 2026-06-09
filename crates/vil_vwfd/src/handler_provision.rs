@@ -16,8 +16,8 @@
 //
 // Compatible with vflow_plugin_sdk ABI.
 
+use crate::graph::{NodeKind, VilwGraph};
 use std::sync::Arc;
-use crate::graph::{VilwGraph, NodeKind};
 
 /// Result of auto-provisioning scan.
 #[derive(Debug, Default)]
@@ -33,35 +33,45 @@ pub struct ProvisionResult {
 pub fn provision_handlers(
     graph: &VilwGraph,
     plugin_registry: &crate::plugin_loader::PluginRegistry,
-    #[cfg(feature = "wasm")]
-    wasm_registry: &Arc<std::sync::RwLock<std::collections::HashMap<String, Arc<crate::app::WasmWorkerPool>>>>,
+    #[cfg(feature = "wasm")] wasm_registry: &Arc<
+        std::sync::RwLock<std::collections::HashMap<String, Arc<crate::app::WasmWorkerPool>>>,
+    >,
     sidecar_pool: &Arc<std::sync::RwLock<crate::app::SidecarPool>>,
 ) -> ProvisionResult {
-    let plugin_dir = std::env::var("VIL_PLUGIN_DIR")
-        .unwrap_or_else(|_| "/var/lib/vil/plugins".to_string());
+    let plugin_dir =
+        std::env::var("VIL_PLUGIN_DIR").unwrap_or_else(|_| "/var/lib/vil/plugins".to_string());
     #[cfg(feature = "wasm")]
-    let wasm_dir = std::env::var("VIL_WASM_DIR")
-        .unwrap_or_else(|_| "/var/lib/vil/modules".to_string());
+    let wasm_dir =
+        std::env::var("VIL_WASM_DIR").unwrap_or_else(|_| "/var/lib/vil/modules".to_string());
 
     let mut result = ProvisionResult::default();
 
     for node in &graph.nodes {
         match node.kind {
             NodeKind::NativeCode => {
-                let handler_ref = node.config.get("handler_ref")
-                    .and_then(|v| v.as_str()).unwrap_or("");
-                if handler_ref.is_empty() { continue; }
+                let handler_ref = node
+                    .config
+                    .get("handler_ref")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if handler_ref.is_empty() {
+                    continue;
+                }
 
                 // Priority: new .so file first (update), then existing
-                let so_path = std::path::Path::new(&plugin_dir)
-                    .join(format!("{}.so", handler_ref));
+                let so_path = std::path::Path::new(&plugin_dir).join(format!("{}.so", handler_ref));
                 if so_path.exists() {
                     // Always load — overwrites existing (versioning via file replace)
                     let was_existing = plugin_registry.has(handler_ref);
                     match plugin_registry.load(&so_path) {
                         Ok(name) => {
                             let action = if was_existing { "updated" } else { "loaded" };
-                            tracing::info!("Plugin {}: {} (from {})", action, name, so_path.display());
+                            tracing::info!(
+                                "Plugin {}: {} (from {})",
+                                action,
+                                name,
+                                so_path.display()
+                            );
                             result.provisioned.push(format!("code.{}", name));
                         }
                         Err(e) => {
@@ -71,25 +81,37 @@ pub fn provision_handlers(
                     }
                 } else if !plugin_registry.has(handler_ref) {
                     // No file, no existing handler → missing
-                    result.missing.push(format!("code.{} (need {}.so in {})", handler_ref, handler_ref, plugin_dir));
+                    result.missing.push(format!(
+                        "code.{} (need {}.so in {})",
+                        handler_ref, handler_ref, plugin_dir
+                    ));
                 }
                 // else: no new file but handler exists → keep existing
             }
 
             #[cfg(feature = "wasm")]
             NodeKind::Function => {
-                let module_ref = node.config.get("module_ref")
-                    .and_then(|v| v.as_str()).unwrap_or("");
-                if module_ref.is_empty() { continue; }
+                let module_ref = node
+                    .config
+                    .get("module_ref")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if module_ref.is_empty() {
+                    continue;
+                }
 
                 // Priority: new .wasm file first (update), then existing
-                let wasm_path = std::path::Path::new(&wasm_dir)
-                    .join(format!("{}.wasm", module_ref));
+                let wasm_path =
+                    std::path::Path::new(&wasm_dir).join(format!("{}.wasm", module_ref));
                 if wasm_path.exists() {
                     // Always load — hot-swap WASM module
                     match register_wasm_from_file(wasm_registry, &wasm_path, module_ref) {
                         Ok(()) => {
-                            tracing::info!("WASM loaded/updated: {} (from {})", module_ref, wasm_path.display());
+                            tracing::info!(
+                                "WASM loaded/updated: {} (from {})",
+                                module_ref,
+                                wasm_path.display()
+                            );
                             result.provisioned.push(format!("wasm.{}", module_ref));
                         }
                         Err(e) => {
@@ -100,22 +122,36 @@ pub fn provision_handlers(
                 } else {
                     let exists = wasm_registry.read().unwrap().contains_key(module_ref);
                     if !exists {
-                        result.missing.push(format!("wasm.{} (need {}.wasm in {})", module_ref, module_ref, wasm_dir));
+                        result.missing.push(format!(
+                            "wasm.{} (need {}.wasm in {})",
+                            module_ref, module_ref, wasm_dir
+                        ));
                     }
                 }
             }
 
             NodeKind::Sidecar => {
-                let target = node.config.get("target")
-                    .and_then(|v| v.as_str()).unwrap_or("");
-                if target.is_empty() { continue; }
+                let target = node
+                    .config
+                    .get("target")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if target.is_empty() {
+                    continue;
+                }
 
-                let command = node.config.get("command")
-                    .and_then(|v| v.as_str()).unwrap_or("");
+                let command = node
+                    .config
+                    .get("command")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 if command.is_empty() {
                     let exists = sidecar_pool.read().unwrap().has(target);
                     if !exists {
-                        result.missing.push(format!("sidecar.{} (no command in config, not registered)", target));
+                        result.missing.push(format!(
+                            "sidecar.{} (no command in config, not registered)",
+                            target
+                        ));
                     }
                     continue;
                 }
@@ -134,10 +170,18 @@ pub fn provision_handlers(
     }
 
     if !result.provisioned.is_empty() {
-        tracing::info!("Provisioned {} handlers: {:?}", result.provisioned.len(), result.provisioned);
+        tracing::info!(
+            "Provisioned {} handlers: {:?}",
+            result.provisioned.len(),
+            result.provisioned
+        );
     }
     if !result.missing.is_empty() {
-        tracing::warn!("Missing {} handlers: {:?}", result.missing.len(), result.missing);
+        tracing::warn!(
+            "Missing {} handlers: {:?}",
+            result.missing.len(),
+            result.missing
+        );
     }
 
     result
@@ -147,19 +191,21 @@ pub fn provision_handlers(
 /// Also exposed as `register_wasm_from_file` for admin API upload.
 #[cfg(feature = "wasm")]
 pub fn register_wasm_from_file(
-    registry: &Arc<std::sync::RwLock<std::collections::HashMap<String, Arc<crate::app::WasmWorkerPool>>>>,
+    registry: &Arc<
+        std::sync::RwLock<std::collections::HashMap<String, Arc<crate::app::WasmWorkerPool>>>,
+    >,
     wasm_path: &std::path::Path,
     module_ref: &str,
 ) -> Result<(), String> {
-    let bytes = std::fs::read(wasm_path)
-        .map_err(|e| format!("read {}: {}", wasm_path.display(), e))?;
+    let bytes =
+        std::fs::read(wasm_path).map_err(|e| format!("read {}: {}", wasm_path.display(), e))?;
 
     let mut wasm_cfg = wasmtime::Config::new();
     wasm_cfg.cranelift_opt_level(wasmtime::OptLevel::Speed);
     wasm_cfg.parallel_compilation(true);
 
-    let engine = Arc::new(wasmtime::Engine::new(&wasm_cfg)
-        .map_err(|e| format!("wasmtime engine: {}", e))?);
+    let engine =
+        Arc::new(wasmtime::Engine::new(&wasm_cfg).map_err(|e| format!("wasmtime engine: {}", e))?);
 
     let module = wasmtime::Module::new(&engine, &bytes)
         .map_err(|e| format!("wasm compile {}: {}", module_ref, e))?;
@@ -168,14 +214,20 @@ pub fn register_wasm_from_file(
     wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |ctx| ctx)
         .map_err(|e| format!("wasm link {}: {}", module_ref, e))?;
 
-    let instance_pre = linker.instantiate_pre(&module)
+    let instance_pre = linker
+        .instantiate_pre(&module)
         .map_err(|e| format!("wasm pre-instantiate {}: {}", module_ref, e))?;
 
     let num_workers = std::thread::available_parallelism()
-        .map(|n| n.get()).unwrap_or(4).min(8);
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(8);
 
     let pool = crate::app::WasmWorkerPool::new(engine, Arc::new(instance_pre), num_workers);
 
-    registry.write().unwrap().insert(module_ref.to_string(), Arc::new(pool));
+    registry
+        .write()
+        .unwrap()
+        .insert(module_ref.to_string(), Arc::new(pool));
     Ok(())
 }

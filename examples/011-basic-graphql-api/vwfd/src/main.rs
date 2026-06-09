@@ -20,7 +20,10 @@ async fn main() {
             ]))
         })
         // Product query — WASM AssemblyScript (sandboxed, language-diverse)
-        .wasm("gql_query", "examples/011-basic-graphql-api/vwfd/wasm/assemblyscript/products.wasm")
+        .wasm(
+            "gql_query",
+            "examples/011-basic-graphql-api/vwfd/wasm/assemblyscript/products.wasm",
+        )
         .run()
         .await;
 }

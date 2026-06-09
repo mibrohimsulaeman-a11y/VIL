@@ -12,7 +12,11 @@ static CONSUMED: AtomicU64 = AtomicU64::new(0);
 fn consume_event(_input: &Value) -> Result<Value, String> {
     let consumed = CONSUMED.fetch_add(1, Ordering::Relaxed);
     let published = PUBLISHED.load(Ordering::Relaxed);
-    let remaining = if published > consumed { published - consumed } else { 0 };
+    let remaining = if published > consumed {
+        published - consumed
+    } else {
+        0
+    };
     Ok(json!({
         "status": if remaining > 0 { "consumed" } else { "empty" },
         "event": if remaining > 0 {
@@ -56,5 +60,6 @@ async fn main() {
     vil_vwfd::app("examples/706-mq-pulsar-messaging/vwfd/workflows", 8080)
         .native("consume_event", consume_event)
         .native("event_stats", event_stats)
-        .run().await;
+        .run()
+        .await;
 }

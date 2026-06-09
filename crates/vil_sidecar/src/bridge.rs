@@ -7,8 +7,8 @@
 // Fallback: if sidecar process is not available (not running, not connected),
 // the bridge returns None — macro-generated code falls back to native Rust body.
 
-use std::sync::{Arc, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use crate::{dispatcher, DispatchError, InvokeResponse, SidecarConfig, SidecarRegistry};
 
@@ -60,7 +60,9 @@ pub async fn try_call_sidecar<T: serde::de::DeserializeOwned>(
     input: &[u8],
 ) -> Option<T> {
     let registry = global_registry();
-    let resp = dispatcher::invoke(registry, target, method, input).await.ok()?;
+    let resp = dispatcher::invoke(registry, target, method, input)
+        .await
+        .ok()?;
     serde_json::from_slice(&resp.data).ok()
 }
 
@@ -73,13 +75,14 @@ pub async fn call_sidecar<T: serde::de::DeserializeOwned>(
 ) -> T {
     let registry = global_registry();
     match dispatcher::invoke(registry, target, method, input).await {
-        Ok(resp) => {
-            serde_json::from_slice(&resp.data)
-                .unwrap_or_else(|e| panic!("Sidecar {}.{}() deserialize: {}", target, method, e))
-        }
+        Ok(resp) => serde_json::from_slice(&resp.data)
+            .unwrap_or_else(|e| panic!("Sidecar {}.{}() deserialize: {}", target, method, e)),
         Err(e) => {
             warn_fallback(target, method);
-            panic!("Sidecar {}.{}() failed: {} — use try_call_sidecar for fallback", target, method, e)
+            panic!(
+                "Sidecar {}.{}() failed: {} — use try_call_sidecar for fallback",
+                target, method, e
+            )
         }
     }
 }

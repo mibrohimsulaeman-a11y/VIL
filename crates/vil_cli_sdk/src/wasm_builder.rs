@@ -4,9 +4,9 @@
 //! `vil wasm build <manifest>` → compiles all declared WASM modules
 //! `vil wasm list <manifest>` → lists registered modules + functions
 
-use vil_cli_core::manifest::WorkflowManifest;
 use colored::*;
 use std::path::Path;
+use vil_cli_core::manifest::WorkflowManifest;
 
 const WASM_OUT_DIR: &str = "wasm-out";
 

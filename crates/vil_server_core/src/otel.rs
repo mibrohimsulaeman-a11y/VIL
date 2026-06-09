@@ -29,7 +29,7 @@ impl TraceId {
         let hi = std::time::SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_nanos() as u128;
+            .as_nanos();
         Self(hi ^ (SPAN_COUNTER.fetch_add(1, Ordering::Relaxed) as u128))
     }
 

@@ -31,8 +31,8 @@
 //     -d '{"sensor_id":"vibration-motor-7","readings":[23.5,24.1,22.8,25.3,23.9,24.7,22.1,25.8,23.2,24.5],"sample_rate_hz":1000}'
 //   curl http://localhost:8080/api/sensor/stats
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_server::prelude::*;
 
@@ -95,7 +95,10 @@ struct SensorState {
 /// This function MUST NOT run on the async executor. It performs
 /// CPU-bound math (statistical analysis, frequency domain transform)
 /// that would starve other HTTP handlers if run inline.
-fn process_sensor_data(readings: &[f64], sample_rate_hz: u32) -> (f64, f64, f64, f64, f64, f64, bool) {
+fn process_sensor_data(
+    readings: &[f64],
+    sample_rate_hz: u32,
+) -> (f64, f64, f64, f64, f64, f64, bool) {
     let n = readings.len() as f64;
 
     // Basic statistics
@@ -130,7 +133,8 @@ fn process_sensor_data(readings: &[f64], sample_rate_hz: u32) -> (f64, f64, f64,
     // Anomaly detection: z-score based.
     // If any reading is more than 3 standard deviations from mean, flag it.
     let anomaly_score = if std_dev > 0.0 {
-        let max_z = readings.iter()
+        let max_z = readings
+            .iter()
             .map(|r| ((r - mean) / std_dev).abs())
             .fold(0.0f64, f64::max);
         (max_z * 1000.0).round() / 1000.0
@@ -139,7 +143,15 @@ fn process_sensor_data(readings: &[f64], sample_rate_hz: u32) -> (f64, f64, f64,
     };
     let anomaly_detected = anomaly_score > 3.0;
 
-    (mean, std_dev, min, max, dominant_freq, anomaly_score, anomaly_detected)
+    (
+        mean,
+        std_dev,
+        min,
+        max,
+        dominant_freq,
+        anomaly_score,
+        anomaly_detected,
+    )
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────
@@ -149,14 +161,12 @@ fn process_sensor_data(readings: &[f64], sample_rate_hz: u32) -> (f64, f64, f64,
 /// KEY VIL FEATURE: spawn_blocking() + ExecClass::BlockingTask
 /// FFT and statistical analysis run on tokio's blocking thread pool,
 /// not on the async executor. Health checks and stats remain responsive.
-async fn process(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<ProcessedResult>> {
-    let req: SensorReadingRequest = body.json()
-        .map_err(|_| VilError::bad_request(
-            "invalid JSON — expected {sensor_id, readings: [f64], sample_rate_hz}"
-        ))?;
+async fn process(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<ProcessedResult>> {
+    let req: SensorReadingRequest = body.json().map_err(|_| {
+        VilError::bad_request(
+            "invalid JSON — expected {sensor_id, readings: [f64], sample_rate_hz}",
+        )
+    })?;
 
     if req.readings.is_empty() {
         return Err(VilError::bad_request("readings array must not be empty"));
@@ -170,17 +180,18 @@ async fn process(
     // Move CPU-intensive signal processing to the blocking thread pool.
     // Without spawn_blocking(), this would freeze all other HTTP handlers.
     let (mean, std_dev, min, max, dominant_freq, anomaly_score, anomaly_detected) =
-        tokio::task::spawn_blocking(move || {
-            process_sensor_data(&readings, sample_rate)
-        })
-        .await
-        .map_err(|e| VilError::internal(format!("Sensor processing failed: {}", e)))?;
+        tokio::task::spawn_blocking(move || process_sensor_data(&readings, sample_rate))
+            .await
+            .map_err(|e| VilError::internal(format!("Sensor processing failed: {}", e)))?;
 
     // Update statistics
-    let state = ctx.state::<Arc<SensorState>>()
+    let state = ctx
+        .state::<Arc<SensorState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     state.readings_processed.fetch_add(1, Ordering::Relaxed);
-    state.samples_analyzed.fetch_add(sample_count as u64, Ordering::Relaxed);
+    state
+        .samples_analyzed
+        .fetch_add(sample_count as u64, Ordering::Relaxed);
     if anomaly_detected {
         state.anomalies_detected.fetch_add(1, Ordering::Relaxed);
     }
@@ -202,7 +213,8 @@ async fn process(
 /// GET /sensor/stats — Processing statistics.
 /// Runs on the async executor (ExecClass::AsyncTask) — always fast.
 async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<SensorStats>> {
-    let state = ctx.state::<Arc<SensorState>>()
+    let state = ctx
+        .state::<Arc<SensorState>>()
         .map_err(|_| VilError::internal("state not found"))?;
 
     Ok(VilResponse::ok(SensorStats {

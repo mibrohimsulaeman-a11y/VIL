@@ -259,10 +259,7 @@ impl S3Client {
                         objects.push(ObjectMeta {
                             key: entry.name,
                             size: entry.size.unwrap_or(0),
-                            last_modified: entry
-                                .last_modified
-                                .as_ref()
-                                .map(|t| t.to_string()),
+                            last_modified: entry.last_modified.as_ref().map(|t| t.to_string()),
                             e_tag: entry.etag,
                         });
                     }

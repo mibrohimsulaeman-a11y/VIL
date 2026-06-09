@@ -110,7 +110,7 @@ pub fn run_from_file(path: &str, port: u16) -> Result<()> {
     run_demo(port)
 }
 
-pub fn run_benchmark(requests: usize, concurrency: usize) -> Result<()> {
+pub fn run_benchmark(requests: usize, concurrency: usize, json: bool) -> Result<()> {
     let port: u16 = 3080;
 
     // Check if server is running
@@ -120,17 +120,26 @@ pub fn run_benchmark(requests: usize, concurrency: usize) -> Result<()> {
     ) {
         Ok(_) => {}
         Err(_) => {
-            println!("No server running on port {}.", port);
-            println!("Start one first:\n");
-            println!("  vil run --mock\n");
-            println!("Then in another terminal:\n");
-            println!("  vil bench -r {} -c {}\n", requests, concurrency);
+            if json {
+                println!(
+                    r#"{{"status":"skipped","reason":"no server on port {}","requests":{},"concurrency":{}}}"#,
+                    port, requests, concurrency
+                );
+            } else {
+                println!("No server running on port {}.", port);
+                println!("Start one first:\n");
+                println!("  vil run --mock\n");
+                println!("Then in another terminal:\n");
+                println!("  vil bench -r {} -c {}\n", requests, concurrency);
+            }
             return Ok(());
         }
     }
 
-    println!("Benchmarking http://localhost:{}/trigger", port);
-    println!("  {} requests, {} concurrent\n", requests, concurrency);
+    if !json {
+        println!("Benchmarking http://localhost:{}/trigger", port);
+        println!("  {} requests, {} concurrent\n", requests, concurrency);
+    }
 
     let url = format!("http://127.0.0.1:{}/trigger", port);
     let body = r#"{"request":"bench"}"#;
@@ -201,6 +210,25 @@ pub fn run_benchmark(requests: usize, concurrency: usize) -> Result<()> {
     let slowest = lats.last().map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0);
     let rps = ok as f64 / total_time.as_secs_f64();
 
+    let success_rate = ok as f64 / (ok + err).max(1) as f64 * 100.0;
+    if json {
+        println!(
+            r#"{{"requests":{},"concurrency":{},"completed":{},"errors":{},"success_rate_pct":{:.2},"total_ms":{:.4},"rps":{:.2},"fastest_ms":{:.4},"slowest_ms":{:.4},"avg_ms":{:.4},"p50_ms":{:.4},"p99_ms":{:.4}}}"#,
+            requests,
+            concurrency,
+            ok,
+            err,
+            success_rate,
+            total_time.as_secs_f64() * 1000.0,
+            rps,
+            fastest,
+            slowest,
+            avg,
+            p50,
+            p99
+        );
+        return Ok(());
+    }
     println!("Summary:");
     println!(
         "  Success rate: {:.2}%",

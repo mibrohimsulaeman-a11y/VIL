@@ -98,7 +98,9 @@ async fn list_tasks(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<TaskListIt
 /// POST /tasks — create task via VilQuery insert
 async fn create_task(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Task>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: CreateTask = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: CreateTask = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     if req.title.trim().is_empty() {
         return Err(VilError::bad_request("title must not be empty"));
@@ -143,7 +145,9 @@ async fn update_task(
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<Task>> {
     let state = ctx.state::<AppState>().expect("state");
-    let req: UpdateTask = body.json().map_err(|_| VilError::bad_request("invalid JSON"))?;
+    let req: UpdateTask = body
+        .json()
+        .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     // Validate title if provided
     if let Some(ref t) = req.title {
@@ -218,15 +222,13 @@ async fn task_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<serde_json::Va
 
 #[tokio::main]
 async fn main() {
-    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:tasks.db?mode=rwc".into());
+    let db_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:tasks.db?mode=rwc".into());
 
     // Connect via VIL SqlxPool
-    let pool = vil_db_sqlx::SqlxPool::connect(
-        "tasks",
-        vil_db_sqlx::SqlxConfig::sqlite(&db_url),
-    )
-    .await
-    .expect("Failed to connect to SQLite");
+    let pool = vil_db_sqlx::SqlxPool::connect("tasks", vil_db_sqlx::SqlxConfig::sqlite(&db_url))
+        .await
+        .expect("Failed to connect to SQLite");
 
     // Auto-create table
     pool.execute_raw(
@@ -237,8 +239,10 @@ async fn main() {
             done INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
             updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-        )"
-    ).await.expect("Migration failed");
+        )",
+    )
+    .await
+    .expect("Migration failed");
 
     let state = AppState {
         pool: Arc::new(pool),

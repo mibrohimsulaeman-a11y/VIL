@@ -27,8 +27,8 @@
 //     -d '{"from":"USD","to":"IDR","amount":100.0}'
 //   curl http://localhost:8080/api/fx/stats
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use vil_server::prelude::*;
 
@@ -38,21 +38,71 @@ use vil_server::prelude::*;
 struct CurrencyRate {
     code: &'static str,
     name: &'static str,
-    mid_rate: f64,     // 1 unit = X IDR
-    spread_pct: f64,   // buy/sell spread percentage
+    mid_rate: f64,   // 1 unit = X IDR
+    spread_pct: f64, // buy/sell spread percentage
 }
 
 const RATES: &[CurrencyRate] = &[
-    CurrencyRate { code: "USD", name: "US Dollar", mid_rate: 15_850.0, spread_pct: 1.0 },
-    CurrencyRate { code: "EUR", name: "Euro", mid_rate: 17_200.0, spread_pct: 1.2 },
-    CurrencyRate { code: "SGD", name: "Singapore Dollar", mid_rate: 11_800.0, spread_pct: 1.5 },
-    CurrencyRate { code: "MYR", name: "Malaysian Ringgit", mid_rate: 3_560.0, spread_pct: 2.0 },
-    CurrencyRate { code: "JPY", name: "Japanese Yen", mid_rate: 105.0, spread_pct: 1.8 },
-    CurrencyRate { code: "AUD", name: "Australian Dollar", mid_rate: 10_300.0, spread_pct: 1.5 },
-    CurrencyRate { code: "GBP", name: "British Pound", mid_rate: 20_100.0, spread_pct: 1.0 },
-    CurrencyRate { code: "CNY", name: "Chinese Yuan", mid_rate: 2_180.0, spread_pct: 2.5 },
-    CurrencyRate { code: "THB", name: "Thai Baht", mid_rate: 460.0, spread_pct: 2.0 },
-    CurrencyRate { code: "SAR", name: "Saudi Riyal", mid_rate: 4_225.0, spread_pct: 1.5 },
+    CurrencyRate {
+        code: "USD",
+        name: "US Dollar",
+        mid_rate: 15_850.0,
+        spread_pct: 1.0,
+    },
+    CurrencyRate {
+        code: "EUR",
+        name: "Euro",
+        mid_rate: 17_200.0,
+        spread_pct: 1.2,
+    },
+    CurrencyRate {
+        code: "SGD",
+        name: "Singapore Dollar",
+        mid_rate: 11_800.0,
+        spread_pct: 1.5,
+    },
+    CurrencyRate {
+        code: "MYR",
+        name: "Malaysian Ringgit",
+        mid_rate: 3_560.0,
+        spread_pct: 2.0,
+    },
+    CurrencyRate {
+        code: "JPY",
+        name: "Japanese Yen",
+        mid_rate: 105.0,
+        spread_pct: 1.8,
+    },
+    CurrencyRate {
+        code: "AUD",
+        name: "Australian Dollar",
+        mid_rate: 10_300.0,
+        spread_pct: 1.5,
+    },
+    CurrencyRate {
+        code: "GBP",
+        name: "British Pound",
+        mid_rate: 20_100.0,
+        spread_pct: 1.0,
+    },
+    CurrencyRate {
+        code: "CNY",
+        name: "Chinese Yuan",
+        mid_rate: 2_180.0,
+        spread_pct: 2.5,
+    },
+    CurrencyRate {
+        code: "THB",
+        name: "Thai Baht",
+        mid_rate: 460.0,
+        spread_pct: 2.0,
+    },
+    CurrencyRate {
+        code: "SAR",
+        name: "Saudi Riyal",
+        mid_rate: 4_225.0,
+        spread_pct: 1.5,
+    },
 ];
 
 fn find_rate(code: &str) -> Option<&'static CurrencyRate> {
@@ -115,35 +165,40 @@ struct FxState {
 
 /// GET /rates — All exchange rates with buy/sell spread.
 async fn rates() -> VilResponse<RatesResponse> {
-    let rates: Vec<RateInfo> = RATES.iter().map(|r| {
-        let half_spread = r.spread_pct / 200.0;
-        RateInfo {
-            code: r.code.into(),
-            name: r.name.into(),
-            buy_rate: r.mid_rate * (1.0 - half_spread),
-            sell_rate: r.mid_rate * (1.0 + half_spread),
-            mid_rate: r.mid_rate,
-            spread_pct: r.spread_pct,
-        }
-    }).collect();
+    let rates: Vec<RateInfo> = RATES
+        .iter()
+        .map(|r| {
+            let half_spread = r.spread_pct / 200.0;
+            RateInfo {
+                code: r.code.into(),
+                name: r.name.into(),
+                buy_rate: r.mid_rate * (1.0 - half_spread),
+                sell_rate: r.mid_rate * (1.0 + half_spread),
+                mid_rate: r.mid_rate,
+                spread_pct: r.spread_pct,
+            }
+        })
+        .collect();
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
-    VilResponse::ok(RatesResponse { base: "IDR".into(), rates, updated_at: now })
+    VilResponse::ok(RatesResponse {
+        base: "IDR".into(),
+        rates,
+        updated_at: now,
+    })
 }
 
 /// POST /convert — Convert between currencies with buy/sell spread.
 ///
 /// ShmSlice: zero-copy body from ExchangeHeap (not Json<T>).
 /// ServiceCtx: state access via ctx.state (not Extension<T>).
-async fn convert(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<ConvertResponse>> {
-    let req: ConvertRequest = body.json()
+async fn convert(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<ConvertResponse>> {
+    let req: ConvertRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON — expected {from, to, amount}"))?;
 
     if req.amount <= 0.0 {
@@ -169,13 +224,20 @@ async fn convert(
         (idr_amount / sell_rate, rate.spread_pct)
     };
 
-    let rate_applied = if req.amount > 0.0 { converted / req.amount } else { 0.0 };
+    let rate_applied = if req.amount > 0.0 {
+        converted / req.amount
+    } else {
+        0.0
+    };
 
     // ServiceCtx state (not Extension<T>)
-    let state = ctx.state::<Arc<FxState>>()
+    let state = ctx
+        .state::<Arc<FxState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     let conversion_id = state.conversion_count.fetch_add(1, Ordering::Relaxed) + 1;
-    state.volume_idr.fetch_add(idr_amount as u64, Ordering::Relaxed);
+    state
+        .volume_idr
+        .fetch_add(idr_amount as u64, Ordering::Relaxed);
 
     Ok(VilResponse::ok(ConvertResponse {
         from: req.from.to_uppercase(),
@@ -190,7 +252,8 @@ async fn convert(
 
 /// GET /stats — Conversion volume statistics.
 async fn stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<StatsResponse>> {
-    let state = ctx.state::<Arc<FxState>>()
+    let state = ctx
+        .state::<Arc<FxState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     Ok(VilResponse::ok(StatsResponse {
         total_conversions: state.conversion_count.load(Ordering::Relaxed),

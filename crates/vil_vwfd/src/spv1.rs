@@ -19,7 +19,10 @@ use std::collections::HashMap;
 pub fn query(expr: &str, doc: &Value) -> Result<Vec<Value>, String> {
     let expr = expr.trim();
     if !expr.starts_with('$') {
-        return Err(format!("SPv1 expression must start with '$', got: {}", expr));
+        return Err(format!(
+            "SPv1 expression must start with '$', got: {}",
+            expr
+        ));
     }
     let steps = parse_steps(&expr[1..])?;
     let mut current = vec![doc.clone()];
@@ -53,18 +56,33 @@ pub fn eval_template(template: &str, vars: &HashMap<String, Value>) -> String {
             let start = i;
             i += 1;
             while i < len {
-                if chars[i] == '.' && i + 1 < len && (chars[i + 1].is_alphanumeric() || chars[i + 1] == '_' || chars[i + 1] == '*') {
+                if chars[i] == '.'
+                    && i + 1 < len
+                    && (chars[i + 1].is_alphanumeric()
+                        || chars[i + 1] == '_'
+                        || chars[i + 1] == '*')
+                {
                     i += 1;
-                    while i < len && (chars[i].is_alphanumeric() || chars[i] == '_') { i += 1; }
+                    while i < len && (chars[i].is_alphanumeric() || chars[i] == '_') {
+                        i += 1;
+                    }
                 } else if chars[i] == '[' {
                     i += 1;
                     let mut depth = 1;
                     while i < len && depth > 0 {
-                        if chars[i] == '[' { depth += 1; }
-                        if chars[i] == ']' { depth -= 1; }
-                        if depth > 0 { i += 1; }
+                        if chars[i] == '[' {
+                            depth += 1;
+                        }
+                        if chars[i] == ']' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            i += 1;
+                        }
                     }
-                    if i < len { i += 1; }
+                    if i < len {
+                        i += 1;
+                    }
                 } else {
                     break;
                 }
@@ -78,7 +96,7 @@ pub fn eval_template(template: &str, vars: &HashMap<String, Value>) -> String {
         }
     }
 
-    replacements.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+    replacements.sort_by_key(|item| std::cmp::Reverse(item.0.len()));
     for (pattern, replacement) in replacements {
         result = result.replace(&pattern, &replacement);
     }
@@ -99,7 +117,10 @@ enum Step {
 }
 
 #[derive(Debug)]
-enum UnionItem { Key(String), Index(i64) }
+enum UnionItem {
+    Key(String),
+    Index(i64),
+}
 
 // ── Parser ──
 
@@ -117,19 +138,27 @@ fn parse_steps(input: &str) -> Result<Vec<Step>, String> {
                 pos += 1;
             } else {
                 let start = pos;
-                while pos < len && (chars[pos].is_alphanumeric() || chars[pos] == '_') { pos += 1; }
-                if pos == start { return Err("expected field name after '.'".into()); }
+                while pos < len && (chars[pos].is_alphanumeric() || chars[pos] == '_') {
+                    pos += 1;
+                }
+                if pos == start {
+                    return Err("expected field name after '.'".into());
+                }
                 steps.push(Step::Field(chars[start..pos].iter().collect()));
             }
         } else if chars[pos] == '[' {
             pos += 1;
             skip_ws(&chars, &mut pos);
-            if pos >= len { return Err("unclosed bracket".into()); }
+            if pos >= len {
+                return Err("unclosed bracket".into());
+            }
 
             if chars[pos] == '*' {
                 pos += 1;
                 skip_ws(&chars, &mut pos);
-                if pos < len && chars[pos] == ']' { pos += 1; }
+                if pos < len && chars[pos] == ']' {
+                    pos += 1;
+                }
                 steps.push(Step::Wildcard);
             } else if chars[pos] == '?' {
                 pos += 1;
@@ -138,32 +167,54 @@ fn parse_steps(input: &str) -> Result<Vec<Step>, String> {
                     let start = pos;
                     let mut depth = 1;
                     while pos < len && depth > 0 {
-                        if chars[pos] == '(' { depth += 1; }
-                        if chars[pos] == ')' { depth -= 1; }
-                        if depth > 0 { pos += 1; }
+                        if chars[pos] == '(' {
+                            depth += 1;
+                        }
+                        if chars[pos] == ')' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            pos += 1;
+                        }
                     }
                     let filter_expr: String = chars[start..pos].iter().collect();
-                    if pos < len { pos += 1; } // skip )
+                    if pos < len {
+                        pos += 1;
+                    } // skip )
                     skip_ws(&chars, &mut pos);
-                    if pos < len && chars[pos] == ']' { pos += 1; }
+                    if pos < len && chars[pos] == ']' {
+                        pos += 1;
+                    }
                     steps.push(Step::Filter(filter_expr));
                 }
             } else if chars[pos] == '\'' || chars[pos] == '"' {
                 let mut keys = Vec::new();
                 loop {
                     skip_ws(&chars, &mut pos);
-                    if pos >= len || (chars[pos] != '\'' && chars[pos] != '"') { break; }
+                    if pos >= len || (chars[pos] != '\'' && chars[pos] != '"') {
+                        break;
+                    }
                     let quote = chars[pos];
                     pos += 1;
                     let start = pos;
-                    while pos < len && chars[pos] != quote { pos += 1; }
+                    while pos < len && chars[pos] != quote {
+                        pos += 1;
+                    }
                     keys.push(chars[start..pos].iter().collect::<String>());
-                    if pos < len { pos += 1; }
+                    if pos < len {
+                        pos += 1;
+                    }
                     skip_ws(&chars, &mut pos);
-                    if pos < len && chars[pos] == ',' { pos += 1; } else { break; }
+                    if pos < len && chars[pos] == ',' {
+                        pos += 1;
+                    } else {
+                        break;
+                    }
                 }
                 skip_ws(&chars, &mut pos);
-                if pos < len && chars[pos] == ']' { pos += 1; }
+                if pos < len && chars[pos] == ']' {
+                    pos += 1;
+                }
                 if keys.len() == 1 {
                     steps.push(Step::QuotedKey(keys.into_iter().next().unwrap()));
                 } else {
@@ -171,7 +222,9 @@ fn parse_steps(input: &str) -> Result<Vec<Step>, String> {
                 }
             } else {
                 let content = read_until_bracket(&chars, &mut pos);
-                if pos < len && chars[pos] == ']' { pos += 1; }
+                if pos < len && chars[pos] == ']' {
+                    pos += 1;
+                }
                 if content.contains(':') {
                     let parts: Vec<&str> = content.split(':').collect();
                     let s = parts.first().and_then(|s| s.trim().parse().ok());
@@ -179,12 +232,16 @@ fn parse_steps(input: &str) -> Result<Vec<Step>, String> {
                     let st = parts.get(2).and_then(|s| s.trim().parse().ok());
                     steps.push(Step::Slice(s, e, st));
                 } else if content.contains(',') {
-                    let items = content.split(',')
+                    let items = content
+                        .split(',')
                         .filter_map(|s| s.trim().parse::<i64>().ok().map(UnionItem::Index))
                         .collect();
                     steps.push(Step::Union(items));
                 } else {
-                    let idx: i64 = content.trim().parse().map_err(|_| format!("invalid index: {}", content))?;
+                    let idx: i64 = content
+                        .trim()
+                        .parse()
+                        .map_err(|_| format!("invalid index: {}", content))?;
                     steps.push(Step::Index(idx));
                 }
             }
@@ -196,12 +253,16 @@ fn parse_steps(input: &str) -> Result<Vec<Step>, String> {
 }
 
 fn skip_ws(chars: &[char], pos: &mut usize) {
-    while *pos < chars.len() && chars[*pos].is_whitespace() { *pos += 1; }
+    while *pos < chars.len() && chars[*pos].is_whitespace() {
+        *pos += 1;
+    }
 }
 
 fn read_until_bracket(chars: &[char], pos: &mut usize) -> String {
     let start = *pos;
-    while *pos < chars.len() && chars[*pos] != ']' { *pos += 1; }
+    while *pos < chars.len() && chars[*pos] != ']' {
+        *pos += 1;
+    }
     chars[start..*pos].iter().collect()
 }
 
@@ -210,24 +271,40 @@ fn read_until_bracket(chars: &[char], pos: &mut usize) -> String {
 fn apply_step(step: &Step, val: &Value, out: &mut Vec<Value>) -> Result<(), String> {
     match step {
         Step::Field(name) => {
-            if let Some(v) = val.get(name.as_str()) { out.push(v.clone()); }
+            if let Some(v) = val.get(name.as_str()) {
+                out.push(v.clone());
+            }
         }
         Step::QuotedKey(key) => {
-            if let Some(v) = val.get(key.as_str()) { out.push(v.clone()); }
+            if let Some(v) = val.get(key.as_str()) {
+                out.push(v.clone());
+            }
         }
         Step::Index(idx) => {
             if let Value::Array(arr) = val {
-                let i = if *idx < 0 { (arr.len() as i64 + idx) as usize } else { *idx as usize };
-                if let Some(v) = arr.get(i) { out.push(v.clone()); }
+                let i = if *idx < 0 {
+                    (arr.len() as i64 + idx) as usize
+                } else {
+                    *idx as usize
+                };
+                if let Some(v) = arr.get(i) {
+                    out.push(v.clone());
+                }
             }
         }
-        Step::Wildcard => {
-            match val {
-                Value::Array(arr) => { for v in arr { out.push(v.clone()); } }
-                Value::Object(map) => { for v in map.values() { out.push(v.clone()); } }
-                _ => {}
+        Step::Wildcard => match val {
+            Value::Array(arr) => {
+                for v in arr {
+                    out.push(v.clone());
+                }
             }
-        }
+            Value::Object(map) => {
+                for v in map.values() {
+                    out.push(v.clone());
+                }
+            }
+            _ => {}
+        },
         Step::Slice(start, end, step) => {
             if let Value::Array(arr) = val {
                 let len = arr.len() as i64;
@@ -235,19 +312,32 @@ fn apply_step(step: &Step, val: &Value, out: &mut Vec<Value>) -> Result<(), Stri
                 let e = resolve_idx(end.unwrap_or(len), len);
                 let st = step.unwrap_or(1).max(1) as usize;
                 let mut i = s;
-                while i < e { if let Some(v) = arr.get(i) { out.push(v.clone()); } i += st; }
+                while i < e {
+                    if let Some(v) = arr.get(i) {
+                        out.push(v.clone());
+                    }
+                    i += st;
+                }
             }
         }
         Step::Union(items) => {
             for item in items {
                 match item {
                     UnionItem::Key(key) => {
-                        if let Some(v) = val.get(key.as_str()) { out.push(v.clone()); }
+                        if let Some(v) = val.get(key.as_str()) {
+                            out.push(v.clone());
+                        }
                     }
                     UnionItem::Index(idx) => {
                         if let Value::Array(arr) = val {
-                            let i = if *idx < 0 { (arr.len() as i64 + idx) as usize } else { *idx as usize };
-                            if let Some(v) = arr.get(i) { out.push(v.clone()); }
+                            let i = if *idx < 0 {
+                                (arr.len() as i64 + idx) as usize
+                            } else {
+                                *idx as usize
+                            };
+                            if let Some(v) = arr.get(i) {
+                                out.push(v.clone());
+                            }
                         }
                     }
                 }
@@ -256,7 +346,9 @@ fn apply_step(step: &Step, val: &Value, out: &mut Vec<Value>) -> Result<(), Stri
         Step::Filter(expr) => {
             if let Value::Array(arr) = val {
                 for item in arr {
-                    if eval_filter(expr, item)? { out.push(item.clone()); }
+                    if eval_filter(expr, item)? {
+                        out.push(item.clone());
+                    }
                 }
             }
         }
@@ -265,13 +357,19 @@ fn apply_step(step: &Step, val: &Value, out: &mut Vec<Value>) -> Result<(), Stri
 }
 
 fn resolve_idx(idx: i64, len: i64) -> usize {
-    (if idx < 0 { (len + idx).max(0) } else { idx.min(len) }) as usize
+    (if idx < 0 {
+        (len + idx).max(0)
+    } else {
+        idx.min(len)
+    }) as usize
 }
 
 fn eval_filter(expr: &str, current: &Value) -> Result<bool, String> {
     let mut vars = HashMap::new();
     if let Value::Object(map) = current {
-        for (k, v) in map { vars.insert(k.clone(), v.clone()); }
+        for (k, v) in map {
+            vars.insert(k.clone(), v.clone());
+        }
     }
     let normalized = expr.replace("@.", "");
     vil_expr::evaluate_bool(&normalized, &vars)
@@ -307,57 +405,96 @@ mod tests {
         })
     }
 
-    #[test] fn test_dot_field() { assert_eq!(query_one("$.store.name", &doc()).unwrap(), json!("TechBooks")); }
-    #[test] fn test_dot_nested() { assert_eq!(query_one("$.count", &doc()).unwrap(), json!(4)); }
-    #[test] fn test_bracket_key() { assert_eq!(query_one("$['store']['name']", &doc()).unwrap(), json!("TechBooks")); }
-    #[test] fn test_array_index() { assert_eq!(query_one("$.store.book[0].title", &doc()).unwrap(), json!("Rust Programming")); }
-    #[test] fn test_negative_index() { assert_eq!(query_one("$.store.book[-1].title", &doc()).unwrap(), json!("Clean Code")); }
+    #[test]
+    fn test_dot_field() {
+        assert_eq!(
+            query_one("$.store.name", &doc()).unwrap(),
+            json!("TechBooks")
+        );
+    }
+    #[test]
+    fn test_dot_nested() {
+        assert_eq!(query_one("$.count", &doc()).unwrap(), json!(4));
+    }
+    #[test]
+    fn test_bracket_key() {
+        assert_eq!(
+            query_one("$['store']['name']", &doc()).unwrap(),
+            json!("TechBooks")
+        );
+    }
+    #[test]
+    fn test_array_index() {
+        assert_eq!(
+            query_one("$.store.book[0].title", &doc()).unwrap(),
+            json!("Rust Programming")
+        );
+    }
+    #[test]
+    fn test_negative_index() {
+        assert_eq!(
+            query_one("$.store.book[-1].title", &doc()).unwrap(),
+            json!("Clean Code")
+        );
+    }
 
-    #[test] fn test_wildcard_array() {
+    #[test]
+    fn test_wildcard_array() {
         let r = query("$.store.book[*].title", &doc()).unwrap();
         assert_eq!(r.len(), 4);
         assert_eq!(r[0], json!("Rust Programming"));
     }
 
-    #[test] fn test_slice() {
+    #[test]
+    fn test_slice() {
         let r = query("$.store.book[0:2]", &doc()).unwrap();
         assert_eq!(r.len(), 2);
     }
 
-    #[test] fn test_slice_step() {
+    #[test]
+    fn test_slice_step() {
         let r = query("$.store.book[0:4:2]", &doc()).unwrap();
         assert_eq!(r.len(), 2);
     }
 
-    #[test] fn test_union_indices() {
+    #[test]
+    fn test_union_indices() {
         let r = query("$.store.book[0,2]", &doc()).unwrap();
         assert_eq!(r.len(), 2);
     }
 
-    #[test] fn test_filter_gt() {
+    #[test]
+    fn test_filter_gt() {
         let r = query("$.store.book[?(@.price > 25)]", &doc()).unwrap();
         assert_eq!(r.len(), 2);
     }
 
-    #[test] fn test_filter_eq() {
+    #[test]
+    fn test_filter_eq() {
         let r = query("$.store.book[?(@.category == 'tech')]", &doc()).unwrap();
         assert_eq!(r.len(), 2);
     }
 
-    #[test] fn test_template() {
+    #[test]
+    fn test_template() {
         let mut vars = HashMap::new();
         vars.insert("user".into(), json!({"name": "Alice", "age": 30}));
-        assert_eq!(eval_template("Hello $.user.name, age $.user.age", &vars), "Hello Alice, age 30");
+        assert_eq!(
+            eval_template("Hello $.user.name, age $.user.age", &vars),
+            "Hello Alice, age 30"
+        );
     }
 
-    #[test] fn test_template_json() {
+    #[test]
+    fn test_template_json() {
         let mut vars = HashMap::new();
         vars.insert("messages".into(), json!([{"role": "user"}]));
         let r = eval_template(r#"{"messages": $.messages}"#, &vars);
         assert!(r.contains(r#"[{"role":"user"}]"#));
     }
 
-    #[test] fn test_union_keys() {
+    #[test]
+    fn test_union_keys() {
         let r = query("$.store.book[0]['title','price']", &doc());
         // This would need nested steps — book[0] then ['title','price'] union
         // For now just verify it doesn't crash

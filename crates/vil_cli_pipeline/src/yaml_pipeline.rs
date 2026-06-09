@@ -253,8 +253,10 @@ pub fn run_yaml_pipeline(path: &str, port_override: Option<u16>) -> Result<()> {
     }
 
     // Build and register all transform nodes
-    let mut transform_builders: Vec<(String, vil_cli_compile::transform_builder::TransformBuilder)> =
-        Vec::new();
+    let mut transform_builders: Vec<(
+        String,
+        vil_cli_compile::transform_builder::TransformBuilder,
+    )> = Vec::new();
     let mut transform_handles: HashMap<String, vil_rt::ProcessHandle> = HashMap::new();
 
     for (name, _node) in &transforms {
@@ -388,7 +390,8 @@ pub fn run_yaml_pipeline(path: &str, port_override: Option<u16>) -> Result<()> {
 
     for (name, builder) in transform_builders {
         let handle = transform_handles.remove(&name).expect("handle missing");
-        let transform_node = vil_cli_compile::transform_builder::TransformNode::from_builder(builder);
+        let transform_node =
+            vil_cli_compile::transform_builder::TransformNode::from_builder(builder);
         let w = world.clone();
         // Passthrough transform — data goes in, same data comes out
         threads.push(transform_node.run_worker(w, handle, |input| input.to_vec()));

@@ -118,5 +118,6 @@ async fn main() {
         .native("upsert_setting", upsert_setting)
         .native("list_settings", list_settings)
         .native("tenant_stats", tenant_stats)
-        .run().await;
+        .run()
+        .await;
 }

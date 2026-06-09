@@ -22,12 +22,19 @@ fn score_primary(features: &[f64]) -> f64 {
 }
 
 fn score_backup(features: &[f64]) -> f64 {
-    if features.is_empty() { return 0.5; }
+    if features.is_empty() {
+        return 0.5;
+    }
     features.iter().sum::<f64>() / features.len() as f64
 }
 
 fn circuit_state_name(state: u64) -> &'static str {
-    match state { 0 => "CLOSED", 1 => "OPEN", 2 => "HALF_OPEN", _ => "UNKNOWN" }
+    match state {
+        0 => "CLOSED",
+        1 => "OPEN",
+        2 => "HALF_OPEN",
+        _ => "UNKNOWN",
+    }
 }
 
 #[tokio::main]
@@ -35,7 +42,8 @@ async fn main() {
     vil_vwfd::app("examples/041-basic-sidecar-failover/vwfd/workflows", 8080)
         .native("predict_handler", |input| {
             let body = &input["body"];
-            let features: Vec<f64> = body["features"].as_array()
+            let features: Vec<f64> = body["features"]
+                .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
                 .unwrap_or_default();
 
@@ -44,7 +52,8 @@ async fn main() {
 
             let (prediction, confidence, served_by, model_version, failover_used);
 
-            if state == 1 { // OPEN — mostly backup, 10% probe
+            if state == 1 {
+                // OPEN — mostly backup, 10% probe
                 let total = TOTAL_REQUESTS.load(Ordering::Relaxed);
                 if total % 10 == 0 {
                     CIRCUIT_STATE.store(2, Ordering::Relaxed); // try half-open
@@ -73,10 +82,12 @@ async fn main() {
                     failover_used = true;
                     FAILOVER_COUNT.fetch_add(1, Ordering::Relaxed);
                 }
-            } else { // CLOSED or HALF_OPEN — try primary
+            } else {
+                // CLOSED or HALF_OPEN — try primary
                 let p = score_primary(&features);
                 if p >= 0.0 {
-                    if state == 2 { // was half-open, recovery successful
+                    if state == 2 {
+                        // was half-open, recovery successful
                         PRIMARY_FAILURES.store(0, Ordering::Relaxed);
                         CIRCUIT_STATE.store(0, Ordering::Relaxed);
                     }

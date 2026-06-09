@@ -5,7 +5,7 @@
 //   - Models: gpt-stable v2.1 (A) vs gpt-canary v3.0-beta (B)
 //   - Config: dynamic split adjustment via POST /api/ab/config
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 
 static MODEL_A_PCT: AtomicU8 = AtomicU8::new(70);
 static TOTAL: AtomicU64 = AtomicU64::new(0);
@@ -40,7 +40,10 @@ async fn main() {
                 ("gpt-canary", "v3.0-beta", "B")
             };
 
-            let response = format!("[{}] Response to: '{}' (max_tokens={})", model, prompt, max_tokens);
+            let response = format!(
+                "[{}] Response to: '{}' (max_tokens={})",
+                model, prompt, max_tokens
+            );
             let latency = start.elapsed().as_millis() as u64;
             if use_a {
                 MODEL_A_LATENCY_SUM.fetch_add(latency, Ordering::Relaxed);
@@ -86,5 +89,6 @@ async fn main() {
                 "status": "updated"
             }))
         })
-        .run().await;
+        .run()
+        .await;
 }

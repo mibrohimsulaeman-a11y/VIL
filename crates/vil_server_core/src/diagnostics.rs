@@ -93,7 +93,7 @@ async fn shm_handler(State(state): State<AppState>) -> impl IntoResponse {
                 "capacity": s.capacity,
                 "used": s.used,
                 "remaining": s.remaining,
-                "utilization_pct": if s.capacity > 0 { s.used * 100 / s.capacity } else { 0 },
+                "utilization_pct": (s.used * 100).checked_div(s.capacity).unwrap_or(0),
             })
         })
         .collect();

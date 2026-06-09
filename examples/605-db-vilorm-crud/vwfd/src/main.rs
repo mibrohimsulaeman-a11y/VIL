@@ -23,7 +23,8 @@ async fn main() {
     }
     let url = std::env::var("VIL_DATABASE_URL").unwrap();
     let db = vil_db_sqlx::SqlxPool::connect("blog", vil_db_sqlx::SqlxConfig::sqlite(&url))
-        .await.expect("db connect");
+        .await
+        .expect("db connect");
 
     db.execute_raw("CREATE TABLE IF NOT EXISTS authors (id TEXT PRIMARY KEY, name TEXT NOT NULL, bio TEXT, created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')))").await.ok();
     db.execute_raw("CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, author_id TEXT, title TEXT NOT NULL, content TEXT DEFAULT '', status TEXT DEFAULT 'draft', views INTEGER DEFAULT 0, created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')))").await.ok();

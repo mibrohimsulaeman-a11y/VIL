@@ -4,10 +4,12 @@ use serde_json::{json, Value};
 
 fn kyc_verify(name: &str, phone: &str, email: &str) -> Result<Value, String> {
     let app_id = vil_id_gen::uuid_v4(&[])?;
-    let phone_result = vil_phone::parse_phone(&[Value::String(phone.into()), Value::String("ID".into())])?;
+    let phone_result =
+        vil_phone::parse_phone(&[Value::String(phone.into()), Value::String("ID".into())])?;
     let email_result = vil_email_validate::validate_email(&[Value::String(email.into())])?;
     let email_hash = vil_hash::sha256(&[Value::String(email.into())])?;
-    let phone_masked = vil_mask::mask_pii(&[Value::String(phone.into()), Value::String("phone".into())])?;
+    let phone_masked =
+        vil_mask::mask_pii(&[Value::String(phone.into()), Value::String("phone".into())])?;
 
     Ok(json!({
         "application_id": app_id,

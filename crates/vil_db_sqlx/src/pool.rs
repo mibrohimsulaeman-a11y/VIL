@@ -86,7 +86,7 @@ impl SqlxPool {
 
     /// Fetch all rows as Vec<serde_json::Value> — for SELECT queries.
     pub async fn fetch_all_json(&self, sql: &str) -> Result<Vec<serde_json::Value>, sqlx::Error> {
-        use sqlx::{Row, Column, TypeInfo};
+        use sqlx::{Column, Row, TypeInfo};
         let start = std::time::Instant::now();
         let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
         let duration_ns = start.elapsed().as_nanos() as u64;
@@ -99,14 +99,23 @@ impl SqlxPool {
                 let name = col.name().to_string();
                 let type_name = col.type_info().name();
                 let val: serde_json::Value = match type_name {
-                    "INTEGER" | "INT" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" =>
-                        row.try_get::<i64, _>(col.ordinal()).map(|v| serde_json::json!(v)).unwrap_or(serde_json::Value::Null),
-                    "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "NUMERIC" | "DECIMAL" =>
-                        row.try_get::<f64, _>(col.ordinal()).map(|v| serde_json::json!(v)).unwrap_or(serde_json::Value::Null),
-                    "BOOLEAN" | "BOOL" =>
-                        row.try_get::<bool, _>(col.ordinal()).map(|v| serde_json::json!(v)).unwrap_or(serde_json::Value::Null),
-                    _ =>
-                        row.try_get::<String, _>(col.ordinal()).map(|v| serde_json::json!(v)).unwrap_or(serde_json::Value::Null),
+                    "INTEGER" | "INT" | "INT4" | "INT8" | "BIGINT" | "SMALLINT" => row
+                        .try_get::<i64, _>(col.ordinal())
+                        .map(|v| serde_json::json!(v))
+                        .unwrap_or(serde_json::Value::Null),
+                    "REAL" | "FLOAT" | "FLOAT4" | "FLOAT8" | "DOUBLE" | "NUMERIC" | "DECIMAL" => {
+                        row.try_get::<f64, _>(col.ordinal())
+                            .map(|v| serde_json::json!(v))
+                            .unwrap_or(serde_json::Value::Null)
+                    }
+                    "BOOLEAN" | "BOOL" => row
+                        .try_get::<bool, _>(col.ordinal())
+                        .map(|v| serde_json::json!(v))
+                        .unwrap_or(serde_json::Value::Null),
+                    _ => row
+                        .try_get::<String, _>(col.ordinal())
+                        .map(|v| serde_json::json!(v))
+                        .unwrap_or(serde_json::Value::Null),
                 };
                 obj.insert(name, val);
             }

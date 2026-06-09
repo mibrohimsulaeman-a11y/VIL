@@ -3,7 +3,7 @@
 //! Each table gets: list, get_by_id, create, update, delete.
 //! Uses VilEntity methods + VilQuery builder for all DB operations.
 
-use super::model_gen::{to_pascal_case, is_reserved_word};
+use super::model_gen::{is_reserved_word, to_pascal_case};
 use super::schema_parser::TableMeta;
 
 /// Get the Rust field name for a column (appends _ for reserved words).
@@ -106,11 +106,7 @@ fn gen_get_by_id(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
         let pk_struct = format!("{}Pk", struct_name);
         let pks = &table.primary_keys;
 
-        let mut where_chain = format!(
-            ".where_eq(\"{}\", &pk.{})",
-            pks[0],
-            rust_field(&pks[0])
-        );
+        let mut where_chain = format!(".where_eq(\"{}\", &pk.{})", pks[0], rust_field(&pks[0]));
         for pk_col in &pks[1..] {
             where_chain.push_str(&format!(
                 "\n        .and_eq(\"{}\", &pk.{})",
@@ -246,14 +242,8 @@ fn gen_create(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
                     "        .value(req.{}.clone())",
                     rust_field(&col.name)
                 )),
-                "i64" => value_calls.push(format!(
-                    "        .value(req.{})",
-                    rust_field(&col.name)
-                )),
-                "f64" => value_calls.push(format!(
-                    "        .value(req.{})",
-                    rust_field(&col.name)
-                )),
+                "i64" => value_calls.push(format!("        .value(req.{})", rust_field(&col.name))),
+                "f64" => value_calls.push(format!("        .value(req.{})", rust_field(&col.name))),
                 _ => value_calls.push(format!(
                     "        .value(req.{}.clone())",
                     rust_field(&col.name)
@@ -265,11 +255,7 @@ fn gen_create(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
     if is_composite {
         // Composite PK: no auto UUID, re-fetch via query
         let pks = &table.primary_keys;
-        let mut where_chain = format!(
-            ".where_eq(\"{}\", &req.{})",
-            pks[0],
-            rust_field(&pks[0])
-        );
+        let mut where_chain = format!(".where_eq(\"{}\", &req.{})", pks[0], rust_field(&pks[0]));
         for pk_col in &pks[1..] {
             where_chain.push_str(&format!(
                 "\n        .and_eq(\"{}\", &req.{})",
@@ -355,19 +341,23 @@ fn gen_update(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
         match col.rust_type() {
             "String" => set_calls.push(format!(
                 "        .set_optional(\"{}\", req.{}.as_deref())",
-                col.name, rust_field(&col.name)
+                col.name,
+                rust_field(&col.name)
             )),
             "i64" => set_calls.push(format!(
                 "        .set_optional_i64(\"{}\", req.{})",
-                col.name, rust_field(&col.name)
+                col.name,
+                rust_field(&col.name)
             )),
             "f64" => set_calls.push(format!(
                 "        .set_optional_f64(\"{}\", req.{})",
-                col.name, rust_field(&col.name)
+                col.name,
+                rust_field(&col.name)
             )),
             _ => set_calls.push(format!(
                 "        .set_optional(\"{}\", req.{}.as_deref())",
-                col.name, rust_field(&col.name)
+                col.name,
+                rust_field(&col.name)
             )),
         }
     }
@@ -382,11 +372,7 @@ fn gen_update(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
         let pk_struct = format!("{}Pk", struct_name);
         let pks = &table.primary_keys;
 
-        let mut where_chain = format!(
-            ".where_eq(\"{}\", &pk.{})",
-            pks[0],
-            rust_field(&pks[0])
-        );
+        let mut where_chain = format!(".where_eq(\"{}\", &pk.{})", pks[0], rust_field(&pks[0]));
         for pk_col in &pks[1..] {
             where_chain.push_str(&format!(
                 "\n        .and_eq(\"{}\", &pk.{})",
@@ -411,11 +397,7 @@ fn gen_update(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
         }
 
         // Re-fetch via query
-        let mut refetch_where = format!(
-            ".where_eq(\"{}\", &pk.{})",
-            pks[0],
-            rust_field(&pks[0])
-        );
+        let mut refetch_where = format!(".where_eq(\"{}\", &pk.{})", pks[0], rust_field(&pks[0]));
         for pk_col in &pks[1..] {
             refetch_where.push_str(&format!(
                 "\n        .and_eq(\"{}\", &pk.{})",
@@ -508,11 +490,7 @@ fn gen_delete(table: &TableMeta, struct_name: &str, _snake: &str) -> String {
         let path_fields: Vec<String> = pks.iter().map(|p| rust_field(p)).collect();
         let path_destructure = format!("({})", path_fields.join(", "));
 
-        let mut where_chain = format!(
-            ".where_eq(\"{}\", &{})",
-            pks[0],
-            rust_field(&pks[0])
-        );
+        let mut where_chain = format!(".where_eq(\"{}\", &{})", pks[0], rust_field(&pks[0]));
         for pk_col in &pks[1..] {
             where_chain.push_str(&format!(
                 "\n        .and_eq(\"{}\", &{})",
@@ -629,7 +607,10 @@ CREATE TABLE profiles (
 
         // password_hash excluded from list SELECT (sensitive), but present in create INSERT
         let list_section = output.split("pub async fn get_by_id").next().unwrap();
-        assert!(!list_section.contains("\"password_hash\""), "password_hash should not be in list projection");
+        assert!(
+            !list_section.contains("\"password_hash\""),
+            "password_hash should not be in list projection"
+        );
     }
 
     #[test]
@@ -673,28 +654,64 @@ CREATE TABLE predictions (
             let struct_name = to_pascal_case(&table.name);
 
             // Every service must have 5 handlers
-            assert!(output.contains("pub async fn list("), "Missing list for {}", table.name);
+            assert!(
+                output.contains("pub async fn list("),
+                "Missing list for {}",
+                table.name
+            );
             if table.is_composite_pk() {
-                assert!(output.contains("pub async fn get_by_pk("), "Missing get_by_pk for {}", table.name);
+                assert!(
+                    output.contains("pub async fn get_by_pk("),
+                    "Missing get_by_pk for {}",
+                    table.name
+                );
             } else {
-                assert!(output.contains("pub async fn get_by_id("), "Missing get_by_id for {}", table.name);
+                assert!(
+                    output.contains("pub async fn get_by_id("),
+                    "Missing get_by_id for {}",
+                    table.name
+                );
             }
-            assert!(output.contains("pub async fn create("), "Missing create for {}", table.name);
-            assert!(output.contains("pub async fn update("), "Missing update for {}", table.name);
-            assert!(output.contains("pub async fn delete("), "Missing delete for {}", table.name);
+            assert!(
+                output.contains("pub async fn create("),
+                "Missing create for {}",
+                table.name
+            );
+            assert!(
+                output.contains("pub async fn update("),
+                "Missing update for {}",
+                table.name
+            );
+            assert!(
+                output.contains("pub async fn delete("),
+                "Missing delete for {}",
+                table.name
+            );
 
             // Must use VilORM
-            assert!(output.contains(&format!("{}::q()", struct_name)),
-                "Missing VilQuery for {}", table.name);
+            assert!(
+                output.contains(&format!("{}::q()", struct_name)),
+                "Missing VilQuery for {}",
+                table.name
+            );
             if !table.is_composite_pk() {
-                assert!(output.contains(&format!("{}::find_by_id(", struct_name)),
-                    "Missing find_by_id for {}", table.name);
-                assert!(output.contains(&format!("{}::delete(", struct_name)),
-                    "Missing delete call for {}", table.name);
+                assert!(
+                    output.contains(&format!("{}::find_by_id(", struct_name)),
+                    "Missing find_by_id for {}",
+                    table.name
+                );
+                assert!(
+                    output.contains(&format!("{}::delete(", struct_name)),
+                    "Missing delete call for {}",
+                    table.name
+                );
             }
 
             let lines = output.lines().count();
-            println!("  {} → {}_svc.rs ({} lines, 5 handlers)", table.name, table.name, lines);
+            println!(
+                "  {} → {}_svc.rs ({} lines, 5 handlers)",
+                table.name, table.name, lines
+            );
         }
     }
 }

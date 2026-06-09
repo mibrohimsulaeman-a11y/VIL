@@ -13,9 +13,20 @@ pub fn run_orm_gen(
     table: Option<&str>,
 ) -> Result<(), String> {
     println!();
-    println!("  {}", "╔══════════════════════════════════════════════════╗".cyan());
-    println!("  {}  {} — VilORM Project Generator             {}", "║".cyan(), "vil orm".green().bold(), "║".cyan());
-    println!("  {}", "╚══════════════════════════════════════════════════╝".cyan());
+    println!(
+        "  {}",
+        "╔══════════════════════════════════════════════════╗".cyan()
+    );
+    println!(
+        "  {}  {} — VilORM Project Generator             {}",
+        "║".cyan(),
+        "vil orm".green().bold(),
+        "║".cyan()
+    );
+    println!(
+        "  {}",
+        "╚══════════════════════════════════════════════════╝".cyan()
+    );
     println!();
 
     // Read schema
@@ -27,13 +38,23 @@ pub fn run_orm_gen(
     if tables.is_empty() {
         return Err("No CREATE TABLE statements found in schema file".into());
     }
-    println!("  {}  Parsed {} tables from {}", "✓".green(), tables.len(), schema_path);
+    println!(
+        "  {}  Parsed {} tables from {}",
+        "✓".green(),
+        tables.len(),
+        schema_path
+    );
 
     match target {
         "all" => gen_all(&tables, &sql, output, name)?,
         "model" => gen_single_model(&tables, table)?,
         "service" => gen_single_service(&tables, table)?,
-        other => return Err(format!("Unknown target '{}'. Use: all, model, service", other)),
+        other => {
+            return Err(format!(
+                "Unknown target '{}'. Use: all, model, service",
+                other
+            ))
+        }
     }
 
     Ok(())
@@ -61,8 +82,14 @@ fn gen_all(
     let files = project_gen::generate_project(output_dir, project_name, tables, schema_sql)?;
 
     // Summary
-    let model_count = files.keys().filter(|k| k.starts_with("src/models/") && *k != "src/models/mod.rs").count();
-    let svc_count = files.keys().filter(|k| k.starts_with("src/services/") && *k != "src/services/mod.rs").count();
+    let model_count = files
+        .keys()
+        .filter(|k| k.starts_with("src/models/") && *k != "src/models/mod.rs")
+        .count();
+    let svc_count = files
+        .keys()
+        .filter(|k| k.starts_with("src/services/") && *k != "src/services/mod.rs")
+        .count();
     let endpoints = svc_count * 5;
 
     println!("  {}", "Generated:".green().bold());
@@ -81,8 +108,12 @@ fn gen_all(
     println!("  {}", "Tables:".dimmed());
     for t in tables {
         let struct_name = model_gen::to_pascal_case(&t.name);
-        println!("    {} → /api/{}/  ({})", struct_name, t.name,
-            format!("{} cols, pk={}", t.columns.len(), t.primary_keys.join(",")).dimmed());
+        println!(
+            "    {} → /api/{}/  ({})",
+            struct_name,
+            t.name,
+            format!("{} cols, pk={}", t.columns.len(), t.primary_keys.join(",")).dimmed()
+        );
     }
     println!();
 
@@ -95,7 +126,9 @@ fn gen_single_model(
     table_name: Option<&str>,
 ) -> Result<(), String> {
     let name = table_name.ok_or("--table required for 'model' target")?;
-    let table = tables.iter().find(|t| t.name == name)
+    let table = tables
+        .iter()
+        .find(|t| t.name == name)
         .ok_or_else(|| format!("Table '{}' not found in schema", name))?;
 
     let output = model_gen::generate_model_file(table);
@@ -109,7 +142,9 @@ fn gen_single_service(
     table_name: Option<&str>,
 ) -> Result<(), String> {
     let name = table_name.ok_or("--table required for 'service' target")?;
-    let table = tables.iter().find(|t| t.name == name)
+    let table = tables
+        .iter()
+        .find(|t| t.name == name)
         .ok_or_else(|| format!("Table '{}' not found in schema", name))?;
 
     let output = service_gen::generate_service_file(table);

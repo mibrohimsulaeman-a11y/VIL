@@ -40,5 +40,6 @@ async fn main() {
     vil_vwfd::app("examples/031-basic-mesh-routing/vwfd/workflows", 8080)
         .native("teller_ping_handler", teller_ping)
         .native("teller_submit_handler", teller_submit)
-        .run().await;
+        .run()
+        .await;
 }

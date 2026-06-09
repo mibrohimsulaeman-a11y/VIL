@@ -1,6 +1,6 @@
-use serde_json::{json, Value};
-use quick_xml::Reader;
 use quick_xml::events::Event;
+use quick_xml::Reader;
+use serde_json::{json, Value};
 
 pub fn parse_xml(args: &[Value]) -> Result<Value, String> {
     let data = args

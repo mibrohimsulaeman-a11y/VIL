@@ -74,7 +74,7 @@ impl HttpClientPool {
 
         self.latencies
             .entry(host.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(latency_ns);
     }
 

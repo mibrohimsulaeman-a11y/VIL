@@ -238,7 +238,10 @@ impl VilServer {
 
         let name = self.name.clone();
         let observer_enabled = self.observer;
-        let first_prefix = self.nested_prefixes.first().cloned()
+        let first_prefix = self
+            .nested_prefixes
+            .first()
+            .cloned()
             .or_else(|| self.services.first().map(|s| format!("/api/{}", s.name)))
             .unwrap_or_else(|| "".into());
         let (app, state, port, metrics_port, observer_collector) = self.build();

@@ -79,18 +79,21 @@ struct HealthStatus {
 /// Primary ML scorer — high-accuracy model with full feature set.
 #[vil_sidecar(target = "primary-scorer")]
 async fn score_primary(data: &[u8]) -> PredictResult {
-    let req: PredictRequest = serde_json::from_slice(data).unwrap_or_else(|_| {
-        PredictRequest {
-            features: vec![],
-            model: String::new(),
-        }
+    let req: PredictRequest = serde_json::from_slice(data).unwrap_or_else(|_| PredictRequest {
+        features: vec![],
+        model: String::new(),
     });
 
     // Simulate primary model scoring (weighted sum + sigmoid-like activation)
-    let raw_score: f64 = req.features.iter().enumerate().map(|(i, &v)| {
-        let weight = 1.0 / (1.0 + i as f64 * 0.3);
-        v * weight
-    }).sum();
+    let raw_score: f64 = req
+        .features
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| {
+            let weight = 1.0 / (1.0 + i as f64 * 0.3);
+            v * weight
+        })
+        .sum();
 
     let prediction = 1.0 / (1.0 + (-raw_score).exp());
     let confidence = 0.85 + (prediction * 0.15).min(0.14);
@@ -107,11 +110,9 @@ async fn score_primary(data: &[u8]) -> PredictResult {
 /// Backup ML scorer — lighter model, slightly lower accuracy, always available.
 #[vil_sidecar(target = "backup-scorer")]
 async fn score_backup(data: &[u8]) -> PredictResult {
-    let req: PredictRequest = serde_json::from_slice(data).unwrap_or_else(|_| {
-        PredictRequest {
-            features: vec![],
-            model: String::new(),
-        }
+    let req: PredictRequest = serde_json::from_slice(data).unwrap_or_else(|_| PredictRequest {
+        features: vec![],
+        model: String::new(),
     });
 
     // Simpler scoring: average of features (lighter model)
@@ -168,10 +169,7 @@ fn record_primary_failure() {
 ///
 /// Flow: check circuit breaker → try primary (if allowed) → on failure,
 /// failover to backup → track metrics.
-async fn predict(
-    _ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<PredictResult>> {
+async fn predict(_ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<PredictResult>> {
     TOTAL_REQUESTS.fetch_add(1, Ordering::Relaxed);
     let input_bytes = body.as_bytes();
     let circuit = CIRCUIT_STATE.load(Ordering::SeqCst);

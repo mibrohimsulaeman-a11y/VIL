@@ -14,10 +14,9 @@ pub fn ulid(_args: &[Value]) -> Result<Value, String> {
 
 pub fn nanoid(args: &[Value]) -> Result<Value, String> {
     let len = args.get(0).and_then(|v| v.as_u64()).unwrap_or(21) as usize;
-    let alphabet: Vec<char> =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-            .chars()
-            .collect();
+    let alphabet: Vec<char> = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        .chars()
+        .collect();
     let id: String = (0..len)
         .map(|_| {
             let idx = (rand::random::<u8>() as usize) % alphabet.len();

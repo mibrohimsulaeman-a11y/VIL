@@ -18,8 +18,8 @@
 //     localhost:50051 payment.PaymentService/Refund
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use tonic::{Request, Response, Status};
 
@@ -29,9 +29,7 @@ pub mod payment {
 
 use payment::payment_service_server::{PaymentService, PaymentServiceServer};
 use payment::{
-    ChargeRequest, ChargeResponse,
-    GetPaymentRequest, PaymentRecord,
-    RefundRequest, RefundResponse,
+    ChargeRequest, ChargeResponse, GetPaymentRequest, PaymentRecord, RefundRequest, RefundResponse,
 };
 
 struct PaymentState {
@@ -61,7 +59,11 @@ impl PaymentService for PaymentGateway {
         let id_num = self.state.next_id.fetch_add(1, Ordering::Relaxed) + 1;
         let payment_id = format!("PAY-{:05}", id_num);
 
-        let status = if req.amount_cents > 1_000_000 { "declined" } else { "approved" };
+        let status = if req.amount_cents > 1_000_000 {
+            "declined"
+        } else {
+            "approved"
+        };
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -140,9 +142,7 @@ impl PaymentService for PaymentGateway {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     let state = Arc::new(PaymentState {
         payments: Mutex::new(HashMap::new()),

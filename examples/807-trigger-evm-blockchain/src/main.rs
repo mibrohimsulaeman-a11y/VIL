@@ -57,14 +57,20 @@ async fn main() {
 
     println!();
     println!("  example-807-trigger-evm-blockchain");
-    println!("  DeFi Smart Contract Event Watcher — EVM trigger (collects {} events then exits)", EVENT_COUNT);
+    println!(
+        "  DeFi Smart Contract Event Watcher — EVM trigger (collects {} events then exits)",
+        EVENT_COUNT
+    );
     println!();
 
     // ── Build EvmConfig from env ──
     // Default: watch USDC contract on Ethereum mainnet for Transfer events
     let evm_cfg = EvmConfig::new(
         env_or("EVM_RPC_URL", "wss://mainnet.infura.io/ws/v3/YOUR_KEY"),
-        env_or("EVM_CONTRACT_ADDRESS", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
+        env_or(
+            "EVM_CONTRACT_ADDRESS",
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        ),
         env_or("EVM_EVENT_SIGNATURE", "Transfer(address,address,uint256)"),
     );
 
@@ -125,7 +131,12 @@ async fn main() {
 
                 println!(
                     "  RECV  seq={}  payload_bytes={}  op={}  type={}  [blockchain event #{}/{}]",
-                    event.sequence, event.payload_bytes, event.op, event_type, received, EVENT_COUNT
+                    event.sequence,
+                    event.payload_bytes,
+                    event.op,
+                    event_type,
+                    received,
+                    EVENT_COUNT
                 );
                 if received >= EVENT_COUNT {
                     break;

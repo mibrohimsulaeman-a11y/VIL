@@ -22,7 +22,10 @@ async fn main() {
             }))
         })
         // Claim submission — Sidecar PHP (external PHP runtime)
-        .sidecar("claim_processor", "php examples/037-basic-vilmodel-derive/vwfd/sidecar/php/claim_processor.php")
+        .sidecar(
+            "claim_processor",
+            "php examples/037-basic-vilmodel-derive/vwfd/sidecar/php/claim_processor.php",
+        )
         .run()
         .await;
 }

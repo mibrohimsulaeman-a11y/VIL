@@ -39,7 +39,8 @@ pub fn run_viz(args: VizArgs) -> Result<(), String> {
         let base_dir = std::path::Path::new(&args.input)
             .parent()
             .unwrap_or(std::path::Path::new("."));
-        if let Ok(resolved) = vil_cli_compile::call_resolver::resolve_all_calls(&manifest, base_dir) {
+        if let Ok(resolved) = vil_cli_compile::call_resolver::resolve_all_calls(&manifest, base_dir)
+        {
             for (call_path, resolved_call) in &resolved {
                 let sub = call_to_subgraph(call_path, resolved_call);
                 graph.subgraphs.push(sub);
@@ -374,7 +375,10 @@ fn run_call_graph_viz(dir: &str, args: &VizArgs) -> Result<(), String> {
 }
 
 /// Convert a resolved call target into a VizSubgraph.
-fn call_to_subgraph(call_path: &str, resolved: &vil_cli_compile::call_resolver::ResolvedCall) -> VizSubgraph {
+fn call_to_subgraph(
+    call_path: &str,
+    resolved: &vil_cli_compile::call_resolver::ResolvedCall,
+) -> VizSubgraph {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 

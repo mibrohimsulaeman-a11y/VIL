@@ -72,5 +72,6 @@ async fn main() {
         .native("daily_stats", daily_stats)
         .native("unique_users", unique_users)
         .native("stats_summary", stats_summary)
-        .run().await;
+        .run()
+        .await;
 }

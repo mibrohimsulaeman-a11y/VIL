@@ -8,10 +8,10 @@
 //! Legacy commands (vflow-server /internal/*):
 //!   push, activate, drain, deactivate, list, contract, health
 
+use colored::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use colored::*;
 
 // ═══════════════════════════════════════════════════════════════════
 // Inspect — scan workflow YAML for handler requirements
@@ -43,7 +43,9 @@ pub fn scan_workflow_handlers(path: &str) -> Result<Vec<HandlerReq>, String> {
         // A single file may contain multiple YAML documents (--- separator)
         for doc in content.split("\n---") {
             let doc = doc.trim();
-            if doc.is_empty() { continue; }
+            if doc.is_empty() {
+                continue;
+            }
             if let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(doc) {
                 extract_handlers_from_yaml(&val, &mut reqs);
             }
@@ -81,7 +83,10 @@ fn collect_yaml_recursive(dir: &Path, files: &mut Vec<PathBuf>) {
             let path = entry.path();
             if path.is_dir() {
                 collect_yaml_recursive(&path, files);
-            } else if path.extension().map_or(false, |e| e == "yaml" || e == "yml") {
+            } else if path
+                .extension()
+                .map_or(false, |e| e == "yaml" || e == "yml")
+            {
                 files.push(path);
             }
         }
@@ -89,13 +94,18 @@ fn collect_yaml_recursive(dir: &Path, files: &mut Vec<PathBuf>) {
 }
 
 fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq>) {
-    let workflow_id = val.get("metadata")
+    let workflow_id = val
+        .get("metadata")
         .and_then(|m| m.get("id"))
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
 
-    let activities = match val.get("spec").and_then(|s| s.get("activities")).and_then(|a| a.as_sequence()) {
+    let activities = match val
+        .get("spec")
+        .and_then(|s| s.get("activities"))
+        .and_then(|a| a.as_sequence())
+    {
         Some(a) => a,
         None => return,
     };
@@ -103,7 +113,10 @@ fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq
     // Extract endpoint from trigger
     let mut endpoint = String::new();
     for act in activities {
-        if let Some(tc) = act.get("trigger_config").and_then(|t| t.get("webhook_config")) {
+        if let Some(tc) = act
+            .get("trigger_config")
+            .and_then(|t| t.get("webhook_config"))
+        {
             let method = tc.get("method").and_then(|v| v.as_str()).unwrap_or("POST");
             let path = tc.get("path").and_then(|v| v.as_str()).unwrap_or("");
             endpoint = format!("{} {}", method, path);
@@ -111,10 +124,14 @@ fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq
     }
 
     for act in activities {
-        let activity_type = act.get("activity_type").and_then(|v| v.as_str()).unwrap_or("");
+        let activity_type = act
+            .get("activity_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         match activity_type {
             "NativeCode" => {
-                let handler_ref = act.get("code_config")
+                let handler_ref = act
+                    .get("code_config")
                     .and_then(|c| c.get("handler_ref"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -129,7 +146,8 @@ fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq
                 }
             }
             "Function" => {
-                let module_ref = act.get("wasm_config")
+                let module_ref = act
+                    .get("wasm_config")
                     .and_then(|c| c.get("module_ref"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -144,7 +162,8 @@ fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq
                 }
             }
             "Sidecar" => {
-                let target = act.get("sidecar_config")
+                let target = act
+                    .get("sidecar_config")
                     .and_then(|c| c.get("target"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -159,7 +178,8 @@ fn extract_handlers_from_yaml(val: &serde_yaml::Value, reqs: &mut Vec<HandlerReq
                 }
             }
             "Connector" => {
-                let connector_type = act.get("connector_config")
+                let connector_type = act
+                    .get("connector_config")
                     .and_then(|c| c.get("connector_type"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -188,20 +208,39 @@ pub fn run_inspect(
     let reqs = scan_workflow_handlers(path)?;
 
     if format == "json" {
-        let json_arr: Vec<serde_json::Value> = reqs.iter().map(|r| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("workflow_id".into(), serde_json::Value::String(r.workflow_id.clone()));
-            obj.insert("endpoint".into(), serde_json::Value::String(r.endpoint.clone()));
-            obj.insert("handler_type".into(), serde_json::Value::String(r.handler_type.clone()));
-            obj.insert("handler_ref".into(), serde_json::Value::String(r.handler_ref.clone()));
-            if check_dir {
-                obj.insert("ready".into(), serde_json::Value::Bool(
-                    check_handler_ready(r, plugin_dir, wasm_dir)
-                ));
-            }
-            serde_json::Value::Object(obj)
-        }).collect();
-        println!("{}", serde_json::to_string_pretty(&json_arr).unwrap_or_default());
+        let json_arr: Vec<serde_json::Value> = reqs
+            .iter()
+            .map(|r| {
+                let mut obj = serde_json::Map::new();
+                obj.insert(
+                    "workflow_id".into(),
+                    serde_json::Value::String(r.workflow_id.clone()),
+                );
+                obj.insert(
+                    "endpoint".into(),
+                    serde_json::Value::String(r.endpoint.clone()),
+                );
+                obj.insert(
+                    "handler_type".into(),
+                    serde_json::Value::String(r.handler_type.clone()),
+                );
+                obj.insert(
+                    "handler_ref".into(),
+                    serde_json::Value::String(r.handler_ref.clone()),
+                );
+                if check_dir {
+                    obj.insert(
+                        "ready".into(),
+                        serde_json::Value::Bool(check_handler_ready(r, plugin_dir, wasm_dir)),
+                    );
+                }
+                serde_json::Value::Object(obj)
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json_arr).unwrap_or_default()
+        );
         return Ok(());
     }
 
@@ -220,7 +259,12 @@ pub fn run_inspect(
 
     for (wf_id, handlers) in &by_workflow {
         let ep = handlers.first().map(|h| h.endpoint.as_str()).unwrap_or("");
-        println!("  {} {} {}", "Workflow:".cyan().bold(), wf_id.bold(), ep.dimmed());
+        println!(
+            "  {} {} {}",
+            "Workflow:".cyan().bold(),
+            wf_id.bold(),
+            ep.dimmed()
+        );
         for h in handlers {
             let status = if check_dir {
                 if check_handler_ready(h, plugin_dir, wasm_dir) {
@@ -231,7 +275,12 @@ pub fn run_inspect(
             } else {
                 String::new()
             };
-            println!("    → {}: {}  {}", h.handler_type.yellow(), h.handler_ref, status);
+            println!(
+                "    → {}: {}  {}",
+                h.handler_type.yellow(),
+                h.handler_ref,
+                status
+            );
         }
     }
 
@@ -255,13 +304,23 @@ pub fn run_inspect(
     }
 
     println!();
-    println!("  {} {} NativeCode, {} WASM, {} Sidecar, {} Connector",
-        "Summary:".cyan().bold(), native_count, wasm_count, sidecar_count, connector_count);
+    println!(
+        "  {} {} NativeCode, {} WASM, {} Sidecar, {} Connector",
+        "Summary:".cyan().bold(),
+        native_count,
+        wasm_count,
+        sidecar_count,
+        connector_count
+    );
     if check_dir {
         if missing_count == 0 {
             println!("  {} All handlers ready", "✓".green().bold());
         } else {
-            println!("  {} {} handler(s) missing", "✗".red().bold(), missing_count);
+            println!(
+                "  {} {} handler(s) missing",
+                "✗".red().bold(),
+                missing_count
+            );
         }
     }
 
@@ -270,9 +329,13 @@ pub fn run_inspect(
 
 fn check_handler_ready(req: &HandlerReq, plugin_dir: &str, wasm_dir: &str) -> bool {
     match req.handler_type.as_str() {
-        "NativeCode" => Path::new(plugin_dir).join(format!("{}.so", req.handler_ref)).exists(),
-        "WASM" => Path::new(wasm_dir).join(format!("{}.wasm", req.handler_ref)).exists(),
-        "Sidecar" => true, // sidecars are spawned from command, no file check
+        "NativeCode" => Path::new(plugin_dir)
+            .join(format!("{}.so", req.handler_ref))
+            .exists(),
+        "WASM" => Path::new(wasm_dir)
+            .join(format!("{}.wasm", req.handler_ref))
+            .exists(),
+        "Sidecar" => true,   // sidecars are spawned from command, no file check
         "Connector" => true, // connectors are infra, no file check
         _ => true,
     }
@@ -301,7 +364,9 @@ pub fn run_upload(
     // Health check
     print!("  Checking server health... ");
     let health_url = format!("{}/api/admin/health", host);
-    let resp = client.get(&health_url).send()
+    let resp = client
+        .get(&health_url)
+        .send()
         .map_err(|e| format!("Server not reachable at {}: {}", host, e))?;
     if !resp.status().is_success() {
         return Err(format!("Server unhealthy: HTTP {}", resp.status()));
@@ -323,11 +388,19 @@ pub fn run_upload(
             so_files.sort_by_key(|e| e.file_name());
 
             if !so_files.is_empty() {
-                println!("\n  {} Uploading {} NativeCode plugin(s)", "→".cyan(), so_files.len());
+                println!(
+                    "\n  {} Uploading {} NativeCode plugin(s)",
+                    "→".cyan(),
+                    so_files.len()
+                );
             }
             for entry in &so_files {
-                let handler_name = entry.path().file_stem()
-                    .unwrap_or_default().to_string_lossy().to_string();
+                let handler_name = entry
+                    .path()
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let url = format!("{}/api/admin/upload/plugin", host);
                 let file_path = entry.path().to_string_lossy().to_string();
                 match upload_binary_file(&url, &file_path, "X-Handler-Ref", &handler_name, key) {
@@ -336,7 +409,12 @@ pub fn run_upload(
                             println!("    {} {}", "OK".green(), handler_name);
                             upload_ok += 1;
                         } else {
-                            println!("    {} {} — {}", "FAIL".red(), handler_name, &body[..body.len().min(80)]);
+                            println!(
+                                "    {} {} — {}",
+                                "FAIL".red(),
+                                handler_name,
+                                &body[..body.len().min(80)]
+                            );
                             upload_fail += 1;
                         }
                     }
@@ -359,11 +437,19 @@ pub fn run_upload(
             wasm_files.sort_by_key(|e| e.file_name());
 
             if !wasm_files.is_empty() {
-                println!("\n  {} Uploading {} WASM module(s)", "→".cyan(), wasm_files.len());
+                println!(
+                    "\n  {} Uploading {} WASM module(s)",
+                    "→".cyan(),
+                    wasm_files.len()
+                );
             }
             for entry in &wasm_files {
-                let module_name = entry.path().file_stem()
-                    .unwrap_or_default().to_string_lossy().to_string();
+                let module_name = entry
+                    .path()
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let url = format!("{}/api/admin/upload/wasm", host);
                 let file_path = entry.path().to_string_lossy().to_string();
                 match upload_binary_file(&url, &file_path, "X-Module-Ref", &module_name, key) {
@@ -372,7 +458,12 @@ pub fn run_upload(
                             println!("    {} {}", "OK".green(), module_name);
                             upload_ok += 1;
                         } else {
-                            println!("    {} {} — {}", "FAIL".red(), module_name, &body[..body.len().min(80)]);
+                            println!(
+                                "    {} {} — {}",
+                                "FAIL".red(),
+                                module_name,
+                                &body[..body.len().min(80)]
+                            );
                             upload_fail += 1;
                         }
                     }
@@ -390,18 +481,26 @@ pub fn run_upload(
         let p = Path::new(path);
         let yaml_files = collect_yaml_files(p)?;
         if !yaml_files.is_empty() {
-            println!("\n  {} Uploading {} workflow(s)", "→".cyan(), yaml_files.len());
+            println!(
+                "\n  {} Uploading {} workflow(s)",
+                "→".cyan(),
+                yaml_files.len()
+            );
         }
 
         let mut uploaded_ids: Vec<String> = Vec::new();
 
         for yaml_path in &yaml_files {
-            let wf_name = yaml_path.file_stem()
-                .unwrap_or_default().to_string_lossy().to_string();
+            let wf_name = yaml_path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             let content = std::fs::read(yaml_path)
                 .map_err(|e| format!("read {}: {}", yaml_path.display(), e))?;
             let url = format!("{}/api/admin/upload", host);
-            let mut req = client.post(&url)
+            let mut req = client
+                .post(&url)
                 .header("Content-Type", "application/x-yaml")
                 .body(content);
             if let Some(k) = key {
@@ -421,7 +520,12 @@ pub fn run_upload(
                 }
                 Ok(r) => {
                     let body = r.text().unwrap_or_default();
-                    println!("    {} {} — {}", "FAIL".red(), wf_name, &body[..body.len().min(80)]);
+                    println!(
+                        "    {} {} — {}",
+                        "FAIL".red(),
+                        wf_name,
+                        &body[..body.len().min(80)]
+                    );
                     upload_fail += 1;
                 }
                 Err(e) => {
@@ -433,11 +537,16 @@ pub fn run_upload(
 
         // Activate uploaded workflows
         if activate && !uploaded_ids.is_empty() {
-            println!("\n  {} Activating {} workflow(s)", "→".cyan(), uploaded_ids.len());
+            println!(
+                "\n  {} Activating {} workflow(s)",
+                "→".cyan(),
+                uploaded_ids.len()
+            );
             for wf_id in &uploaded_ids {
                 let url = format!("{}/api/admin/workflow/activate", host);
                 let body = serde_json::json!({"id": wf_id, "revision": 1});
-                let mut req = client.post(&url)
+                let mut req = client
+                    .post(&url)
                     .header("Content-Type", "application/json")
                     .json(&body);
                 if let Some(k) = key {
@@ -460,10 +569,12 @@ pub fn run_upload(
 
     // Summary
     println!();
-    println!("  {} uploaded: {}  failed: {}",
+    println!(
+        "  {} uploaded: {}  failed: {}",
         "Upload complete.".cyan().bold(),
         format!("{}", upload_ok).green(),
-        format!("{}", upload_fail).red());
+        format!("{}", upload_fail).red()
+    );
 
     if upload_fail > 0 {
         Err(format!("{} upload(s) failed", upload_fail))
@@ -492,7 +603,8 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
         if !resp.status().is_success() {
             return Err(format!("GET {} → HTTP {}", path, resp.status()));
         }
-        resp.json::<serde_json::Value>().map_err(|e| format!("parse {}: {}", path, e))
+        resp.json::<serde_json::Value>()
+            .map_err(|e| format!("parse {}: {}", path, e))
     };
 
     let handlers = get("/api/admin/handlers")?;
@@ -503,18 +615,29 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
             "handlers": handlers,
             "workflows": workflows,
         });
-        println!("{}", serde_json::to_string_pretty(&combined).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&combined).unwrap_or_default()
+        );
         return Ok(());
     }
 
     // ── Workflows table ──
-    let wf_list = workflows.as_array()
+    let wf_list = workflows
+        .as_array()
         .or_else(|| workflows.get("workflows").and_then(|w| w.as_array()));
 
     println!();
     if let Some(wfs) = wf_list {
-        println!("  {} ({})", "Provisioned Workflows".cyan().bold(), wfs.len());
-        println!("  {:<24} {:<10} {:<30} {:<6}", "ID", "Status", "Endpoint", "Rev");
+        println!(
+            "  {} ({})",
+            "Provisioned Workflows".cyan().bold(),
+            wfs.len()
+        );
+        println!(
+            "  {:<24} {:<10} {:<30} {:<6}",
+            "ID", "Status", "Endpoint", "Rev"
+        );
         println!("  {}", "─".repeat(74));
         for wf in wfs {
             let id = wf.get("id").and_then(|v| v.as_str()).unwrap_or("-");
@@ -524,7 +647,10 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
             } else {
                 "inactive".red().to_string()
             };
-            let webhook = wf.get("webhook_path").and_then(|v| v.as_str()).unwrap_or("-");
+            let webhook = wf
+                .get("webhook_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("-");
             let rev = wf.get("revision").and_then(|v| v.as_u64()).unwrap_or(0);
             println!("  {:<24} {:<10} {:<30} v{}", id, status_str, webhook, rev);
         }
@@ -541,11 +667,16 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
     if let Some(list) = plugins {
         println!("  {} ({})", "NativeCode Handlers".cyan().bold(), list.len());
         for p in list {
-            let name = p.as_str().unwrap_or_else(|| p.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
+            let name = p
+                .as_str()
+                .unwrap_or_else(|| p.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
             println!("    {} {}", "✓".green(), name);
         }
     } else {
-        let count = handlers.get("plugins_count").and_then(|v| v.as_u64()).unwrap_or(0);
+        let count = handlers
+            .get("plugins_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
         println!("  {} ({})", "NativeCode Handlers".cyan().bold(), count);
     }
 
@@ -553,11 +684,16 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
     if let Some(list) = wasm_modules {
         println!("  {} ({})", "WASM Modules".cyan().bold(), list.len());
         for m in list {
-            let name = m.as_str().unwrap_or_else(|| m.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
+            let name = m
+                .as_str()
+                .unwrap_or_else(|| m.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
             println!("    {} {}", "✓".green(), name);
         }
     } else {
-        let count = handlers.get("wasm_count").and_then(|v| v.as_u64()).unwrap_or(0);
+        let count = handlers
+            .get("wasm_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
         println!("  {} ({})", "WASM Modules".cyan().bold(), count);
     }
 
@@ -565,11 +701,16 @@ pub fn run_status(host: &str, key: Option<&str>, format: &str) -> Result<(), Str
     if let Some(list) = sidecars {
         println!("  {} ({})", "Sidecars".cyan().bold(), list.len());
         for s in list {
-            let name = s.as_str().unwrap_or_else(|| s.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
+            let name = s
+                .as_str()
+                .unwrap_or_else(|| s.get("name").and_then(|v| v.as_str()).unwrap_or("-"));
             println!("    {} {}", "✓".green(), name);
         }
     } else {
-        let count = handlers.get("sidecars_count").and_then(|v| v.as_u64()).unwrap_or(0);
+        let count = handlers
+            .get("sidecars_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
         println!("  {} ({})", "Sidecars".cyan().bold(), count);
     }
 
@@ -642,14 +783,25 @@ pub fn run_provision(action: Action) -> Result<(), String> {
 }
 
 /// Upload a binary file via curl subprocess (reliable for .so/.wasm uploads).
-fn upload_binary_file(url: &str, file_path: &str, header_name: &str, header_value: &str, key: Option<&str>) -> Result<String, String> {
+fn upload_binary_file(
+    url: &str,
+    file_path: &str,
+    header_name: &str,
+    header_value: &str,
+    key: Option<&str>,
+) -> Result<String, String> {
     let mut args = vec![
         "-s".to_string(),
-        "-X".to_string(), "POST".to_string(),
-        "-H".to_string(), format!("{}: {}", header_name, header_value),
-        "-H".to_string(), "Content-Type: application/octet-stream".to_string(),
-        "--data-binary".to_string(), format!("@{}", file_path),
-        "--max-time".to_string(), "30".to_string(),
+        "-X".to_string(),
+        "POST".to_string(),
+        "-H".to_string(),
+        format!("{}: {}", header_name, header_value),
+        "-H".to_string(),
+        "Content-Type: application/octet-stream".to_string(),
+        "--data-binary".to_string(),
+        format!("@{}", file_path),
+        "--max-time".to_string(),
+        "30".to_string(),
     ];
     if let Some(k) = key {
         args.push("-H".to_string());
@@ -670,7 +822,16 @@ fn upload_binary_file(url: &str, file_path: &str, header_name: &str, header_valu
 
 fn curl_post(url: &str, body: &str) -> Result<String, String> {
     let output = Command::new("curl")
-        .args(["-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", body, url])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            body,
+            url,
+        ])
         .output()
         .map_err(|e| format!("Failed to run curl: {}", e))?;
     Ok(String::from_utf8_lossy(&output.stdout).to_string())

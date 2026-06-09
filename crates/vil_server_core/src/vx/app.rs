@@ -218,7 +218,9 @@ pub struct VilApp {
 struct CronTaskDef {
     name: String,
     interval_secs: u64,
-    task: Box<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync>,
+    task: Box<
+        dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync,
+    >,
 }
 
 impl VilApp {

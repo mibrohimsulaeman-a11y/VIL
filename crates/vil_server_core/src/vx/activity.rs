@@ -92,7 +92,11 @@ impl ActivityError {
 
 impl std::fmt::Display for ActivityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {:?}: {}", self.activity_name, self.kind, self.message)
+        write!(
+            f,
+            "[{}] {:?}: {}",
+            self.activity_name, self.kind, self.message
+        )
     }
 }
 
@@ -121,9 +125,7 @@ pub struct ActivityStep {
 #[derive(Clone)]
 pub enum ActivityMode {
     /// Compiled Rust async function — zero overhead.
-    Native {
-        handler: NativeActivityFn,
-    },
+    Native { handler: NativeActivityFn },
     /// WASM module function — sandboxed, hot-deployable.
     /// VIL runtime calls WasmPool::call_i32() or call_with_memory().
     Wasm {
@@ -163,9 +165,7 @@ impl ActivityChain {
         F: Fn(Vec<u8>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<ActivityOutput, ActivityError>> + Send + 'static,
     {
-        let handler = Arc::new(move |data: Vec<u8>| -> ActivityFuture {
-            Box::pin(handler(data))
-        });
+        let handler = Arc::new(move |data: Vec<u8>| -> ActivityFuture { Box::pin(handler(data)) });
         self.steps.push(ActivityStep {
             name: name.into(),
             mode: ActivityMode::Native { handler },
@@ -238,15 +238,24 @@ impl Default for ActivityChain {
 impl std::fmt::Debug for ActivityChain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ActivityChain")
-            .field("steps", &self.steps.iter().map(|s| {
-                match &s.mode {
-                    ActivityMode::Native { .. } => format!("{}(native)", s.name),
-                    ActivityMode::Wasm { module_name, function_name } =>
-                        format!("{}(wasm:{}::{})", s.name, module_name, function_name),
-                    ActivityMode::Sidecar { target_name, method_name } =>
-                        format!("{}(sidecar:{}::{})", s.name, target_name, method_name),
-                }
-            }).collect::<Vec<_>>())
+            .field(
+                "steps",
+                &self
+                    .steps
+                    .iter()
+                    .map(|s| match &s.mode {
+                        ActivityMode::Native { .. } => format!("{}(native)", s.name),
+                        ActivityMode::Wasm {
+                            module_name,
+                            function_name,
+                        } => format!("{}(wasm:{}::{})", s.name, module_name, function_name),
+                        ActivityMode::Sidecar {
+                            target_name,
+                            method_name,
+                        } => format!("{}(sidecar:{}::{})", s.name, target_name, method_name),
+                    })
+                    .collect::<Vec<_>>(),
+            )
             .finish()
     }
 }

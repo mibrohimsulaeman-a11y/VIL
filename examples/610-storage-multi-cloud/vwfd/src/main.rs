@@ -38,5 +38,6 @@ async fn main() {
     vil_vwfd::app("examples/610-storage-multi-cloud/vwfd/workflows", 8080)
         .native("download_asset", download_asset)
         .native("list_assets", list_assets)
-        .run().await;
+        .run()
+        .await;
 }

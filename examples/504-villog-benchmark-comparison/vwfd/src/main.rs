@@ -25,7 +25,11 @@ fn villog_benchmark(_input: &Value) -> Result<Value, String> {
 
 #[tokio::main]
 async fn main() {
-    vil_vwfd::app("examples/504-villog-benchmark-comparison/vwfd/workflows", 3235)
-        .native("villog_benchmark", villog_benchmark)
-        .run().await;
+    vil_vwfd::app(
+        "examples/504-villog-benchmark-comparison/vwfd/workflows",
+        3235,
+    )
+    .native("villog_benchmark", villog_benchmark)
+    .run()
+    .await;
 }

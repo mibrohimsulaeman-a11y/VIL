@@ -1,5 +1,5 @@
-use serde_json::{json, Value};
 use regex::Regex;
+use serde_json::{json, Value};
 
 pub fn regex_match(args: &[Value]) -> Result<Value, String> {
     let text = args
@@ -52,7 +52,9 @@ pub fn regex_replace(args: &[Value]) -> Result<Value, String> {
         .and_then(|v| v.as_str())
         .ok_or("regex_replace: replacement required")?;
     let re = Regex::new(pattern).map_err(|e| format!("regex_replace: {}", e))?;
-    Ok(Value::String(re.replace_all(text, replacement).into_owned()))
+    Ok(Value::String(
+        re.replace_all(text, replacement).into_owned(),
+    ))
 }
 
 pub fn register_functions() -> Vec<(&'static str, fn(&[Value]) -> Result<Value, String>)> {

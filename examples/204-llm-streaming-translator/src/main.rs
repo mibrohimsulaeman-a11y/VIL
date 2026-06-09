@@ -96,7 +96,8 @@ async fn batch_translate_handler(
     ctx: ServiceCtx,
     body: ShmSlice,
 ) -> HandlerResult<VilResponse<BatchTranslateResponse>> {
-    let req: BatchTranslateRequest = body.json()
+    let req: BatchTranslateRequest = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
     if req.texts.is_empty() {
         return Err(VilError::bad_request("texts array must not be empty"));
@@ -152,7 +153,8 @@ async fn batch_translate_handler(
                 };
 
                 // ── Update LlmUsageState ──
-                let state = ctx.state::<Arc<AppState>>()
+                let state = ctx
+                    .state::<Arc<AppState>>()
                     .map_err(|_| VilError::internal("state not found"))?;
                 state.usage.lock().unwrap().record(&event);
 
@@ -191,7 +193,8 @@ async fn batch_translate_handler(
 // ── Handler: usage stats ─────────────────────────────────────────────
 
 async fn usage_handler(ctx: ServiceCtx) -> HandlerResult<VilResponse<UsageResponse>> {
-    let state = ctx.state::<Arc<AppState>>()
+    let state = ctx
+        .state::<Arc<AppState>>()
         .map_err(|_| VilError::internal("state not found"))?;
     let usage = state.usage.lock().unwrap();
 

@@ -53,8 +53,7 @@ pub fn generate_project(
     for (path, content) in &files {
         let full_path = output_dir.join(path);
         if let Some(parent) = full_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("mkdir {}: {}", parent.display(), e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {}", parent.display(), e))?;
         }
         fs::write(&full_path, content)
             .map_err(|e| format!("write {}: {}", full_path.display(), e))?;
@@ -193,7 +192,10 @@ fn gen_main_rs(project_name: &str, tables: &[TableMeta]) -> String {
         out.push_str(&format!("        .service({}_svc)\n", table.name));
     }
     out.push_str(";\n\n");
-    out.push_str(&format!("    println!(\"[server] Starting on port {}\");\n", port));
+    out.push_str(&format!(
+        "    println!(\"[server] Starting on port {}\");\n",
+        port
+    ));
     out.push_str("    app.run().await;\n");
     out.push_str("}\n");
 
@@ -218,7 +220,9 @@ fn gen_db_rs(_schema_sql: &str) -> String {
     out.push_str("        let mut buf = String::new();\n");
     out.push_str("        for line in sql.lines() {\n");
     out.push_str("            let trimmed = line.trim();\n");
-    out.push_str("            if trimmed.starts_with(\"--\") || trimmed.is_empty() { continue; }\n");
+    out.push_str(
+        "            if trimmed.starts_with(\"--\") || trimmed.is_empty() { continue; }\n",
+    );
     out.push_str("            buf.push_str(trimmed);\n");
     out.push_str("            buf.push(' ');\n");
     out.push_str("            if trimmed.ends_with(\");\") {\n");
@@ -230,7 +234,9 @@ fn gen_db_rs(_schema_sql: &str) -> String {
     out.push_str("        }\n");
     out.push_str("        println!(\"[db] Schema applied from {}\", schema_path);\n");
     out.push_str("    } else {\n");
-    out.push_str("        println!(\"[db] No schema file at {} — skipping migration\", schema_path);\n");
+    out.push_str(
+        "        println!(\"[db] No schema file at {} — skipping migration\", schema_path);\n",
+    );
     out.push_str("    }\n\n");
     out.push_str("    pool\n");
     out.push_str("}\n");
@@ -380,8 +386,14 @@ CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT DE
         assert!(dir.join("src/main.rs").exists(), "Missing main.rs");
         assert!(dir.join("src/db.rs").exists(), "Missing db.rs");
         assert!(dir.join("src/error.rs").exists(), "Missing error.rs");
-        assert!(dir.join("src/models/mod.rs").exists(), "Missing models/mod.rs");
-        assert!(dir.join("src/services/mod.rs").exists(), "Missing services/mod.rs");
+        assert!(
+            dir.join("src/models/mod.rs").exists(),
+            "Missing models/mod.rs"
+        );
+        assert!(
+            dir.join("src/services/mod.rs").exists(),
+            "Missing services/mod.rs"
+        );
 
         // Verify one model + service per table
         for table in &tables {

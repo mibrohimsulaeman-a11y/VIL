@@ -5,8 +5,8 @@
 //   - Error codes: INSUFFICIENT_FUNDS, ACCOUNT_FROZEN, TRANSACTION_LIMIT_EXCEEDED, ACCOUNT_NOT_FOUND
 //   - Daily limit per account (ACC-1001/1002: 10M, ACC-1004: 20M)
 use serde_json::{json, Value};
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 struct Account {
     holder_name: &'static str,
@@ -19,16 +19,50 @@ static ACCOUNTS: Mutex<Option<HashMap<String, Account>>> = Mutex::new(None);
 
 fn init_accounts() -> HashMap<String, Account> {
     let mut m = HashMap::new();
-    m.insert("ACC-1001".into(), Account { holder_name: "Alice Wijaya", balance_cents: 500_000_00, frozen: false, daily_limit_cents: 100_000_00 });
-    m.insert("ACC-1002".into(), Account { holder_name: "Bob Santoso", balance_cents: 250_000_00, frozen: false, daily_limit_cents: 100_000_00 });
-    m.insert("ACC-1003".into(), Account { holder_name: "Charlie Pratama", balance_cents: 750_000_00, frozen: true, daily_limit_cents: 100_000_00 });
-    m.insert("ACC-1004".into(), Account { holder_name: "Diana Sari", balance_cents: 1_000_000_00, frozen: false, daily_limit_cents: 200_000_00 });
+    m.insert(
+        "ACC-1001".into(),
+        Account {
+            holder_name: "Alice Wijaya",
+            balance_cents: 500_000_00,
+            frozen: false,
+            daily_limit_cents: 100_000_00,
+        },
+    );
+    m.insert(
+        "ACC-1002".into(),
+        Account {
+            holder_name: "Bob Santoso",
+            balance_cents: 250_000_00,
+            frozen: false,
+            daily_limit_cents: 100_000_00,
+        },
+    );
+    m.insert(
+        "ACC-1003".into(),
+        Account {
+            holder_name: "Charlie Pratama",
+            balance_cents: 750_000_00,
+            frozen: true,
+            daily_limit_cents: 100_000_00,
+        },
+    );
+    m.insert(
+        "ACC-1004".into(),
+        Account {
+            holder_name: "Diana Sari",
+            balance_cents: 1_000_000_00,
+            frozen: false,
+            daily_limit_cents: 200_000_00,
+        },
+    );
     m
 }
 
 fn get_accounts() -> HashMap<String, Account> {
     let mut lock = ACCOUNTS.lock().unwrap();
-    if lock.is_none() { *lock = Some(init_accounts()); }
+    if lock.is_none() {
+        *lock = Some(init_accounts());
+    }
     // Return clone of current state (simplified — real would use RwLock)
     init_accounts()
 }
@@ -38,7 +72,12 @@ fn list_accounts(_input: &Value) -> Result<Value, String> {
     let mut list: Vec<Value> = accounts.iter().map(|(id, a)| {
         json!({"id": id, "holder_name": a.holder_name, "balance_cents": a.balance_cents, "frozen": a.frozen})
     }).collect();
-    list.sort_by(|a, b| a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or("")));
+    list.sort_by(|a, b| {
+        a["id"]
+            .as_str()
+            .unwrap_or("")
+            .cmp(b["id"].as_str().unwrap_or(""))
+    });
     Ok(json!(list))
 }
 
@@ -57,9 +96,11 @@ fn transfer(input: &Value) -> Result<Value, String> {
 
     let accounts = get_accounts();
 
-    let from_acct = accounts.get(from)
+    let from_acct = accounts
+        .get(from)
         .ok_or_else(|| format!("ACCOUNT_NOT_FOUND: {}", from))?;
-    let _to_acct = accounts.get(to)
+    let _to_acct = accounts
+        .get(to)
         .ok_or_else(|| format!("ACCOUNT_NOT_FOUND: {}", to))?;
 
     if from_acct.frozen {
@@ -83,8 +124,13 @@ fn transfer(input: &Value) -> Result<Value, String> {
         }));
     }
 
-    let transfer_id = format!("TXN-{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());
+    let transfer_id = format!(
+        "TXN-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    );
 
     Ok(json!({
         "transfer_id": transfer_id,
@@ -101,5 +147,6 @@ async fn main() {
     vil_vwfd::app("examples/047-basic-custom-error-stack/vwfd/workflows", 8080)
         .native("list_accounts", list_accounts)
         .native("transfer_handler", transfer)
-        .run().await;
+        .run()
+        .await;
 }

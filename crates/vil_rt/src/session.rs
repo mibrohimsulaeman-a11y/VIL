@@ -224,10 +224,7 @@ impl<T: Send + Sync + 'static> SessionRegistry<T> {
         }
 
         // Buffer in pending slot
-        let mut slot = self
-            .pending
-            .entry(session_id)
-            .or_insert_with(PendingSlot::new);
+        let mut slot = self.pending.entry(session_id).or_default();
         if slot.is_expired(self.config.pending_ttl) {
             slot.reset();
         }
@@ -254,10 +251,7 @@ impl<T: Send + Sync + 'static> SessionRegistry<T> {
         }
 
         // Buffer in pending slot
-        let mut slot = self
-            .pending
-            .entry(session_id)
-            .or_insert_with(PendingSlot::new);
+        let mut slot = self.pending.entry(session_id).or_default();
         if slot.is_expired(self.config.pending_ttl) {
             slot.reset();
         }

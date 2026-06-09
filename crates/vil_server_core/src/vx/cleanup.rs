@@ -42,10 +42,11 @@ pub struct CleanupReport {
 
 /// Run one cleanup cycle on a kernel
 pub fn cleanup_kernel(kernel: &VxKernel, config: &CleanupConfig) -> CleanupReport {
-    let mut report = CleanupReport::default();
-
     // 1. Clean up completed/failed/cancelled tokens older than max age
-    report.stale_removed = kernel.cleanup(config.max_token_age_ns);
+    let mut report = CleanupReport {
+        stale_removed: kernel.cleanup(config.max_token_age_ns),
+        ..CleanupReport::default()
+    };
 
     // 2. Detect orphan tokens (Active for too long → mark as Failed)
     // Detect orphan tokens (Active for too long → mark as Failed)
@@ -53,11 +54,7 @@ pub fn cleanup_kernel(kernel: &VxKernel, config: &CleanupConfig) -> CleanupRepor
     // we track orphan detection via the in-flight count vs ready count
     let in_flight = kernel.in_flight();
     let ready = kernel.ready_count();
-    let stuck = if in_flight > ready {
-        in_flight - ready
-    } else {
-        0
-    };
+    let stuck = in_flight.saturating_sub(ready);
 
     if stuck > 0 {
         {

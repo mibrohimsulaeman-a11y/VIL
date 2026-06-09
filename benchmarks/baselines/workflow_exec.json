@@ -1,0 +1,5 @@
+{
+  "compile_fastpath": 161780.42,
+  "exec_compute_starlark": 158512.69,
+  "exec_fastpath": 19077.39
+}

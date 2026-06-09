@@ -72,5 +72,6 @@ fn research_tool_executor(input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/402-agent-http-researcher/vwfd/workflows", 8080)
         .native("research_tool_executor", research_tool_executor)
-        .run().await;
+        .run()
+        .await;
 }

@@ -38,6 +38,9 @@ tarpaulin-report.html
 docs-internal/
 docs-marketing/
 docs-dev/
+
+# Local compatibility-gap reference/evidence workspace (not source history)
+/docs-dev-jangan-ditrack/
 # scripts/ is ignored by default for local dev scripts, but release-relevant
 # scripts are explicitly allowlisted below
 scripts/*
@@ -48,6 +51,11 @@ scripts/*
 !scripts/publish-common.sh
 !scripts/publish-remaining.sh
 !scripts/normalize-versions.sh
+!scripts/bench-gate.sh
+!scripts/bench-gate-release.sh
+!scripts/check-native-toolchain.sh
+!scripts/vflow-compat-live-smoke.sh
+!scripts/vflow-compat-external-live.sh
 .memory/
 
 # Compiled example binaries

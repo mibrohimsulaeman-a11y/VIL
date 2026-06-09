@@ -103,19 +103,25 @@ macro_rules! vil_handler {
                 unsafe { std::slice::from_raw_parts(input_ptr, input_len) }
             };
 
-            let input: $crate::serde_json::Value = match $crate::serde_json::from_slice(input_bytes) {
+            let input: $crate::serde_json::Value = match $crate::serde_json::from_slice(input_bytes)
+            {
                 Ok(v) => v,
                 Err(e) => {
                     let msg = format!("input parse error: {}", e);
                     let boxed = msg.into_bytes().into_boxed_slice();
                     let len = boxed.len();
                     let ptr = Box::into_raw(boxed) as *mut u8;
-                    unsafe { *output_ptr = ptr; *output_len = len; }
+                    unsafe {
+                        *output_ptr = ptr;
+                        *output_len = len;
+                    }
                     return 1;
                 }
             };
 
-            let handler: fn(&$crate::serde_json::Value) -> Result<$crate::serde_json::Value, String> = $handler;
+            let handler: fn(
+                &$crate::serde_json::Value,
+            ) -> Result<$crate::serde_json::Value, String> = $handler;
             // Catch panics (e.g. tokio runtime not available) to avoid aborting the host process
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(&input)));
             let result = match result {
@@ -133,18 +139,25 @@ macro_rules! vil_handler {
             };
             match result {
                 Ok(result) => {
-                    let bytes = $crate::serde_json::to_vec(&result).unwrap_or_else(|_| b"null".to_vec());
+                    let bytes =
+                        $crate::serde_json::to_vec(&result).unwrap_or_else(|_| b"null".to_vec());
                     let boxed = bytes.into_boxed_slice();
                     let len = boxed.len();
                     let ptr = Box::into_raw(boxed) as *mut u8;
-                    unsafe { *output_ptr = ptr; *output_len = len; }
+                    unsafe {
+                        *output_ptr = ptr;
+                        *output_len = len;
+                    }
                     0
                 }
                 Err(e) => {
                     let boxed = e.into_bytes().into_boxed_slice();
                     let len = boxed.len();
                     let ptr = Box::into_raw(boxed) as *mut u8;
-                    unsafe { *output_ptr = ptr; *output_len = len; }
+                    unsafe {
+                        *output_ptr = ptr;
+                        *output_len = len;
+                    }
                     1
                 }
             }
@@ -153,7 +166,9 @@ macro_rules! vil_handler {
         #[no_mangle]
         pub extern "C" fn vflow_plugin_free(ptr: *mut u8, len: usize) {
             if !ptr.is_null() && len > 0 {
-                unsafe { let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len)); }
+                unsafe {
+                    let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+                }
             }
         }
     };

@@ -31,10 +31,20 @@ pub struct JsonRpcError {
 
 impl JsonRpcResponse {
     pub fn ok(id: Option<Value>, result: Value) -> Self {
-        Self { jsonrpc: "2.0".into(), id, result: Some(result), error: None }
+        Self {
+            jsonrpc: "2.0".into(),
+            id,
+            result: Some(result),
+            error: None,
+        }
     }
     pub fn err(id: Option<Value>, code: i32, message: String) -> Self {
-        Self { jsonrpc: "2.0".into(), id, result: None, error: Some(JsonRpcError { code, message }) }
+        Self {
+            jsonrpc: "2.0".into(),
+            id,
+            result: None,
+            error: Some(JsonRpcError { code, message }),
+        }
     }
 }
 
@@ -141,7 +151,9 @@ pub fn handle_request(req: &JsonRpcRequest) -> JsonRpcResponse {
         "initialize" => JsonRpcResponse::ok(req.id.clone(), server_info()),
         "initialized" => JsonRpcResponse::ok(req.id.clone(), serde_json::json!({})),
 
-        "tools/list" => JsonRpcResponse::ok(req.id.clone(), serde_json::json!({ "tools": tools_list() })),
+        "tools/list" => {
+            JsonRpcResponse::ok(req.id.clone(), serde_json::json!({ "tools": tools_list() }))
+        }
         "tools/call" => {
             let params = req.params.as_ref().cloned().unwrap_or(Value::Null);
             let tool_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -150,7 +162,10 @@ pub fn handle_request(req: &JsonRpcRequest) -> JsonRpcResponse {
             JsonRpcResponse::ok(req.id.clone(), result)
         }
 
-        "resources/list" => JsonRpcResponse::ok(req.id.clone(), serde_json::json!({ "resources": resources_list() })),
+        "resources/list" => JsonRpcResponse::ok(
+            req.id.clone(),
+            serde_json::json!({ "resources": resources_list() }),
+        ),
         "resources/read" => {
             let params = req.params.as_ref().cloned().unwrap_or(Value::Null);
             let uri = params.get("uri").and_then(|v| v.as_str()).unwrap_or("");
@@ -158,7 +173,11 @@ pub fn handle_request(req: &JsonRpcRequest) -> JsonRpcResponse {
             JsonRpcResponse::ok(req.id.clone(), result)
         }
 
-        _ => JsonRpcResponse::err(req.id.clone(), -32601, format!("method not found: {}", req.method)),
+        _ => JsonRpcResponse::err(
+            req.id.clone(),
+            -32601,
+            format!("method not found: {}", req.method),
+        ),
     }
 }
 
@@ -177,20 +196,30 @@ pub fn run_server() {
             Err(_) => break,
         };
 
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
 
         let req: JsonRpcRequest = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
                 let resp = JsonRpcResponse::err(None, -32700, format!("parse error: {}", e));
-                let _ = writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap_or_default());
+                let _ = writeln!(
+                    stdout,
+                    "{}",
+                    serde_json::to_string(&resp).unwrap_or_default()
+                );
                 let _ = stdout.flush();
                 continue;
             }
         };
 
         let resp = handle_request(&req);
-        let _ = writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap_or_default());
+        let _ = writeln!(
+            stdout,
+            "{}",
+            serde_json::to_string(&resp).unwrap_or_default()
+        );
         let _ = stdout.flush();
     }
 }

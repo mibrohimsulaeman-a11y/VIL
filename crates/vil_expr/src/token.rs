@@ -6,23 +6,43 @@ pub enum Token {
     Int(i64),
     Float(f64),
     Str(String),
-    True, False, Null,
-    In,                     // keyword `in`
+    True,
+    False,
+    Null,
+    In, // keyword `in`
     // vdicl keywords
-    And, Or, Not,           // AND, OR, NOT (aliases for &&, ||, !)
-    Is,                     // IS (for IS NULL, IS NOT NULL)
+    And,
+    Or,
+    Not, // AND, OR, NOT (aliases for &&, ||, !)
+    Is,  // IS (for IS NULL, IS NOT NULL)
 
     // Operators
-    Plus, Minus, Star, Slash, Percent,
-    EqEq, BangEq, Lt, Lte, Gt, Gte,
-    AmpAmp, PipePipe, Bang,
-    Question, Colon,        // ternary ? :
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    EqEq,
+    BangEq,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    AmpAmp,
+    PipePipe,
+    Bang,
+    Question,
+    Colon, // ternary ? :
 
     // Delimiters
-    Dot, Comma,
-    LParen, RParen,
-    LBrace, RBrace,
-    LBracket, RBracket,
+    Dot,
+    Comma,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
 
     Eof,
 }
@@ -37,7 +57,10 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
         let b = bytes[i];
 
         // Whitespace
-        if b.is_ascii_whitespace() { i += 1; continue; }
+        if b.is_ascii_whitespace() {
+            i += 1;
+            continue;
+        }
 
         // String: double or single quote
         if b == b'"' || b == b'\'' {
@@ -54,14 +77,19 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
                         b'\\' => s.push('\\'),
                         b'\'' => s.push('\''),
                         b'"' => s.push('"'),
-                        c => { s.push('\\'); s.push(c as char); }
+                        c => {
+                            s.push('\\');
+                            s.push(c as char);
+                        }
                     }
                 } else {
                     s.push(bytes[i] as char);
                 }
                 i += 1;
             }
-            if i >= len { return Err(format!("unterminated string at {}", start - 1)); }
+            if i >= len {
+                return Err(format!("unterminated string at {}", start - 1));
+            }
             i += 1; // skip closing quote
             tokens.push(Token::Str(s));
             continue;
@@ -70,22 +98,35 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
         // Number (with optional decimal suffix `m` for monetary/decimal128)
         if b.is_ascii_digit() {
             let start = i;
-            while i < len && bytes[i].is_ascii_digit() { i += 1; }
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
             if i < len && bytes[i] == b'.' && i + 1 < len && bytes[i + 1].is_ascii_digit() {
                 i += 1; // skip dot
-                while i < len && bytes[i].is_ascii_digit() { i += 1; }
+                while i < len && bytes[i].is_ascii_digit() {
+                    i += 1;
+                }
                 let s: String = input[start..i].into();
                 // Skip trailing `m` suffix (decimal/monetary marker)
-                if i < len && bytes[i] == b'm' { i += 1; }
-                tokens.push(Token::Float(s.parse().map_err(|_| format!("bad float: {}", s))?));
+                if i < len && bytes[i] == b'm' {
+                    i += 1;
+                }
+                tokens.push(Token::Float(
+                    s.parse().map_err(|_| format!("bad float: {}", s))?,
+                ));
             } else {
                 let s: String = input[start..i].into();
                 // Skip trailing `m` suffix — treat as float for monetary values
                 if i < len && bytes[i] == b'm' {
                     i += 1;
-                    tokens.push(Token::Float(s.parse::<f64>().map_err(|_| format!("bad decimal: {}", s))?));
+                    tokens.push(Token::Float(
+                        s.parse::<f64>()
+                            .map_err(|_| format!("bad decimal: {}", s))?,
+                    ));
                 } else {
-                    tokens.push(Token::Int(s.parse().map_err(|_| format!("bad int: {}", s))?));
+                    tokens.push(Token::Int(
+                        s.parse().map_err(|_| format!("bad int: {}", s))?,
+                    ));
                 }
             }
             continue;
@@ -94,7 +135,9 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
         // Ident or keyword
         if b.is_ascii_alphabetic() || b == b'_' {
             let start = i;
-            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
+            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
             let word: String = input[start..i].into();
             tokens.push(match word.as_str() {
                 "true" => Token::True,
@@ -113,12 +156,36 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
         // Two-char operators
         if i + 1 < len {
             match (bytes[i], bytes[i + 1]) {
-                (b'=', b'=') => { tokens.push(Token::EqEq); i += 2; continue; }
-                (b'!', b'=') => { tokens.push(Token::BangEq); i += 2; continue; }
-                (b'<', b'=') => { tokens.push(Token::Lte); i += 2; continue; }
-                (b'>', b'=') => { tokens.push(Token::Gte); i += 2; continue; }
-                (b'&', b'&') => { tokens.push(Token::AmpAmp); i += 2; continue; }
-                (b'|', b'|') => { tokens.push(Token::PipePipe); i += 2; continue; }
+                (b'=', b'=') => {
+                    tokens.push(Token::EqEq);
+                    i += 2;
+                    continue;
+                }
+                (b'!', b'=') => {
+                    tokens.push(Token::BangEq);
+                    i += 2;
+                    continue;
+                }
+                (b'<', b'=') => {
+                    tokens.push(Token::Lte);
+                    i += 2;
+                    continue;
+                }
+                (b'>', b'=') => {
+                    tokens.push(Token::Gte);
+                    i += 2;
+                    continue;
+                }
+                (b'&', b'&') => {
+                    tokens.push(Token::AmpAmp);
+                    i += 2;
+                    continue;
+                }
+                (b'|', b'|') => {
+                    tokens.push(Token::PipePipe);
+                    i += 2;
+                    continue;
+                }
                 _ => {}
             }
         }

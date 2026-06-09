@@ -19,6 +19,9 @@ pub struct VwfdMetadata {
     pub author: Option<String>,
     pub tags: Option<Vec<String>>,
     pub updated_at: Option<String>,
+    /// Workflow dialect selector. Values: "vil" (default) | "vflow".
+    /// Controls the implicit expression language for bare-string conditions.
+    pub dialect: Option<String>,
     /// State store type for execution state tracking.
     /// Values: "in_memory", "h2_in_memory", "redb", "postgres" (future).
     /// Default: none (stateless execution).
@@ -34,6 +37,7 @@ pub struct VwfdSpec {
     pub flows: Vec<VwfdFlow>,
     pub variables: Option<Vec<VwfdVariable>>,
     pub durability: Option<DurabilityConfig>,
+    pub audit_log: Option<serde_yaml::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,6 +45,26 @@ pub struct DurabilityConfig {
     pub enabled: Option<bool>,
     pub default_mode: Option<String>,
     pub compensation_timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuditConfig {
+    pub events: Option<Vec<String>>,
+    pub sinks: Option<Vec<AuditSinkConfig>>,
+    pub mode: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuditSinkConfig {
+    #[serde(rename = "type")]
+    pub sink_type: Option<String>,
+    pub kind: Option<String>,
+    pub url: Option<String>,
+    pub endpoint: Option<String>,
+    pub subject: Option<String>,
+    pub topic: Option<String>,
+    pub headers: Option<serde_json::Value>,
+    pub params: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -61,12 +85,18 @@ pub struct VwfdActivity {
     pub sub_workflow_config: Option<SubWorkflowConfig>,
     pub human_task_config: Option<HumanTaskConfig>,
     pub code_config: Option<NativeCodeConfig>,
+    pub compute_config: Option<ComputeConfig>,
+    pub validate_config: Option<ValidateConfig>,
+    pub timer_config: Option<TimerConfig>,
+    pub signal_config: Option<SignalConfig>,
+    pub event_gateway_config: Option<EventGatewayConfig>,
 
     pub input_mappings: Option<Vec<InputMapping>>,
     pub loop_config: Option<LoopConfig>,
 
     pub durability: Option<String>,
     pub compensation: Option<CompensationConfig>,
+    pub audit_log: Option<serde_yaml::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -126,9 +156,17 @@ pub struct TriggerConfig {
     pub cdc: Option<serde_json::Value>,
     pub email: Option<serde_json::Value>,
     pub nats: Option<serde_json::Value>,
+    pub nats_js: Option<serde_json::Value>,
+    pub nats_kv: Option<serde_json::Value>,
     pub grpc: Option<serde_json::Value>,
     pub s3_event: Option<serde_json::Value>,
     pub mqtt: Option<serde_json::Value>,
+    pub db_poll: Option<serde_json::Value>,
+    pub fs: Option<serde_json::Value>,
+    pub body_schema: Option<serde_json::Value>,
+    pub proto: Option<serde_json::Value>,
+    pub proto_field: Option<String>,
+    pub proto_schema: Option<serde_json::Value>,
     pub webhook_config: Option<WebhookLegacyConfig>,
 }
 
@@ -160,6 +198,28 @@ pub struct ConnectorConfig {
     pub json_tap: Option<String>,
     pub done_marker: Option<String>,
     pub bearer_token: Option<String>,
+    // H4f: permissive connector declaration fields for compile-contract parity.
+    pub connection: Option<serde_json::Value>,
+    pub auth: Option<serde_json::Value>,
+    pub endpoint: Option<String>,
+    pub headers: Option<serde_json::Value>,
+    pub database: Option<serde_json::Value>,
+    pub sql: Option<serde_json::Value>,
+    pub grpc: Option<serde_json::Value>,
+    pub redis: Option<serde_json::Value>,
+    pub mongo: Option<serde_json::Value>,
+    pub cassandra: Option<serde_json::Value>,
+    pub clickhouse: Option<serde_json::Value>,
+    pub elastic: Option<serde_json::Value>,
+    pub s3: Option<serde_json::Value>,
+    pub gcs: Option<serde_json::Value>,
+    pub azure: Option<serde_json::Value>,
+    pub nats: Option<serde_json::Value>,
+    pub kafka: Option<serde_json::Value>,
+    pub mqtt: Option<serde_json::Value>,
+    pub rabbitmq: Option<serde_json::Value>,
+    pub codec: Option<serde_json::Value>,
+    pub schema: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -214,10 +274,48 @@ pub struct LoopConfig {
     pub max_iterations: Option<u32>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ValidateConfig {
+    /// JSON Schema subset used by the local executor validator.
+    pub schema: serde_json::Value,
+    /// Optional variable/path or mapping target to validate. If omitted, the
+    /// validator uses the single mapped value or the whole mapped object.
+    #[serde(alias = "input")]
+    pub target: Option<String>,
+    /// Optional symbolic error route name for runtimes that support parked
+    /// error-edge routing. The local executor exposes validation errors through
+    /// `_validation_error` and returns ExecError so ErrorBoundary can catch it.
+    pub on_error: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TimerConfig {
+    pub delay_ms: Option<u64>,
+    pub until: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SignalConfig {
+    /// Signal value, e.g. cancel, terminate, or a custom token.
+    pub signal: Option<String>,
+    pub target: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EventGatewayConfig {
+    /// Event name/key this gateway is waiting for. The local executor emits a
+    /// deterministic stub result; durable runtimes can park and resume here.
+    pub event: Option<String>,
+    #[serde(rename = "await", default)]
+    pub await_events: Option<Vec<String>>,
+    pub timeout_ms: Option<u64>,
+}
+
 impl TriggerConfig {
     /// Get webhook path from new spec `route` or legacy `webhook_config.path`.
     pub fn webhook_path(&self) -> Option<String> {
-        self.route.clone()
+        self.route
+            .clone()
             .or_else(|| self.webhook_config.as_ref().and_then(|w| w.path.clone()))
     }
 }
@@ -233,7 +331,9 @@ pub struct WasmConfig {
     pub max_memory_pages: Option<u32>,
     pub timeout_ms: Option<u32>,
 }
-fn default_wasm_fn() -> String { "execute".into() }
+fn default_wasm_fn() -> String {
+    "execute".into()
+}
 
 // ── Sidecar config ──────────────────────────────────────────────────────
 
@@ -250,7 +350,9 @@ pub struct SidecarActivityConfig {
     pub failover_target: Option<String>,
     pub fallback_wasm: Option<String>,
 }
-fn default_sidecar_method() -> String { "execute".into() }
+fn default_sidecar_method() -> String {
+    "execute".into()
+}
 
 // ── SubWorkflow config ──────────────────────────────────────────────────
 
@@ -284,4 +386,19 @@ pub struct NativeCodeConfig {
     pub handler_ref: String,
     pub timeout_ms: Option<u32>,
     pub exec_class: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ComputeConfig {
+    pub language: String,
+    #[serde(default = "default_compute_entry", alias = "entry_fn")]
+    pub entry: String,
+    pub source: String,
+    pub timeout_ms: Option<u32>,
+    pub budget_profile: Option<String>,
+    pub vdicl_rule: Option<serde_json::Value>,
+}
+
+fn default_compute_entry() -> String {
+    "run".into()
 }

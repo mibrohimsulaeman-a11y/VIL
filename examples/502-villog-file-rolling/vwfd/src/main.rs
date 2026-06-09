@@ -23,5 +23,6 @@ fn villog_file_rolling(_input: &Value) -> Result<Value, String> {
 async fn main() {
     vil_vwfd::app("examples/502-villog-file-rolling/vwfd/workflows", 3233)
         .native("villog_file_rolling", villog_file_rolling)
-        .run().await;
+        .run()
+        .await;
 }

@@ -15,9 +15,21 @@ struct Airline {
 }
 
 const AIRLINES: &[Airline] = &[
-    Airline { code: "SW", name: "SkyWings", base_price: 32_000 },
-    Airline { code: "OA", name: "OceanAir", base_price: 28_500 },
-    Airline { code: "MJ", name: "MountainJet", base_price: 35_000 },
+    Airline {
+        code: "SW",
+        name: "SkyWings",
+        base_price: 32_000,
+    },
+    Airline {
+        code: "OA",
+        name: "OceanAir",
+        base_price: 28_500,
+    },
+    Airline {
+        code: "MJ",
+        name: "MountainJet",
+        base_price: 35_000,
+    },
 ];
 
 const ROUTES: &[(u16, &str, &str, &str, &str)] = &[

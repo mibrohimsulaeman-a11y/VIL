@@ -9,8 +9,7 @@
 
 use vil_types::{
     BackpressurePolicy, BoundaryKind, CleanupPolicy, DeliveryGuarantee, ExecClass,
-    ObservabilitySpec, PortDirection, PortSpec, Priority, ProcessSpec,
-    QueueKind, TransferMode,
+    ObservabilitySpec, PortDirection, PortSpec, Priority, ProcessSpec, QueueKind, TransferMode,
 };
 
 /// Static port definitions for VWFD kernel process.
@@ -27,7 +26,9 @@ static VWFD_PORTS: &[PortSpec] = &[
         priority: Priority::Normal,
         delivery: DeliveryGuarantee::BestEffort,
         observability: ObservabilitySpec {
-            tracing: true, metrics: true, lineage: true,
+            tracing: true,
+            metrics: true,
+            lineage: true,
             audit_sample_handoff: false,
             latency_class: vil_types::LatencyClass::Normal,
         },
@@ -44,7 +45,9 @@ static VWFD_PORTS: &[PortSpec] = &[
         priority: Priority::Normal,
         delivery: DeliveryGuarantee::BestEffort,
         observability: ObservabilitySpec {
-            tracing: true, metrics: true, lineage: true,
+            tracing: true,
+            metrics: true,
+            lineage: true,
             audit_sample_handoff: false,
             latency_class: vil_types::LatencyClass::Normal,
         },
@@ -59,7 +62,9 @@ pub static VWFD_PROCESS_SPEC: ProcessSpec = ProcessSpec {
     cleanup: CleanupPolicy::ReclaimOrphans,
     ports: VWFD_PORTS,
     observability: ObservabilitySpec {
-        tracing: true, metrics: true, lineage: true,
+        tracing: true,
+        metrics: true,
+        lineage: true,
         audit_sample_handoff: false,
         latency_class: vil_types::LatencyClass::Normal,
     },

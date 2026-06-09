@@ -22,8 +22,8 @@
 //     -d '{"title":"Implement RAG pipeline","status":"in_progress","assignee":"alice","story_points":8}'
 //   curl http://localhost:8080/api/sprints/stats
 
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 
 use vil_server::prelude::*;
 
@@ -50,7 +50,9 @@ struct CreateSprintReq {
     story_points: u32,
 }
 
-fn default_status() -> String { "planned".into() }
+fn default_status() -> String {
+    "planned".into()
+}
 
 #[derive(Debug, Deserialize)]
 struct UpdateSprintReq {
@@ -107,8 +109,11 @@ impl SprintStore {
         for (title, status, assignee, sp) in seeds {
             let id = store.next_id.fetch_add(1, Ordering::Relaxed);
             store.sprints.write().unwrap().push(Sprint {
-                id, title: title.into(), status: status.into(),
-                assignee: assignee.into(), story_points: sp,
+                id,
+                title: title.into(),
+                status: status.into(),
+                assignee: assignee.into(),
+                story_points: sp,
                 created_at: "2026-04-01T00:00:00Z".into(),
             });
         }
@@ -128,29 +133,34 @@ fn _check_auth(_body: &ShmSlice) -> Result<(), VilError> {
 // ── Sprint Handlers ──────────────────────────────────────────────────────
 
 async fn list_sprints(ctx: ServiceCtx) -> HandlerResult<VilResponse<Vec<Sprint>>> {
-    let store = ctx.state::<Arc<SprintStore>>()
+    let store = ctx
+        .state::<Arc<SprintStore>>()
         .map_err(|_| VilError::internal("store not found"))?;
     let sprints = store.sprints.read().unwrap().clone();
     Ok(VilResponse::ok(sprints))
 }
 
-async fn create_sprint(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<Sprint>> {
-    let req: CreateSprintReq = body.json()
+async fn create_sprint(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Sprint>> {
+    let req: CreateSprintReq = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
     if req.title.trim().is_empty() {
         return Err(VilError::bad_request("title is required"));
     }
 
-    let store = ctx.state::<Arc<SprintStore>>()
+    let store = ctx
+        .state::<Arc<SprintStore>>()
         .map_err(|_| VilError::internal("store not found"))?;
 
     let id = store.next_id.fetch_add(1, Ordering::Relaxed);
-    let now = format!("{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
+    let now = format!(
+        "{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    );
 
     let sprint = Sprint {
         id,
@@ -165,30 +175,37 @@ async fn create_sprint(
     Ok(VilResponse::created(sprint))
 }
 
-async fn update_sprint(
-    ctx: ServiceCtx,
-    body: ShmSlice,
-) -> HandlerResult<VilResponse<Sprint>> {
-    let req: UpdateSprintReq = body.json()
+async fn update_sprint(ctx: ServiceCtx, body: ShmSlice) -> HandlerResult<VilResponse<Sprint>> {
+    let req: UpdateSprintReq = body
+        .json()
         .map_err(|_| VilError::bad_request("invalid JSON"))?;
 
-    let store = ctx.state::<Arc<SprintStore>>()
+    let store = ctx
+        .state::<Arc<SprintStore>>()
         .map_err(|_| VilError::internal("store not found"))?;
 
     let mut sprints = store.sprints.write().unwrap();
-    let sprint = sprints.iter_mut()
+    let sprint = sprints
+        .iter_mut()
         .find(|s| s.id == req.id)
         .ok_or_else(|| VilError::not_found(format!("sprint {} not found", req.id)))?;
 
-    if let Some(status) = req.status { sprint.status = status; }
-    if let Some(assignee) = req.assignee { sprint.assignee = assignee; }
-    if let Some(sp) = req.story_points { sprint.story_points = sp; }
+    if let Some(status) = req.status {
+        sprint.status = status;
+    }
+    if let Some(assignee) = req.assignee {
+        sprint.assignee = assignee;
+    }
+    if let Some(sp) = req.story_points {
+        sprint.story_points = sp;
+    }
 
     Ok(VilResponse::ok(sprint.clone()))
 }
 
 async fn sprint_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<SprintStats>> {
-    let store = ctx.state::<Arc<SprintStore>>()
+    let store = ctx
+        .state::<Arc<SprintStore>>()
         .map_err(|_| VilError::internal("store not found"))?;
 
     let sprints = store.sprints.read().unwrap();
@@ -197,11 +214,22 @@ async fn sprint_stats(ctx: ServiceCtx) -> HandlerResult<VilResponse<SprintStats>
     let in_progress = sprints.iter().filter(|s| s.status == "in_progress").count();
     let done = sprints.iter().filter(|s| s.status == "done").count();
     let total_sp: u32 = sprints.iter().map(|s| s.story_points).sum();
-    let done_sp: u32 = sprints.iter().filter(|s| s.status == "done").map(|s| s.story_points).sum();
-    let velocity = if total_sp > 0 { done_sp as f64 / total_sp as f64 * 100.0 } else { 0.0 };
+    let done_sp: u32 = sprints
+        .iter()
+        .filter(|s| s.status == "done")
+        .map(|s| s.story_points)
+        .sum();
+    let velocity = if total_sp > 0 {
+        done_sp as f64 / total_sp as f64 * 100.0
+    } else {
+        0.0
+    };
 
     Ok(VilResponse::ok(SprintStats {
-        total, planned, in_progress, done,
+        total,
+        planned,
+        in_progress,
+        done,
         total_story_points: total_sp,
         completed_story_points: done_sp,
         velocity_pct: velocity,
@@ -233,8 +261,8 @@ async fn main() {
         .endpoint(Method::GET, "/stats", get(sprint_stats))
         .state(store);
 
-    let platform_svc = ServiceProcess::new("platform")
-        .endpoint(Method::GET, "/config", get(platform_config));
+    let platform_svc =
+        ServiceProcess::new("platform").endpoint(Method::GET, "/config", get(platform_config));
 
     VilApp::new("enterprise-sprint-tracker")
         .port(8080)

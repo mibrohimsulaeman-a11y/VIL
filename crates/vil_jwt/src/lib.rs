@@ -1,5 +1,5 @@
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde_json::Value;
-use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey, Algorithm};
 
 pub fn jwt_sign(args: &[Value]) -> Result<Value, String> {
     let payload = args.get(0).ok_or("jwt_sign: payload required")?;
